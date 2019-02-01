@@ -115,19 +115,8 @@ class PrimitiveViewVisitor : public ::arrow::ArrayVisitor
     template <typename ArrayType>
     ::arrow::Status visit(const ArrayType &array, std::true_type)
     {
-        auto n = static_cast<std::size_t>(array.length());
-        if (array.null_count() == 0) {
-            view_ = ArrayView<T>(n, array.raw_values());
-        } else {
-            auto v = array.null_bitmap_data();
-            std::vector<bool> is_valid(n);
-            if (v != nullptr) {
-                for (std::size_t i = 0; i != n; ++i) {
-                    is_valid[i] = v[i / 8] & (1 << (i % 8));
-                }
-            }
-            view_ = ArrayView<T>(n, array.raw_values(), std::move(is_valid));
-        }
+        view_ = ArrayView<T>(
+            static_cast<std::size_t>(array.length()), array.raw_values());
 
         return ::arrow::Status::OK();
     }

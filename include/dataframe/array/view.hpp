@@ -61,11 +61,20 @@ class ArrayView : public ArrayMask
 
     const T *data() const { return data_; }
 
-    const T &front() { return data_[0]; }
+    const T &front() const { return data_[0]; }
 
-    const T &back() { return data_[size_ - 1]; }
+    const T &back() const { return data_[size_ - 1]; }
 
-    const T &operator[](std::size_t i) { return data_[i]; }
+    const T &operator[](std::size_t i) const { return data_[i]; }
+
+    const T &at(std::size_t i) const
+    {
+        if (i >= size_) {
+            throw std::out_of_range("ArrayView::at");
+        }
+
+        return data_[i];
+    }
 
   private:
     std::size_t size_;

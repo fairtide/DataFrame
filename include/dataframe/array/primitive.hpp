@@ -124,7 +124,7 @@ make_array(const ArrayView<T> &view)
 }
 
 template <typename T>
-inline std::enable_if_t<std::is_arithmetic_v<T>> cast_array(
+inline std::enable_if_t<std::is_arithmetic_v<T>> view_array(
     const ::arrow::Array &values, ArrayView<T> *out)
 {
     internal::PrimitiveViewVisitor<T> visitor;

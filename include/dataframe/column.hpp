@@ -21,12 +21,73 @@
 
 namespace dataframe {
 
-namespace internal {
+template <typename T>
+inline constexpr bool is_scalar(T *)
+{
+    return std::is_scalar_v<T> || std::is_constructible_v<std::string_view, T>;
+}
 
 template <typename T>
-constexpr bool is_arrow_scalar =
-    std::is_scalar_v<T> || std::is_constructible_v<std::string_view, T>;
-
+inline bool is_convertible(::arrow::Type::type type, T *)
+{
+    switch (type) {
+        case ::arrow::Type::NA:
+            return false;
+        case ::arrow::Type::BOOL:
+            return false;
+        case ::arrow::Type::UINT8:
+            return std::is_constructible_v<T, ::arrow::UInt8Type::c_type>;
+        case ::arrow::Type::INT8:
+            return std::is_constructible_v<T, ::arrow::Int8Type::c_type>;
+        case ::arrow::Type::UINT16:
+            return std::is_constructible_v<T, ::arrow::UInt16Type::c_type>;
+        case ::arrow::Type::INT16:
+            return std::is_constructible_v<T, ::arrow::Int16Type::c_type>;
+        case ::arrow::Type::UINT32:
+            return std::is_constructible_v<T, ::arrow::UInt32Type::c_type>;
+        case ::arrow::Type::INT32:
+            return std::is_constructible_v<T, ::arrow::Int32Type::c_type>;
+        case ::arrow::Type::UINT64:
+            return std::is_constructible_v<T, ::arrow::UInt64Type::c_type>;
+        case ::arrow::Type::INT64:
+            return std::is_constructible_v<T, ::arrow::Int64Type::c_type>;
+        case ::arrow::Type::HALF_FLOAT:
+            return false;
+        case ::arrow::Type::FLOAT:
+            return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
+        case ::arrow::Type::DOUBLE:
+            return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
+        case ::arrow::Type::STRING:
+            return std::is_constructible_v<T, std::string_view>;
+        case ::arrow::Type::BINARY:
+            return std::is_constructible_v<T, std::string_view>;
+        case ::arrow::Type::FIXED_SIZE_BINARY:
+            return std::is_constructible_v<T, std::string_view>;
+        case ::arrow::Type::DATE32:
+            return std::is_constructible_v<T, ::arrow::Date32Type::c_type>;
+        case ::arrow::Type::DATE64:
+            return std::is_constructible_v<T, ::arrow::Date64Type::c_type>;
+        case ::arrow::Type::TIMESTAMP:
+            return std::is_constructible_v<T, ::arrow::TimestampType::c_type>;
+        case ::arrow::Type::TIME32:
+            return std::is_constructible_v<T, ::arrow::Time32Type::c_type>;
+        case ::arrow::Type::TIME64:
+            return std::is_constructible_v<T, ::arrow::Time64Type::c_type>;
+        case ::arrow::Type::INTERVAL:
+            return false;
+        case ::arrow::Type::DECIMAL:
+            return false;
+        case ::arrow::Type::LIST:
+            return false;
+        case ::arrow::Type::STRUCT:
+            return false;
+        case ::arrow::Type::UNION:
+            return false;
+        case ::arrow::Type::DICTIONARY:
+            return false;
+        case ::arrow::Type::MAP:
+            return false;
+    }
 }
 
 /// \brief Constant proxy class of DataFrame column
@@ -35,8 +96,8 @@ class ConstColumnProxy
   public:
     ConstColumnProxy() = default;
 
-    ConstColumnProxy(std::shared_ptr<::arrow::Array> values)
-        : values_(std::move(values))
+    ConstColumnProxy(std::shared_ptr<::arrow::Array> data)
+        : data_(std::move(data))
     {
     }
 
@@ -51,7 +112,7 @@ class ConstColumnProxy
             throw DataFrameException("Chunked array not supported");
         }
 
-        values_ = chunks.front();
+        data_ = chunks.front();
     }
 
     ConstColumnProxy(
@@ -71,26 +132,27 @@ class ConstColumnProxy
             throw DataFrameException("Chunked array not supported");
         }
 
-        values_ = chunks.front();
+        data_ = chunks.front();
     }
 
     /// \brief Cast the column to a given destination type
     template <typename T>
-    std::enable_if_t<!internal::is_arrow_scalar<T>, T> as() const
+    std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), T> as() const
     {
-        if (values_ == nullptr) {
+        if (data_ == nullptr) {
             throw DataFrameException("Attempt to access an empty column");
         }
 
         T ret;
-        cast_array(*values_, &ret);
+        cast_array(*data_, &ret);
 
         return ret;
     }
 
     /// \brief Cast the column to a vector of destination scalar type
     template <typename T>
-    std::enable_if_t<internal::is_arrow_scalar<T>, std::vector<T>> as() const
+    std::enable_if_t<is_scalar(static_cast<T *>(nullptr)), std::vector<T>>
+    as() const
     {
         return as<std::vector<T>>();
     }
@@ -98,7 +160,7 @@ class ConstColumnProxy
     /// \brief Slice the column with close-open interval `[begin, end)`
     ConstColumnProxy operator()(std::size_t begin, std::size_t end) const
     {
-        if (static_cast<std::int64_t>(end) > values_->length()) {
+        if (static_cast<std::int64_t>(end) > data_->length()) {
             throw DataFrameException("Slicing out of range");
         }
 
@@ -106,24 +168,47 @@ class ConstColumnProxy
             return ConstColumnProxy();
         }
 
-        if (static_cast<std::int64_t>(begin) == values_->length()) {
+        if (static_cast<std::int64_t>(begin) == data_->length()) {
             return ConstColumnProxy();
         }
 
-        return ConstColumnProxy(values_->Slice(begin, end - begin));
+        return ConstColumnProxy(data_->Slice(begin, end - begin));
     }
 
     /// \brief Same as `as<ArrayView<T>>()`
     template <typename T>
     ArrayView<T> view() const
     {
-        return as<ArrayView<T>>();
+        ArrayView<T> ret;
+        view_array(*data_, &ret);
+
+        if (data_->null_count() == 0) {
+            return ret;
+        } else {
+            return ArrayView<T>(ret.size(), ret.data(), mask());
+        }
+    }
+
+    std::vector<bool> mask() const
+    {
+        auto n = static_cast<std::size_t>(data_->length());
+        auto v = data_->null_bitmap_data();
+        std::vector<bool> ret(n);
+        if (data_->null_count() == 0 || v == nullptr) {
+            std::fill(ret.begin(), ret.end(), true);
+        } else {
+            for (std::size_t i = 0; i != n; ++i) {
+                ret[i] = v[i / 8] & (1 << (i % 8));
+            }
+        }
+
+        return ret;
     }
 
     template <typename T>
     bool is_ctype() const
     {
-        switch (values_->type()->id()) {
+        switch (data_->type()->id()) {
             case ::arrow::Type::NA:
                 return false;
             case ::arrow::Type::BOOL:
@@ -186,75 +271,18 @@ class ConstColumnProxy
     template <typename T>
     bool is_convertible() const
     {
-        switch (values_->type()->id()) {
-            case ::arrow::Type::NA:
-                return false;
-            case ::arrow::Type::BOOL:
-                return false;
-            case ::arrow::Type::UINT8:
-                return std::is_constructible_v<T, ::arrow::UInt8Type::c_type>;
-            case ::arrow::Type::INT8:
-                return std::is_constructible_v<T, ::arrow::Int8Type::c_type>;
-            case ::arrow::Type::UINT16:
-                return std::is_constructible_v<T, ::arrow::UInt16Type::c_type>;
-            case ::arrow::Type::INT16:
-                return std::is_constructible_v<T, ::arrow::Int16Type::c_type>;
-            case ::arrow::Type::UINT32:
-                return std::is_constructible_v<T, ::arrow::UInt32Type::c_type>;
-            case ::arrow::Type::INT32:
-                return std::is_constructible_v<T, ::arrow::Int32Type::c_type>;
-            case ::arrow::Type::UINT64:
-                return std::is_constructible_v<T, ::arrow::UInt64Type::c_type>;
-            case ::arrow::Type::INT64:
-                return std::is_constructible_v<T, ::arrow::Int64Type::c_type>;
-            case ::arrow::Type::HALF_FLOAT:
-                return false;
-            case ::arrow::Type::FLOAT:
-                return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
-            case ::arrow::Type::DOUBLE:
-                return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
-            case ::arrow::Type::STRING:
-                return std::is_constructible_v<T, std::string_view>;
-            case ::arrow::Type::BINARY:
-                return std::is_constructible_v<T, std::string_view>;
-            case ::arrow::Type::FIXED_SIZE_BINARY:
-                return std::is_constructible_v<T, std::string_view>;
-            case ::arrow::Type::DATE32:
-                return std::is_constructible_v<T, ::arrow::Date32Type::c_type>;
-            case ::arrow::Type::DATE64:
-                return std::is_constructible_v<T, ::arrow::Date64Type::c_type>;
-            case ::arrow::Type::TIMESTAMP:
-                return std::is_constructible_v<T,
-                    ::arrow::TimestampType::c_type>;
-            case ::arrow::Type::TIME32:
-                return std::is_constructible_v<T, ::arrow::Time32Type::c_type>;
-            case ::arrow::Type::TIME64:
-                return std::is_constructible_v<T, ::arrow::Time64Type::c_type>;
-            case ::arrow::Type::INTERVAL:
-                return false;
-            case ::arrow::Type::DECIMAL:
-                return false;
-            case ::arrow::Type::LIST:
-                return false;
-            case ::arrow::Type::STRUCT:
-                return false;
-            case ::arrow::Type::UNION:
-                return false;
-            case ::arrow::Type::DICTIONARY:
-                return false;
-            case ::arrow::Type::MAP:
-                return false;
-        }
+        return ::dataframe::is_convertible(
+            data_->type()->id(), static_cast<T *>(nullptr));
     }
 
     /// \brief Return the underlying Arrow array
     ///
     /// \note
     /// It may be empty the column haven't been assgined to
-    const ::arrow::Array &array() const { return *values_; }
+    const ::arrow::Array &array() const { return *data_; }
 
   protected:
-    std::shared_ptr<::arrow::Array> values_;
+    std::shared_ptr<::arrow::Array> data_;
 }; // namespace dataframe
 
 /// \brief Mutable proxy class of DataFrame column
@@ -269,6 +297,12 @@ class ColumnProxy : public ConstColumnProxy
     {
     }
 
+    template <typename... Args>
+    void emplace(Args &&... args)
+    {
+        operator=(make_array(std::fowrad<Args>(args)...));
+    }
+
     ColumnProxy &operator=(const char *v)
     {
         return operator=(std::string_view(v));
@@ -276,40 +310,40 @@ class ColumnProxy : public ConstColumnProxy
 
     /// \brief Assign to the column, create the column if it does not exist yet
     template <typename T>
-    std::enable_if_t<!internal::is_arrow_scalar<T>, ColumnProxy &> operator=(
-        const T &v)
+    std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), ColumnProxy &>
+    operator=(const T &v)
     {
         return operator=(make_array(v));
     }
 
     /// \brief Assign to the column with repeated value of a scalar
     template <typename T>
-    std::enable_if_t<internal::is_arrow_scalar<T>, ColumnProxy &> operator=(
-        const T &v)
+    std::enable_if_t<is_scalar(static_cast<T *>(nullptr)), ColumnProxy &>
+    operator=(const T &v)
     {
         if (table_ == nullptr || table_->num_columns() == 0) {
             throw DataFrameException(
                 "Cannot assign scalar to an empty DataFrame");
         }
 
-        std::vector<T> values(static_cast<std::size_t>(table_->num_rows()));
-        std::fill_n(values.data(), values.size(), v);
+        std::vector<T> data(static_cast<std::size_t>(table_->num_rows()));
+        std::fill_n(data.data(), data.size(), v);
 
-        return operator=(values);
+        return operator=(data);
     }
 
     /// \brief Assign a pre-constructed Arrow array
-    ColumnProxy &operator=(const std::shared_ptr<::arrow::Array> &values)
+    ColumnProxy &operator=(const std::shared_ptr<::arrow::Array> &data)
     {
         if (table_ != nullptr && table_->num_columns() != 0 &&
-            table_->num_rows() != values->length()) {
+            table_->num_rows() != data->length()) {
             throw DataFrameException(
                 "New column length is not the same as the old column");
         }
 
-        values_ = values;
-        auto fld = ::arrow::field(name_, values->type());
-        auto col = std::make_shared<::arrow::Column>(fld, values);
+        data_ = data;
+        auto fld = ::arrow::field(name_, data->type());
+        auto col = std::make_shared<::arrow::Column>(fld, data);
 
         if (table_ == nullptr || table_->num_columns() == 0) {
             std::vector<std::shared_ptr<::arrow::Field>> fields = {fld};

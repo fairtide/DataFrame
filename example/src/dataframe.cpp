@@ -14,10 +14,12 @@
 // limitations under the License.
 // ============================================================================
 
+// #define BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+
+#include <dataframe/array/date_time.hpp>
+#include <dataframe/dataframe.hpp>
 #include <iostream>
 #include <random>
-
-#include <dataframe/dataframe.hpp>
 
 int main()
 {
@@ -46,6 +48,9 @@ int main()
     df["z"] = INT64_C(3);
     df["u"] = "abc";
     df["v"] = v;
+    df["d"] = ::boost::gregorian::date(2018, 1, 1);
+    df["t"] = ::boost::posix_time::ptime(::boost::gregorian::date(2018, 1, 1),
+        ::boost::posix_time::time_duration(12, 1, 3, 4));
 
     if (df["z"].is_ctype<std::int64_t>()) {
         auto z = df["z"].view<std::int64_t>();
@@ -77,6 +82,16 @@ int main()
     auto y = slice.view<double>();
     std::cout << x[2] << ", " << x[9] << std::endl;
     std::cout << y.front() << ", " << y.back() << std::endl;
+
+    if (df["d"].is_convertible<::boost::gregorian::date>()) {
+        auto d = df["d"].as<::boost::gregorian::date>();
+        std::cout << "d: " << d.front() << std::endl;
+    }
+
+    if (df["t"].is_convertible<::boost::posix_time::ptime>()) {
+        auto t = df["t"].as<::boost::posix_time::ptime>();
+        std::cout << "t: " << t.front() << std::endl;
+    }
 
     df.feather_write("foo.cpp");
     df.feather_read("foo.cpp");

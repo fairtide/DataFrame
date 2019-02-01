@@ -26,6 +26,17 @@ namespace dataframe {
 class DataFrame
 {
   public:
+    DataFrame() = default;
+    DataFrame(const DataFrame &) = delete;
+    DataFrame(DataFrame &&) = default;
+    DataFrame &operator=(const DataFrame &) = delete;
+    DataFrame &operator=(DataFrame &&) = delete;
+
+    DataFrame(std::shared_ptr<::arrow::Table> table)
+        : table_(std::move(table))
+    {
+    }
+
     ConstColumnProxy operator[](const std::string &name) const
     {
         return ConstColumnProxy(name, table_);
@@ -63,6 +74,8 @@ class DataFrame
     {
         return ::dataframe::feather_write(path, *table_);
     }
+
+    const std::shared_ptr<::arrow::Table> &table() const { return table_; }
 
   private:
     std::shared_ptr<::arrow::Table> table_;
