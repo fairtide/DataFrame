@@ -29,13 +29,16 @@ endif(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 ##############################################################################
 
 project(DataFrame C CXX)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 ##############################################################################
 # Options
 ##############################################################################
 
-option(DataFrame_ENABLE_TESTS "Enable building of example" ON)
+option(DataFrame_ENABLE_TESTS "Enable building of tests" ON)
+option(DataFrame_ENABLE_EXAMPLE "Enable building of example" ON)
 
 ##############################################################################
 # Installation
@@ -52,11 +55,11 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/dataframe
 # Check features
 ##############################################################################
 
-if(DataFrame_ENABLE_TESTS)
+if(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
     include(DataFrame)
-else(DataFrame_ENABLE_TESTS)
+else(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
     return()
-endif(DataFrame_ENABLE_TESTS)
+endif(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
 
 ##############################################################################
 # Tests
@@ -66,3 +69,8 @@ if(DataFrame_ENABLE_TESTS)
     add_custom_target(tests)
     add_subdirectory(tests EXCLUDE_FROM_ALL)
 endif(DataFrame_ENABLE_TESTS)
+
+if(DataFrame_ENABLE_EXAMPLE)
+    add_custom_target(example)
+    add_subdirectory(example EXCLUDE_FROM_ALL)
+endif(DataFrame_ENABLE_EXAMPLE)

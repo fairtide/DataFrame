@@ -14,9 +14,8 @@
 # limitations under the License.
 # ============================================================================
 
-find_package(Arrow)
-find_package(Boost COMPONENTS regex)
+project(DataFrame-example CXX)
 
-include_directories(${Arrow_INCLUDE_DIR})
-include_directories(${Boost_INCLUDE_DIR})
-set(link_libraries ${Arrow_LINK_LIBRARIES} Boost::regex)
+add_executable(dataframe ${PROJECT_SOURCE_DIR}/src/dataframe.cpp)
+target_link_libraries(dataframe ${link_libraries})
+add_dependencies(example dataframe)
