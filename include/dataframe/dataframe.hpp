@@ -27,9 +27,13 @@ class DataFrame
 {
   public:
     DataFrame() = default;
+
     DataFrame(const DataFrame &) = delete;
+
     DataFrame(DataFrame &&) = default;
+
     DataFrame &operator=(const DataFrame &) = delete;
+
     DataFrame &operator=(DataFrame &&) = delete;
 
     DataFrame(std::shared_ptr<::arrow::Table> table)
@@ -48,21 +52,21 @@ class DataFrame
     }
 
     template <DataFormat Format>
-    void read(const ::arrow::Buffer &buffer)
+    void deserialize(const ::arrow::Buffer &buffer)
     {
-        table_ = ::dataframe::read<Format>(buffer);
+        table_ = ::dataframe::deserialize<Format>(buffer);
     }
 
     template <DataFormat Format>
-    void read(std::size_t n, const std::uint8_t *buffer)
+    void deserialize(std::size_t n, const std::uint8_t *buffer)
     {
-        table_ = ::dataframe::read<Format>(n, buffer);
+        table_ = ::dataframe::deserialize<Format>(n, buffer);
     }
 
     template <DataFormat Format>
-    std::shared_ptr<::arrow::Buffer> write() const
+    std::shared_ptr<::arrow::Buffer> serialize() const
     {
-        return ::dataframe::write<Format>(*table_);
+        return ::dataframe::serialize<Format>(*table_);
     }
 
     void feather_read(const std::string &path)
@@ -76,6 +80,22 @@ class DataFrame
     }
 
     const std::shared_ptr<::arrow::Table> &table() const { return table_; }
+
+    std::size_t nrow() const
+    {
+        return table_ == nullptr ?
+            static_cast<std::size_t>(0) :
+            static_cast<std::size_t>(table_->num_rows());
+    }
+
+    std::size_t ncol() const
+    {
+        return table_ == nullptr ?
+            static_cast<std::size_t>(0) :
+            static_cast<std::size_t>(table_->num_columns());
+    }
+
+    void clear() { table_.reset(); }
 
   private:
     std::shared_ptr<::arrow::Table> table_;

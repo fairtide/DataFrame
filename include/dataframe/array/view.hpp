@@ -18,6 +18,7 @@
 #define DATAFRAME_ARRAY_VIEW_HPP
 
 #include <dataframe/array/mask.hpp>
+#include <dataframe/error.hpp>
 #include <array>
 #include <vector>
 
@@ -25,16 +26,16 @@ namespace dataframe {
 
 /// \brief Simple class that wrap the size and pointer of a raw array
 template <typename T>
-class ArrayView : public ArrayMask
+class ArrayViewBase : public ArrayMask
 {
   public:
-    ArrayView()
+    ArrayViewBase()
         : size_(0)
         , data_(nullptr)
     {
     }
 
-    ArrayView(std::size_t size, const T *data, std::vector<bool> mask = {})
+    ArrayViewBase(std::size_t size, const T *data, std::vector<bool> mask = {})
         : ArrayMask(std::move(mask))
         , size_(size)
         , data_(data)
@@ -42,7 +43,8 @@ class ArrayView : public ArrayMask
     }
 
     template <typename Alloc>
-    ArrayView(const std::vector<T, Alloc> &values, std::vector<bool> mask = {})
+    ArrayViewBase(
+        const std::vector<T, Alloc> &values, std::vector<bool> mask = {})
         : ArrayMask(std::move(mask))
         , size_(values.size())
         , data_(values.data())
@@ -50,7 +52,7 @@ class ArrayView : public ArrayMask
     }
 
     template <std::size_t N>
-    ArrayView(const std::array<T, N> &values, std::vector<bool> mask = {})
+    ArrayViewBase(const std::array<T, N> &values, std::vector<bool> mask = {})
         : ArrayMask(std::move(mask))
         , size_(values.size())
         , data_(values.data())
@@ -76,22 +78,85 @@ class ArrayView : public ArrayMask
         return data_[i];
     }
 
+    /// \brief Set fields of sequence pointeed by first via callback
+    template <typename OutputIter, typename SetField>
+    void set(OutputIter first, SetField &&set_field) const
+    {
+        for (std::size_t i = 0; i != size_; ++i) {
+            set_field(data_[i], first++);
+        }
+    }
+
+  protected:
+    void reset(std::size_t size, const T *data)
+    {
+        size_ = size;
+        data_ = data;
+    }
+
   private:
     std::size_t size_;
     const T *data_;
 };
 
-template <typename T, typename Alloc>
-std::shared_ptr<::arrow::Array> make_array(const std::vector<T, Alloc> &vec)
-{
-    return make_array(ArrayView<T>(vec));
-}
+struct NullStorage;
 
-template <typename T, std::size_t N>
-std::shared_ptr<::arrow::Array> make_array(const std::array<T, N> &vec)
+template <typename T, typename Storage = NullStorage>
+class ArrayView;
+
+template <typename T>
+class ArrayView<T, NullStorage> : public ArrayViewBase<T>
 {
-    return make_array(ArrayView<T>(vec));
-}
+  public:
+    using ArrayViewBase<T>::ArrayViewBase;
+};
+
+template <typename T, typename Storage>
+class ArrayView : public ArrayViewBase<T>
+{
+  public:
+    using ArrayViewBase<T>::ArrayViewBase;
+
+    ArrayView(const ArrayView<T, NullStorage> &view)
+        : ArrayViewBase<T>(view)
+    {
+    }
+
+    ArrayView(std::unique_ptr<Storage> ptr)
+        : ptr_(std::move(ptr))
+    {
+        this->reset(ptr_->size(), ptr_->data());
+    }
+
+    ArrayView(Storage &&data)
+        : ptr_(std::make_unique<Storage>(std::move(data)))
+    {
+        this->reset(ptr_->size(), ptr_->data());
+    }
+
+    explicit operator bool() const { return ptr_ != nullptr; }
+
+    const std::unique_ptr<Storage> &ptr() const
+    {
+        if (ptr_ == nullptr) {
+            throw DataFrameException("Attempt to access non-owning view");
+        }
+
+        return ptr_;
+    }
+
+    std::unique_ptr<Storage> &ptr()
+    {
+        if (ptr_ == nullptr) {
+            throw DataFrameException("Attempt to access non-owning view");
+        }
+
+        return ptr_;
+    }
+
+  private:
+    std::unique_ptr<Storage> ptr_;
+};
 
 } // namespace dataframe
 

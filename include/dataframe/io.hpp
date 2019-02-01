@@ -157,7 +157,8 @@ inline void convert(std::shared_ptr<::arrow::Table> &to,
 } // namespace internal
 
 template <DataFormat Format>
-inline std::shared_ptr<::arrow::Table> read(const ::arrow::Buffer &buffer)
+inline std::shared_ptr<::arrow::Table> deserialize(
+    const ::arrow::Buffer &buffer)
 {
     std::shared_ptr<::arrow::Table> ret;
     internal::convert(
@@ -167,14 +168,15 @@ inline std::shared_ptr<::arrow::Table> read(const ::arrow::Buffer &buffer)
 }
 
 template <DataFormat Format>
-inline std::shared_ptr<::arrow::Table> read(
+inline std::shared_ptr<::arrow::Table> deserialize(
     std::size_t n, const std::uint8_t *buffer)
 {
-    return read<Format>(::arrow::Buffer(buffer, static_cast<std::int64_t>(n)));
+    return deserialize<Format>(
+        ::arrow::Buffer(buffer, static_cast<std::int64_t>(n)));
 }
 
 template <DataFormat Format>
-inline std::shared_ptr<::arrow::Buffer> write(const ::arrow::Table &table)
+inline std::shared_ptr<::arrow::Buffer> serialize(const ::arrow::Table &table)
 {
     std::shared_ptr<::arrow::Buffer> ret;
     internal::convert(
@@ -211,7 +213,7 @@ inline std::shared_ptr<::arrow::Table> feather_read(const std::string &path)
 inline std::size_t feather_write(
     const std::string &path, const ::arrow::Table &table)
 {
-    auto buffer = write<DataFormat::Feather>(table);
+    auto buffer = serialize<DataFormat::Feather>(table);
     auto ret = static_cast<std::size_t>(buffer->size());
 
     std::ofstream out(path, std::ios::out | std::ios::binary);

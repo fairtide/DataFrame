@@ -135,6 +135,8 @@ class ConstColumnProxy
         data_ = chunks.front();
     }
 
+    explicit operator bool() const { return data_ != nullptr; }
+
     /// \brief Cast the column to a given destination type
     template <typename T>
     std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), T> as() const
@@ -189,6 +191,22 @@ class ConstColumnProxy
         }
     }
 
+    template <typename T, typename Storage>
+    ArrayView<T, Storage> as_view() const
+    {
+        if (is_ctype<T>()) {
+            return view<T>();
+        } else {
+            return as<Storage>();
+        }
+    }
+
+    template <typename T>
+    ArrayView<T, std::vector<T>> as_view() const
+    {
+        return as_view<T, std::vector<T>>();
+    }
+
     std::vector<bool> mask() const
     {
         auto n = static_cast<std::size_t>(data_->length());
@@ -208,6 +226,10 @@ class ConstColumnProxy
     template <typename T>
     bool is_ctype() const
     {
+        if (data_ == nullptr) {
+            throw DataFrameException("Column does not exist");
+        }
+
         switch (data_->type()->id()) {
             case ::arrow::Type::NA:
                 return false;
@@ -271,8 +293,18 @@ class ConstColumnProxy
     template <typename T>
     bool is_convertible() const
     {
+        if (data_ == nullptr) {
+            throw DataFrameException("Column does not exist");
+        }
+
         return ::dataframe::is_convertible(
             data_->type()->id(), static_cast<T *>(nullptr));
+    }
+
+    template <typename T>
+    operator T() const
+    {
+        return as<T>();
     }
 
     /// \brief Return the underlying Arrow array
@@ -300,7 +332,7 @@ class ColumnProxy : public ConstColumnProxy
     template <typename... Args>
     void emplace(Args &&... args)
     {
-        operator=(make_array(std::fowrad<Args>(args)...));
+        operator=(make_array(std::forward<Args>(args)...));
     }
 
     ColumnProxy &operator=(const char *v)

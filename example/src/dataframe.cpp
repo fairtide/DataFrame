@@ -93,11 +93,11 @@ int main()
         std::cout << "t: " << t.front() << std::endl;
     }
 
+    auto buf = df.serialize<::dataframe::DataFormat::RecordBatchStream>();
+    df.deserialize<::dataframe::DataFormat::RecordBatchStream>(*buf);
+
     df.feather_write("foo.cpp");
     df.feather_read("foo.cpp");
-
-    auto buf = df.write<::dataframe::DataFormat::RecordBatchStream>();
-    df.read<::dataframe::DataFormat::RecordBatchStream>(*buf);
 
     return 0;
 }
