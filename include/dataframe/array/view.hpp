@@ -43,7 +43,7 @@ class ArrayViewBase : public ArrayMask
     }
 
     template <typename Alloc>
-    ArrayViewBase(
+    explicit ArrayViewBase(
         const std::vector<T, Alloc> &values, std::vector<bool> mask = {})
         : ArrayMask(std::move(mask))
         , size_(values.size())
@@ -52,7 +52,8 @@ class ArrayViewBase : public ArrayMask
     }
 
     template <std::size_t N>
-    ArrayViewBase(const std::array<T, N> &values, std::vector<bool> mask = {})
+    explicit ArrayViewBase(
+        const std::array<T, N> &values, std::vector<bool> mask = {})
         : ArrayMask(std::move(mask))
         , size_(values.size())
         , data_(values.data())
@@ -122,13 +123,13 @@ class ArrayView : public ArrayViewBase<T>
     {
     }
 
-    ArrayView(std::unique_ptr<Storage> ptr)
+    explicit ArrayView(std::unique_ptr<Storage> ptr)
         : ptr_(std::move(ptr))
     {
         this->reset(ptr_->size(), ptr_->data());
     }
 
-    ArrayView(Storage &&data)
+    explicit ArrayView(Storage &&data)
         : ptr_(std::make_unique<Storage>(std::move(data)))
     {
         this->reset(ptr_->size(), ptr_->data());

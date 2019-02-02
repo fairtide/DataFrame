@@ -195,9 +195,9 @@ class ConstColumnProxy
     ArrayView<T, Storage> as_view() const
     {
         if (is_ctype<T>()) {
-            return view<T>();
+            return ArrayView<T, Storage>{view<T>()};
         } else {
-            return as<Storage>();
+            return ArrayView<T, Storage>{as<Storage>()};
         }
     }
 
