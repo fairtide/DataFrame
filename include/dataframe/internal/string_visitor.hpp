@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_INTERNAL_STRING_VISITOR_HPP
-#define DATAFRAME_ARRAY_INTERNAL_STRING_VISITOR_HPP
+#ifndef DATAFRAME_INTERNAL_STRING_VISITOR_HPP
+#define DATAFRAME_INTERNAL_STRING_VISITOR_HPP
 
 #include <dataframe/internal/categorical_visitor.hpp>
 #include <arrow/api.h>
@@ -80,4 +80,4 @@ class StringVisitor : public ::arrow::ArrayVisitor
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_INTERNAL_STRING_VISITOR_HPP
+#endif // DATAFRAME_INTERNAL_STRING_VISITOR_HPP

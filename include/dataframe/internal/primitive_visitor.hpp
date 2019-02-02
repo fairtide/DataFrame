@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_INTERNAL_PRIMITIVE_VISITOR_HPP
-#define DATAFRAME_ARRAY_INTERNAL_PRIMITIVE_VISITOR_HPP
+#ifndef DATAFRAME_INTERNAL_PRIMITIVE_VISITOR_HPP
+#define DATAFRAME_INTERNAL_PRIMITIVE_VISITOR_HPP
 
 #include <dataframe/array/view.hpp>
 #include <arrow/api.h>
@@ -234,4 +234,4 @@ class PrimitiveValueVisitor : public ::arrow::ArrayVisitor
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_INTERNAL_PRIMITIVE_VISITOR_HPP
+#endif // DATAFRAME_INTERNAL_PRIMITIVE_VISITOR_HPP

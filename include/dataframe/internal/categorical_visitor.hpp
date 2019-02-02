@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_INTERNAL_CATEGORICAL_VISITOR_HPP
-#define DATAFRAME_ARRAY_INTERNAL_CATEGORICAL_VISITOR_HPP
+#ifndef DATAFRAME_INTERNAL_CATEGORICAL_VISITOR_HPP
+#define DATAFRAME_INTERNAL_CATEGORICAL_VISITOR_HPP
 
 #include <arrow/api.h>
 
@@ -144,4 +144,4 @@ class CategoricalVisitor : public ::arrow::ArrayVisitor
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_INTERNAL_CATEGORICAL_VISITOR_HPP
+#endif // DATAFRAME_INTERNAL_CATEGORICAL_VISITOR_HPP

@@ -79,9 +79,10 @@ class TimestampVisitor : public ::arrow::ArrayVisitor
 #ifdef BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
                 return visit<::boost::posix_time::nanoseconds>(array);
 #else  // BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
-        auto n = static_cast<std::size_t>(array.length());
-        auto v = array.raw_values();
-        ::boost::posix_time::ptime epoch(::boost::gregorian::date(1970, 1, 1));
+                auto n = static_cast<std::size_t>(array.length());
+                auto v = array.raw_values();
+                ::boost::posix_time::ptime epoch(
+                    ::boost::gregorian::date(1970, 1, 1));
                 if (array.null_count() == 0) {
                     for (std::size_t i = 0; i != n; ++i) {
                         out_[i] = epoch +

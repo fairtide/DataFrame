@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRYAY_HPP
-#define DATAFRAME_ARRYAY_HPP
+#ifndef DATAFRAME_ARRAY_HPP
+#define DATAFRAME_ARRAY_HPP
 
 #include <dataframe/array/categorical.hpp>
 #include <dataframe/array/primitive.hpp>
@@ -62,4 +62,4 @@ inline std::shared_ptr<::arrow::Array> make_array(
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRYAY_HPP
+#endif // DATAFRAME_ARRAY_HPP

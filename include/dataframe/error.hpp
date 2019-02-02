@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_INTERNAL_ERROR_HPP
-#define DATAFRAME_INTERNAL_ERROR_HPP
+#ifndef DATAFRAME_ERROR_HPP
+#define DATAFRAME_ERROR_HPP
 
 #include <arrow/api.h>
 #include <sstream>
@@ -49,4 +49,4 @@ inline void ErrorHandler(const ::arrow::Status &status, const char *file,
 
 } // namespace dataframe
 
-#endif // DATAFRAME_INTERNAL_ERROR_HPP
+#endif // DATAFRAME_ERROR_HPP
