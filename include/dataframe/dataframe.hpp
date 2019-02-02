@@ -18,7 +18,6 @@
 #define DATAFRAME_DATAFRAME_HPP
 
 #include <dataframe/column.hpp>
-#include <dataframe/io.hpp>
 
 namespace dataframe {
 
@@ -51,32 +50,15 @@ class DataFrame
         return ColumnProxy(std::move(name), table_);
     }
 
-    template <DataFormat Format>
-    void deserialize(const ::arrow::Buffer &buffer)
+    ConstColumnProxy operator[](std::size_t j) const
     {
-        table_ = ::dataframe::deserialize<Format>(buffer);
+        return ConstColumnProxy(table_->column(static_cast<int>(j)));
     }
 
-    template <DataFormat Format>
-    void deserialize(std::size_t n, const std::uint8_t *buffer)
+    ColumnProxy operator[](std::size_t j)
     {
-        table_ = ::dataframe::deserialize<Format>(n, buffer);
-    }
-
-    template <DataFormat Format>
-    std::shared_ptr<::arrow::Buffer> serialize() const
-    {
-        return ::dataframe::serialize<Format>(*table_);
-    }
-
-    void feather_read(const std::string &path)
-    {
-        table_ = ::dataframe::feather_read(path);
-    }
-
-    std::size_t feather_write(const std::string &path) const
-    {
-        return ::dataframe::feather_write(path, *table_);
+        return ColumnProxy(
+            table_->column(static_cast<int>(j))->name(), table_);
     }
 
     const std::shared_ptr<::arrow::Table> &table() const { return table_; }

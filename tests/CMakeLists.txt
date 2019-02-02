@@ -15,3 +15,34 @@
 # ============================================================================
 
 project(DataFrame-tests CXX)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/googletest EXCLUDE_FROM_ALL)
+
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/googletest/googletest/include)
+include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/googletest/googlemock/include)
+
+target_compile_options(gtest PRIVATE "-w")
+target_compile_options(gtest_main PRIVATE "-w")
+target_compile_options(gmock PRIVATE "-w")
+target_compile_options(gmock_main PRIVATE "-w")
+
+function(add_dataframe_test testname)
+    add_executable(${testname}-test ${PROJECT_SOURCE_DIR}/src/${testname}.cpp)
+
+    set_target_properties(${testname}-test
+        PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
+        OUTPUT_NAME ${testname})
+
+    target_link_libraries(${testname}-test
+        gtest
+        gtest_main
+        ${Arrow_LINK_LIBRARIES}
+        Boost::regex
+        ${ARGN})
+
+    add_dependencies(tests ${testname}-test)
+
+    add_test(NAME ${testname} COMMAND ${testname}-test)
+endfunction(add_dataframe_test src)
+
+add_dataframe_test(dataframe)

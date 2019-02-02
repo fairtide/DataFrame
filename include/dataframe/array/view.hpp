@@ -158,6 +158,33 @@ class ArrayView : public ArrayViewBase<T>
     std::unique_ptr<Storage> ptr_;
 };
 
+template <typename T, typename Storage>
+inline bool operator==(
+    const ArrayView<T, Storage> &v1, const ArrayView<T, Storage> &v2)
+{
+    if (v1.size() != v2.size()) {
+        return false;
+    }
+
+    auto n = v1.size();
+    auto p1 = v1.data();
+    auto p2 = v2.data();
+    for (std::size_t i = 0; i != n; ++i) {
+        if (p1[i] != p2[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+template <typename T, typename Storage>
+inline bool operator!=(
+    const ArrayView<T, Storage> &v1, const ArrayView<T, Storage> &v2)
+{
+    return !(v1 == v2);
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_VIEW_HPP

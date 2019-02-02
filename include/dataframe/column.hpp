@@ -56,7 +56,7 @@ inline bool is_convertible(::arrow::Type::type type, T *)
         case ::arrow::Type::FLOAT:
             return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
         case ::arrow::Type::DOUBLE:
-            return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
+            return std::is_constructible_v<T, ::arrow::DoubleType::c_type>;
         case ::arrow::Type::STRING:
             return std::is_constructible_v<T, std::string_view>;
         case ::arrow::Type::BINARY:
@@ -256,7 +256,7 @@ class ConstColumnProxy
             case ::arrow::Type::FLOAT:
                 return std::is_same_v<::arrow::FloatType::c_type, T>;
             case ::arrow::Type::DOUBLE:
-                return std::is_same_v<::arrow::FloatType::c_type, T>;
+                return std::is_same_v<::arrow::DoubleType::c_type, T>;
             case ::arrow::Type::STRING:
                 return false;
             case ::arrow::Type::BINARY:
@@ -321,10 +321,9 @@ class ConstColumnProxy
 class ColumnProxy : public ConstColumnProxy
 {
   public:
-    ColumnProxy(
-        const std::string &name, std::shared_ptr<::arrow::Table> &table)
+    ColumnProxy(std::string name, std::shared_ptr<::arrow::Table> &table)
         : ConstColumnProxy(name, table)
-        , name_(name)
+        , name_(std::move(name))
         , table_(table)
     {
     }
