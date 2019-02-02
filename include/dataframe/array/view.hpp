@@ -169,6 +169,15 @@ inline bool operator==(
     auto n = v1.size();
     auto p1 = v1.data();
     auto p2 = v2.data();
+
+    if (p1 == nullptr && p2 == nullptr) {
+        return true;
+    }
+
+    if (p1 == nullptr || p2 == nullptr) {
+        return false;
+    }
+
     for (std::size_t i = 0; i != n; ++i) {
         if (p1[i] != p2[i]) {
             return false;
