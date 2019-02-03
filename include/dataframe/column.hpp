@@ -28,8 +28,9 @@ class ConstColumnProxy
   public:
     ConstColumnProxy() = default;
 
-    ConstColumnProxy(std::shared_ptr<::arrow::Array> data)
-        : data_(std::move(data))
+    ConstColumnProxy(std::string name, std::shared_ptr<::arrow::Array> data)
+        : name_(std::move(name))
+        , data_(std::move(data))
     {
     }
 
@@ -44,22 +45,25 @@ class ConstColumnProxy
             throw DataFrameException("Chunked array not supported");
         }
 
+        name_ = column->name();
         data_ = chunks.front();
     }
 
     ConstColumnProxy(
-        const std::string &name, const std::shared_ptr<::arrow::Table> &table)
+        std::string name, const std::shared_ptr<::arrow::Table> &table)
+        : name_(std::move(name))
     {
         if (table == nullptr) {
             return;
         }
 
-        auto index = table->schema()->GetFieldIndex(name);
+        auto index = table->schema()->GetFieldIndex(name_);
         if (index < 0) {
             return;
         }
 
-        auto &chunks = table->column(index)->data()->chunks();
+        auto &chunks =
+            table->column(static_cast<int>(index))->data()->chunks();
         if (chunks.size() != 1) {
             throw DataFrameException("Chunked array not supported");
         }
@@ -106,7 +110,9 @@ class ConstColumnProxy
             return ConstColumnProxy();
         }
 
-        return ConstColumnProxy(data_->Slice(begin, end - begin));
+        return ConstColumnProxy(name_,
+            data_->Slice(static_cast<std::int64_t>(begin),
+                static_cast<std::int64_t>(end - begin)));
     }
 
     /// \brief Same as `as<ArrayView<T>>()`
@@ -139,6 +145,10 @@ class ConstColumnProxy
         return as_view<T, std::vector<T>>();
     }
 
+    const std::string &name() const { return name_; }
+
+    const std::shared_ptr<::arrow::Array> &data() const { return data_; }
+
     std::vector<bool> mask() const
     {
         auto n = static_cast<std::size_t>(data_->length());
@@ -159,7 +169,7 @@ class ConstColumnProxy
     bool is_ctype() const
     {
         if (data_ == nullptr) {
-            throw DataFrameException("Column does not exist");
+            return false;
         }
 
         return ::dataframe::is_ctype(
@@ -170,7 +180,7 @@ class ConstColumnProxy
     bool is_convertible() const
     {
         if (data_ == nullptr) {
-            throw DataFrameException("Column does not exist");
+            return false;
         }
 
         return ::dataframe::is_convertible(
@@ -190,8 +200,9 @@ class ConstColumnProxy
     const ::arrow::Array &array() const { return *data_; }
 
   protected:
+    std::string name_;
     std::shared_ptr<::arrow::Array> data_;
-}; // namespace dataframe
+};
 
 /// \brief Mutable proxy class of DataFrame column
 class ColumnProxy : public ConstColumnProxy
@@ -199,7 +210,6 @@ class ColumnProxy : public ConstColumnProxy
   public:
     ColumnProxy(std::string name, std::shared_ptr<::arrow::Table> &table)
         : ConstColumnProxy(name, table)
-        , name_(std::move(name))
         , table_(table)
     {
     }
@@ -262,7 +272,8 @@ class ColumnProxy : public ConstColumnProxy
 
         auto index = table_->schema()->GetFieldIndex(name_);
         if (index >= 0) {
-            DF_ARROW_ERROR_HANDLER(table_->SetColumn(index, col, &table_));
+            DF_ARROW_ERROR_HANDLER(
+                table_->SetColumn(static_cast<int>(index), col, &table_));
         } else {
             DF_ARROW_ERROR_HANDLER(
                 table_->AddColumn(table_->num_columns(), col, &table_));
@@ -272,7 +283,6 @@ class ColumnProxy : public ConstColumnProxy
     }
 
   private:
-    std::string name_;
     std::shared_ptr<::arrow::Table> &table_;
 };
 

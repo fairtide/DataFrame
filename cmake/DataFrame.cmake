@@ -17,6 +17,6 @@
 find_package(Arrow)
 find_package(Boost COMPONENTS regex)
 
-include_directories(${Arrow_INCLUDE_DIR})
-include_directories(${Boost_INCLUDE_DIR})
+include_directories(SYSTEM ${Arrow_INCLUDE_DIR})
+include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 set(link_libraries ${Arrow_LINK_LIBRARIES} Boost::regex)

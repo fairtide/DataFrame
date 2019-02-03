@@ -26,6 +26,20 @@ target_compile_options(gtest_main PRIVATE "-w")
 target_compile_options(gmock PRIVATE "-w")
 target_compile_options(gmock_main PRIVATE "-w")
 
+set(test_flags)
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    list(APPEND test_flags
+        "-Wno-global-constructors"
+        "-Wno-zero-as-null-pointer-constant")
+endif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+
+foreach (flag ${test_flags})
+    target_compile_options(gtest PUBLIC ${flag})
+    target_compile_options(gtest_main PUBLIC ${flag})
+    target_compile_options(gmock PUBLIC ${flag})
+    target_compile_options(gmock_main PUBLIC ${flag})
+endforeach (flag ${test_flags})
+
 function(add_dataframe_test testname)
     add_executable(${testname}-test ${PROJECT_SOURCE_DIR}/src/${testname}.cpp)
 
@@ -46,3 +60,4 @@ function(add_dataframe_test testname)
 endfunction(add_dataframe_test src)
 
 add_dataframe_test(dataframe)
+add_dataframe_test(serializer)

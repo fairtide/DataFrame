@@ -17,15 +17,71 @@
 #ifndef DATAFRAME_ARRAY_STRING_HPP
 #define DATAFRAME_ARRAY_STRING_HPP
 
-#include <dataframe/internal/string_visitor.hpp>
+#include <dataframe/array/categorical.hpp>
 #include <arrow/api.h>
 
 namespace dataframe {
 
+namespace internal {
+
+template <typename T>
+class StringVisitor : public ::arrow::ArrayVisitor
+{
+  public:
+    StringVisitor(T *out)
+        : out_(out)
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::StringArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    {
+        CategoricalVisitor<T> visitor(out_);
+        return array.Accept(&visitor);
+    }
+
+  private:
+    template <typename ArrayType>
+    ::arrow::Status visit(const ArrayType &array)
+    {
+        auto n = array.length();
+        out_->clear();
+        out_->reserve(static_cast<std::size_t>(n));
+        for (std::int64_t i = 0; i != n; ++i) {
+            if (array.IsValid(i)) {
+                out_->emplace_back(array.GetView(i));
+            } else {
+                out_->emplace_back();
+            }
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+  private:
+    T *out_;
+};
+
+} // namespace internal
+
 template <typename T>
 std::enable_if_t<std::is_constructible_v<std::string_view, T>,
     std::shared_ptr<::arrow::Array>>
-make_array(const ArrayView<T> &view)
+make_array(const ArrayViewBase<T> &view)
 {
     ::arrow::StringBuilder builder(::arrow::default_memory_pool());
     auto n = view.size();

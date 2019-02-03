@@ -17,7 +17,6 @@
 #ifndef DATAFRAME_ARRAY_PRIMITIVE_HPP
 #define DATAFRAME_ARRAY_PRIMITIVE_HPP
 
-#include <dataframe/internal/primitive_visitor.hpp>
 #include <dataframe/array/view.hpp>
 #include <arrow/api.h>
 #include <type_traits>
@@ -85,7 +84,7 @@ struct FloatingPointType<double> {
 
 template <typename Type, typename T>
 inline std::shared_ptr<::arrow::Array> make_primitive_array(
-    const ArrayView<T> &view)
+    const ArrayViewBase<T> &view)
 {
     typename ::arrow::TypeTraits<Type>::BuilderType builder(
         ::arrow::default_memory_pool());
@@ -104,11 +103,217 @@ inline std::shared_ptr<::arrow::Array> make_primitive_array(
     return out;
 }
 
+template <typename T>
+class PrimitiveViewVisitor : public ::arrow::ArrayVisitor
+{
+  public:
+    ::arrow::Status Visit(const ::arrow::Int8Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int16Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt8Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt16Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::FloatArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::DoubleArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    {
+        return visit(array);
+    }
+
+    ArrayView<T> view() const { return view_; }
+
+  private:
+    template <typename ArrayType>
+    ::arrow::Status visit(const ArrayType &array)
+    {
+        return visit(array, std::is_same<T, typename ArrayType::value_type>());
+    }
+
+    template <typename ArrayType>
+    ::arrow::Status visit(const ArrayType &array, std::true_type)
+    {
+        view_ = ArrayView<T>(
+            static_cast<std::size_t>(array.length()), array.raw_values());
+
+        return ::arrow::Status::OK();
+    }
+
+    template <typename ArrayType>
+    ::arrow::Status visit(const ArrayType &array, std::false_type)
+    {
+        return ::arrow::Status::Invalid("Array of type " +
+            array.type()->name() +
+            " cannot be viewed as the destination type");
+    }
+
+  private:
+    ArrayView<T> view_;
+};
+
+template <typename T>
+class PrimitiveValueVisitor : public ::arrow::ArrayVisitor
+{
+  public:
+    PrimitiveValueVisitor(T *out)
+        : out_(out)
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int8Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int16Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Int64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt8Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt16Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::UInt64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::FloatArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::DoubleArray &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+    {
+        return visit(array);
+    }
+
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    {
+        return visit(array);
+    }
+
+  private:
+    template <typename ArrayType>
+    ::arrow::Status visit(const ArrayType &array)
+    {
+        std::copy_n(array.raw_values(), array.length(), out_);
+
+        return ::arrow::Status::OK();
+    }
+
+  private:
+    T *out_;
+};
+
 } // namespace internal
 
 template <typename T>
 inline std::enable_if_t<std::is_integral_v<T>, std::shared_ptr<::arrow::Array>>
-make_array(const ArrayView<T> &view)
+make_array(const ArrayViewBase<T> &view)
 {
     return internal::make_primitive_array<typename internal::IntegerType<
         std::is_signed_v<T>, CHAR_BIT * sizeof(T)>::type>(view);
@@ -117,7 +322,7 @@ make_array(const ArrayView<T> &view)
 template <typename T>
 inline std::enable_if_t<std::is_floating_point_v<T>,
     std::shared_ptr<::arrow::Array>>
-make_array(const ArrayView<T> &view)
+make_array(const ArrayViewBase<T> &view)
 {
     return internal::make_primitive_array<
         typename internal::FloatingPointType<T>::type>(view);
@@ -125,7 +330,7 @@ make_array(const ArrayView<T> &view)
 
 template <typename T>
 inline std::enable_if_t<std::is_arithmetic_v<T>> view_array(
-    const ::arrow::Array &values, ArrayView<T> *out)
+    const ::arrow::Array &values, ArrayViewBase<T> *out)
 {
     internal::PrimitiveViewVisitor<T> visitor;
     DF_ARROW_ERROR_HANDLER(values.Accept(&visitor));

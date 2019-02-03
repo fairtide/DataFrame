@@ -18,6 +18,7 @@
 #define DATAFRAME_ARRAY_HPP
 
 #include <dataframe/array/categorical.hpp>
+#include <dataframe/array/date_time.hpp>
 #include <dataframe/array/primitive.hpp>
 #include <dataframe/array/string.hpp>
 #include <dataframe/array/view.hpp>
@@ -25,13 +26,14 @@
 namespace dataframe {
 
 template <typename T, typename Alloc>
-std::shared_ptr<::arrow::Array> make_array(const std::vector<T, Alloc> &vec)
+inline std::shared_ptr<::arrow::Array> make_array(
+    const std::vector<T, Alloc> &vec)
 {
     return make_array(ArrayView<T>(vec));
 }
 
 template <typename T, std::size_t N>
-std::shared_ptr<::arrow::Array> make_array(const std::array<T, N> &vec)
+inline std::shared_ptr<::arrow::Array> make_array(const std::array<T, N> &vec)
 {
     return make_array(ArrayView<T>(vec));
 }

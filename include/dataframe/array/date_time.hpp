@@ -17,14 +17,138 @@
 #ifndef DATAFRAME_ARRAY_DATE_TIME_HPP
 #define DATAFRAME_ARRAY_DATE_TIME_HPP
 
-#include <dataframe/internal/date_time_visitor.hpp>
+#include <dataframe/array/make_array.hpp>
 #include <dataframe/array/view.hpp>
 #include <dataframe/error.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace dataframe {
 
+namespace internal {
+
+class Date32Visitor : public ::arrow::ArrayVisitor
+{
+  public:
+    Date32Visitor(::boost::gregorian::date *out)
+        : out_(out)
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    {
+        auto n = static_cast<std::size_t>(array.length());
+        auto v = array.raw_values();
+        ::boost::gregorian::date epoch(1970, 1, 1);
+        if (array.null_count() == 0) {
+            for (std::size_t i = 0; i != n; ++i) {
+                out_[i] = epoch + ::boost::gregorian::days(v[i]);
+            }
+        } else {
+            for (std::size_t i = 0; i != n; ++i) {
+                if (array.IsValid(static_cast<std::int64_t>(i))) {
+                    out_[i] = epoch + ::boost::gregorian::days(v[i]);
+                }
+            }
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+  private:
+    ::boost::gregorian::date *out_;
+};
+
+class TimestampVisitor : public ::arrow::ArrayVisitor
+{
+  public:
+    TimestampVisitor(::boost::posix_time::ptime *out)
+        : out_(out)
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    {
+        switch (std::static_pointer_cast<::arrow::TimestampType>(array.type())
+                    ->unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                return visit<::boost::posix_time::seconds>(array);
+            case ::arrow::TimeUnit::MILLI:
+                return visit<::boost::posix_time::milliseconds>(array);
+            case ::arrow::TimeUnit::MICRO:
+                return visit<::boost::posix_time::microseconds>(array);
+            case ::arrow::TimeUnit::NANO:
+#ifdef BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+                return visit<::boost::posix_time::nanoseconds>(array);
+#else  // BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+                auto n = static_cast<std::size_t>(array.length());
+                auto v = array.raw_values();
+                ::boost::posix_time::ptime epoch(
+                    ::boost::gregorian::date(1970, 1, 1));
+                if (array.null_count() == 0) {
+                    for (std::size_t i = 0; i != n; ++i) {
+                        out_[i] = epoch +
+                            ::boost::posix_time::microseconds(v[i] / 1000);
+                    }
+                } else {
+                    for (std::size_t i = 0; i != n; ++i) {
+                        if (array.IsValid(static_cast<std::int64_t>(i))) {
+                            out_[i] = epoch +
+                                ::boost::posix_time::microseconds(v[i] / 1000);
+                        }
+                    }
+                }
+                return ::arrow::Status::OK();
+#endif // BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+        }
+    }
+
+  private:
+    template <typename T>
+    ::arrow::Status visit(const ::arrow::TimestampArray &array)
+    {
+        auto n = static_cast<std::size_t>(array.length());
+        auto v = array.raw_values();
+        ::boost::posix_time::ptime epoch(::boost::gregorian::date(1970, 1, 1));
+        if (array.null_count() == 0) {
+            for (std::size_t i = 0; i != n; ++i) {
+                out_[i] = epoch + T(v[i]);
+            }
+        } else {
+            for (std::size_t i = 0; i != n; ++i) {
+                if (array.IsValid(static_cast<std::int64_t>(i))) {
+                    out_[i] = epoch + T(v[i]);
+                }
+            }
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+  private:
+    ::boost::posix_time::ptime *out_;
+};
+
+} // namespace internal
+
+inline constexpr bool is_scalar(::boost::gregorian::date *) { return true; }
+
+inline constexpr bool is_scalar(::boost::posix_time::ptime *) { return true; }
+
+inline bool is_convertible(
+    ::arrow::Type::type type, ::boost::gregorian::date *)
+{
+    return type == ::arrow::Type::DATE32;
+}
+
+inline bool is_convertible(
+    ::arrow::Type::type type, ::boost::posix_time::ptime *)
+{
+    return type == ::arrow::Type::TIMESTAMP;
+}
+
 inline std::shared_ptr<::arrow::Array> make_array(
-    const ArrayView<::boost::gregorian::date> &view)
+    const ArrayViewBase<::boost::gregorian::date> &view)
 {
     ::boost::gregorian::date epoch(1970, 1, 1);
 
@@ -51,7 +175,7 @@ inline std::shared_ptr<::arrow::Array> make_array(
 }
 
 inline std::shared_ptr<::arrow::Array> make_array(
-    const ArrayView<::boost::posix_time::ptime> &view)
+    const ArrayViewBase<::boost::posix_time::ptime> &view)
 {
     ::boost::posix_time::ptime epoch(::boost::gregorian::date(1970, 1, 1));
 
@@ -80,6 +204,31 @@ inline std::shared_ptr<::arrow::Array> make_array(
     return ret;
 }
 
+enum class TimeUnit { Second, Millisecond, Microsecond, Nanosecond };
+
+inline std::shared_ptr<::arrow::Array> make_array(
+    const ArrayViewBase<std::int64_t> &view, TimeUnit unit)
+{
+    switch (unit) {
+        case TimeUnit::Second:
+            return make_array(view,
+                std::make_shared<::arrow::TimestampType>(
+                    ::arrow::TimeUnit::SECOND));
+        case TimeUnit::Millisecond:
+            return make_array(view,
+                std::make_shared<::arrow::TimestampType>(
+                    ::arrow::TimeUnit::MILLI));
+        case TimeUnit::Microsecond:
+            return make_array(view,
+                std::make_shared<::arrow::TimestampType>(
+                    ::arrow::TimeUnit::MICRO));
+        case TimeUnit::Nanosecond:
+            return make_array(view,
+                std::make_shared<::arrow::TimestampType>(
+                    ::arrow::TimeUnit::NANO));
+    }
+}
+
 template <typename Alloc>
 inline void cast_array(const ::arrow::Array &values,
     std::vector<::boost::gregorian::date, Alloc> *out)
@@ -89,13 +238,6 @@ inline void cast_array(const ::arrow::Array &values,
     DF_ARROW_ERROR_HANDLER(values.Accept(&visitor));
 }
 
-inline constexpr bool is_scalar(::boost::gregorian::date *) { return true; }
-
-bool is_convertible(::arrow::Type::type type, ::boost::gregorian::date *)
-{
-    return type == ::arrow::Type::DATE32;
-}
-
 template <typename Alloc>
 inline void cast_array(const ::arrow::Array &values,
     std::vector<::boost::posix_time::ptime, Alloc> *out)
@@ -103,13 +245,6 @@ inline void cast_array(const ::arrow::Array &values,
     out->resize(static_cast<std::size_t>(values.length()));
     internal::TimestampVisitor visitor(out->data());
     DF_ARROW_ERROR_HANDLER(values.Accept(&visitor));
-}
-
-inline constexpr bool is_scalar(::boost::posix_time::ptime *) { return true; }
-
-bool is_convertible(::arrow::Type::type type, ::boost::posix_time::ptime *)
-{
-    return type == ::arrow::Type::TIMESTAMP;
 }
 
 } // namespace dataframe
