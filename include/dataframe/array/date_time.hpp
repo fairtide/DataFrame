@@ -150,6 +150,10 @@ inline bool is_convertible(
 inline std::shared_ptr<::arrow::Array> make_array(
     const ArrayViewBase<::boost::gregorian::date> &view)
 {
+    if (view.data() == nullptr) {
+        return nullptr;
+    }
+
     ::boost::gregorian::date epoch(1970, 1, 1);
 
     std::vector<std::int32_t> days;
@@ -177,6 +181,10 @@ inline std::shared_ptr<::arrow::Array> make_array(
 inline std::shared_ptr<::arrow::Array> make_array(
     const ArrayViewBase<::boost::posix_time::ptime> &view)
 {
+    if (view.data() == nullptr) {
+        return nullptr;
+    }
+
     ::boost::posix_time::ptime epoch(::boost::gregorian::date(1970, 1, 1));
 
     std::vector<std::int64_t> nanos;
@@ -204,12 +212,23 @@ inline std::shared_ptr<::arrow::Array> make_array(
     return ret;
 }
 
-enum class TimeUnit { Second, Millisecond, Microsecond, Nanosecond };
+enum class TimeUnit { Day, Second, Millisecond, Microsecond, Nanosecond };
 
 inline std::shared_ptr<::arrow::Array> make_array(
     const ArrayViewBase<std::int64_t> &view, TimeUnit unit)
 {
+    if (view.data() == nullptr) {
+        return nullptr;
+    }
+
     switch (unit) {
+        case TimeUnit::Day: {
+            std::vector<std::int32_t> dates(
+                view.data(), view.data() + view.size());
+            return make_array(
+                ArrayView<std::int32_t>(dates.size(), dates.data()),
+                std::make_shared<::arrow::Date32Type>());
+        }
         case TimeUnit::Second:
             return make_array(view,
                 std::make_shared<::arrow::TimestampType>(

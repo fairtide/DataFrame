@@ -78,7 +78,8 @@ class ConstColumnProxy
     std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), T> as() const
     {
         if (data_ == nullptr) {
-            throw DataFrameException("Attempt to access an empty column");
+            throw DataFrameException(
+                "Attempt to access an empty column '" + name_ + "'");
         }
 
         T ret;

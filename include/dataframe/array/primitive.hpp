@@ -315,6 +315,10 @@ template <typename T>
 inline std::enable_if_t<std::is_integral_v<T>, std::shared_ptr<::arrow::Array>>
 make_array(const ArrayViewBase<T> &view)
 {
+    if (view.data() == nullptr) {
+        return nullptr;
+    }
+
     return internal::make_primitive_array<typename internal::IntegerType<
         std::is_signed_v<T>, CHAR_BIT * sizeof(T)>::type>(view);
 }
@@ -324,6 +328,10 @@ inline std::enable_if_t<std::is_floating_point_v<T>,
     std::shared_ptr<::arrow::Array>>
 make_array(const ArrayViewBase<T> &view)
 {
+    if (view.data() == nullptr) {
+        return nullptr;
+    }
+
     return internal::make_primitive_array<
         typename internal::FloatingPointType<T>::type>(view);
 }

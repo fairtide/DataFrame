@@ -88,6 +88,12 @@ class Reader
         auto self = static_cast<const Derived *>(this);
         return self->read_buffer(buf.size(), buf.data());
     }
+
+    DataFrame read(std::size_t n, const std::uint8_t *buf)
+    {
+        auto self = static_cast<const Derived *>(this);
+        return self->read_buffer(n, buf);
+    }
 };
 
 } // namespace dataframe

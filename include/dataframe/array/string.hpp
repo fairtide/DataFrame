@@ -83,6 +83,10 @@ std::enable_if_t<std::is_constructible_v<std::string_view, T>,
     std::shared_ptr<::arrow::Array>>
 make_array(const ArrayViewBase<T> &view)
 {
+    if (view.data() == nullptr) {
+        return nullptr;
+    }
+
     ::arrow::StringBuilder builder(::arrow::default_memory_pool());
     auto n = view.size();
     auto v = view.data();
