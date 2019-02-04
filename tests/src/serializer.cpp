@@ -84,7 +84,7 @@ TEST(Serializer, JSONRow)
     auto df = generate_dataframe();
     ::dataframe::JSONRowWriter writer("data");
     writer.write(df);
-    std::ofstream out("serialize_row.json");
+    std::ofstream out("serializer_row.json");
     out << writer.str() << std::endl;
 }
 
@@ -93,7 +93,16 @@ TEST(Serializer, JSONColumn)
     auto df = generate_dataframe();
     ::dataframe::JSONColumnWriter writer("data");
     writer.write(df);
-    std::ofstream out("serialize_column.json");
+    std::ofstream out("serializer_column.json");
+    out << writer.str() << std::endl;
+}
+
+TEST(Serializer, CSV)
+{
+    auto df = generate_dataframe();
+    ::dataframe::CSVWriter writer;
+    writer.write(df);
+    std::ofstream out("serializer.csv");
     out << writer.str() << std::endl;
 }
 
