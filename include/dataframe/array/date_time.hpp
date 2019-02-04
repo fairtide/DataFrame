@@ -25,12 +25,16 @@
 
 namespace dataframe {
 
+using Date = ::boost::gregorian::date;
+
+using Timestamp = ::boost::posix_time::ptime;
+
 namespace internal {
 
 class Date32Visitor : public ::arrow::ArrayVisitor
 {
   public:
-    Date32Visitor(::boost::gregorian::date *out)
+    Date32Visitor(Date *out)
         : out_(out)
     {
     }
@@ -39,7 +43,7 @@ class Date32Visitor : public ::arrow::ArrayVisitor
     {
         auto n = static_cast<std::size_t>(array.length());
         auto v = array.raw_values();
-        ::boost::gregorian::date epoch(1970, 1, 1);
+        Date epoch(1970, 1, 1);
         if (array.null_count() == 0) {
             for (std::size_t i = 0; i != n; ++i) {
                 out_[i] = epoch + ::boost::gregorian::days(v[i]);
@@ -56,13 +60,13 @@ class Date32Visitor : public ::arrow::ArrayVisitor
     }
 
   private:
-    ::boost::gregorian::date *out_;
+    Date *out_;
 };
 
 class TimestampVisitor : public ::arrow::ArrayVisitor
 {
   public:
-    TimestampVisitor(::boost::posix_time::ptime *out)
+    TimestampVisitor(Timestamp *out)
         : out_(out)
     {
     }
@@ -83,8 +87,7 @@ class TimestampVisitor : public ::arrow::ArrayVisitor
 #else  // BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
                 auto n = static_cast<std::size_t>(array.length());
                 auto v = array.raw_values();
-                ::boost::posix_time::ptime epoch(
-                    ::boost::gregorian::date(1970, 1, 1));
+                Timestamp epoch(Date(1970, 1, 1));
                 if (array.null_count() == 0) {
                     for (std::size_t i = 0; i != n; ++i) {
                         out_[i] = epoch +
@@ -109,7 +112,7 @@ class TimestampVisitor : public ::arrow::ArrayVisitor
     {
         auto n = static_cast<std::size_t>(array.length());
         auto v = array.raw_values();
-        ::boost::posix_time::ptime epoch(::boost::gregorian::date(1970, 1, 1));
+        Timestamp epoch(Date(1970, 1, 1));
         if (array.null_count() == 0) {
             for (std::size_t i = 0; i != n; ++i) {
                 out_[i] = epoch + T(v[i]);
@@ -126,35 +129,33 @@ class TimestampVisitor : public ::arrow::ArrayVisitor
     }
 
   private:
-    ::boost::posix_time::ptime *out_;
+    Timestamp *out_;
 };
 
 } // namespace internal
 
-inline constexpr bool is_scalar(::boost::gregorian::date *) { return true; }
+inline constexpr bool is_scalar(Date *) { return true; }
 
-inline constexpr bool is_scalar(::boost::posix_time::ptime *) { return true; }
+inline constexpr bool is_scalar(Timestamp *) { return true; }
 
-inline bool is_convertible(
-    ::arrow::Type::type type, ::boost::gregorian::date *)
+inline bool is_convertible(::arrow::Type::type type, Date *)
 {
     return type == ::arrow::Type::DATE32;
 }
 
-inline bool is_convertible(
-    ::arrow::Type::type type, ::boost::posix_time::ptime *)
+inline bool is_convertible(::arrow::Type::type type, Timestamp *)
 {
     return type == ::arrow::Type::TIMESTAMP;
 }
 
 inline std::shared_ptr<::arrow::Array> make_array(
-    const ArrayViewBase<::boost::gregorian::date> &view)
+    const ArrayViewBase<Date> &view)
 {
     if (view.data() == nullptr) {
         return nullptr;
     }
 
-    ::boost::gregorian::date epoch(1970, 1, 1);
+    Date epoch(1970, 1, 1);
 
     std::vector<std::int32_t> days;
     days.reserve(view.size());
@@ -179,13 +180,13 @@ inline std::shared_ptr<::arrow::Array> make_array(
 }
 
 inline std::shared_ptr<::arrow::Array> make_array(
-    const ArrayViewBase<::boost::posix_time::ptime> &view)
+    const ArrayViewBase<Timestamp> &view)
 {
     if (view.data() == nullptr) {
         return nullptr;
     }
 
-    ::boost::posix_time::ptime epoch(::boost::gregorian::date(1970, 1, 1));
+    Timestamp epoch(Date(1970, 1, 1));
 
     std::vector<std::int64_t> nanos;
     nanos.reserve(view.size());
@@ -249,8 +250,8 @@ inline std::shared_ptr<::arrow::Array> make_array(
 }
 
 template <typename Alloc>
-inline void cast_array(const ::arrow::Array &values,
-    std::vector<::boost::gregorian::date, Alloc> *out)
+inline void cast_array(
+    const ::arrow::Array &values, std::vector<Date, Alloc> *out)
 {
     out->resize(static_cast<std::size_t>(values.length()));
     internal::Date32Visitor visitor(out->data());
@@ -258,8 +259,8 @@ inline void cast_array(const ::arrow::Array &values,
 }
 
 template <typename Alloc>
-inline void cast_array(const ::arrow::Array &values,
-    std::vector<::boost::posix_time::ptime, Alloc> *out)
+inline void cast_array(
+    const ::arrow::Array &values, std::vector<Timestamp, Alloc> *out)
 {
     out->resize(static_cast<std::size_t>(values.length()));
     internal::TimestampVisitor visitor(out->data());
