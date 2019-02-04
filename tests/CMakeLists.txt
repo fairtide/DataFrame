@@ -47,15 +47,8 @@ function(add_dataframe_test testname)
         PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
         OUTPUT_NAME ${testname})
 
-    target_link_libraries(${testname}-test
-        gtest
-        gtest_main
-        ${Arrow_LINK_LIBRARIES}
-        Boost::regex
-        ${ARGN})
-
+    target_link_libraries(${testname}-test gtest gtest_main ${link_libraries} ${ARGN})
     add_dependencies(tests ${testname}-test)
-
     add_test(NAME ${testname} COMMAND ${testname}-test)
 endfunction(add_dataframe_test src)
 

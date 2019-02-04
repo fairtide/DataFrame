@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAM_ARRAY_MAKE_ARRAY_HPP
-#define DATAFRAM_ARRAY_MAKE_ARRAY_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_ARRAY_HPP
+#define DATAFRAME_ARRAY_MAKE_ARRAY_HPP
 
 #include <dataframe/array/view.hpp>
 #include <dataframe/error.hpp>
@@ -48,4 +48,4 @@ make_array(
 
 } // namespace dataframe
 
-#endif // DATAFRAM_ARRAY_MAKE_ARRAY_HPP
+#endif // DATAFRAME_ARRAY_MAKE_ARRAY_HPP
