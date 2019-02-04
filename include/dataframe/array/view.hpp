@@ -79,6 +79,10 @@ class ArrayViewBase : public ArrayMask
         return data_[i];
     }
 
+    const T *begin() { return data_; }
+
+    const T *end() { return data_ + size_; }
+
     /// \brief Set fields of sequence pointeed by first via callback
     template <typename OutputIter, typename SetField>
     void set(OutputIter first, SetField &&set_field) const
