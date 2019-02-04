@@ -15,54 +15,86 @@
 // ============================================================================
 
 #include <dataframe/serializer.hpp>
+#include <dataframe/serializer/json.hpp>
+#include <fstream>
 #include <gtest/gtest.h>
+
+inline ::dataframe::DataFrame generate_dataframe()
+{
+    ::dataframe::DataFrame df;
+    df["UInt8"] = std::vector<uint8_t>({0, 1, 2, 3, 4, 5, 6, 7});
+    df["Int8"] = INT8_C(8);
+    df["UInt16"] = UINT16_C(16);
+    df["Int16"] = INT16_C(16);
+    df["UInt32"] = UINT32_C(32);
+    df["Int32"] = INT32_C(32);
+    df["UInt64"] = UINT64_C(64);
+    df["Int64"] = INT64_C(64);
+    df["Float32"] = 32.0f;
+    df["Float64"] = 64.0f;
+    df["Date"] = ::boost::gregorian::date(2018, 1, 1);
+    df["Timestamp"] =
+        ::boost::posix_time::ptime(::boost::gregorian::date(2018, 1, 1));
+    df["String"] = "string";
+
+    ::dataframe::CategoricalArray categorical;
+    for (std::size_t i = 0; i != df.nrow(); ++i) {
+        categorical.push_back("categorical:" + std::to_string(i % 4));
+    }
+    df["Categorical"] = categorical;
+
+    return df;
+}
 
 TEST(Serializer, RecordBatchStream)
 {
-    ::dataframe::DataFrame df;
-    df["x"] = std::vector<double>({1.1});
-    df["y"] = 20;
-    df["z"] = "abc";
+    auto df = generate_dataframe();
     ::dataframe::RecordBatchStreamWriter writer;
     writer.write(df);
     auto str = writer.str();
     ::dataframe::RecordBatchStreamReader reader;
     auto ret = reader.read(str);
-    EXPECT_EQ(df["x"].view<double>(), ret["x"].view<double>());
-    EXPECT_EQ(df["y"].view<int>(), ret["y"].view<int>());
-    EXPECT_EQ(df["z"].as<std::string>(), ret["z"].as<std::string>());
+    EXPECT_EQ(ret, df);
 }
 
 TEST(Serializer, RecordBatchFile)
 {
-    ::dataframe::DataFrame df;
-    df["x"] = std::vector<double>({1.1});
-    df["y"] = 20;
-    df["z"] = "abc";
+    auto df = generate_dataframe();
     ::dataframe::RecordBatchFileWriter writer;
     writer.write(df);
     auto str = writer.str();
     ::dataframe::RecordBatchFileReader reader;
     auto ret = reader.read(str);
-    EXPECT_EQ(df["x"].view<double>(), ret["x"].view<double>());
-    EXPECT_EQ(df["y"].view<int>(), ret["y"].view<int>());
-    EXPECT_EQ(df["z"].as<std::string>(), ret["z"].as<std::string>());
+    EXPECT_EQ(ret, df);
 }
 
 TEST(Serializer, Feather)
 {
-    ::dataframe::DataFrame df;
-    df["x"] = std::vector<double>({1.1});
-    df["y"] = 20;
-    df["z"] = "abc";
+    auto df = generate_dataframe();
     ::dataframe::FeatherWriter writer;
     writer.write(df);
     auto str = writer.str();
     ::dataframe::FeatherReader reader;
     auto ret = reader.read(str);
-    EXPECT_EQ(df["x"].view<double>(), ret["x"].view<double>());
-    EXPECT_EQ(df["y"].view<int>(), ret["y"].view<int>());
-    EXPECT_EQ(df["z"].as<std::string>(), ret["z"].as<std::string>());
+    EXPECT_EQ(ret, df);
+}
+
+TEST(Serializer, JSONRow)
+{
+    auto df = generate_dataframe();
+    ::dataframe::JSONRowWriter writer("data");
+    writer.write(df);
+    std::ofstream out("serialize_row.json");
+    out << writer.str() << std::endl;
+}
+
+TEST(Serializer, JSONColumn)
+{
+    auto df = generate_dataframe();
+    ::dataframe::JSONColumnWriter writer("data");
+    writer.write(df);
+    std::ofstream out("serialize_column.json");
+    out << writer.str() << std::endl;
 }
 
 int main(int argc, char **argv)

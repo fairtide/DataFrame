@@ -22,7 +22,6 @@
 
 namespace dataframe {
 
-template <typename Derived>
 class Writer
 {
   public:
@@ -36,32 +35,33 @@ class Writer
 
     Writer &operator=(Writer &&) = delete;
 
+    virtual ~Writer() = default;
+
+    virtual std::size_t size() const = 0;
+
+    virtual const std::uint8_t *data() const = 0;
+
+    virtual void write(const DataFrame &df) = 0;
+
     std::string str() const
     {
-        auto self = static_cast<const Derived *>(this);
-
-        if (self->data() == nullptr) {
+        if (data() == nullptr) {
             return std::string();
         }
 
-        return std::string(
-            reinterpret_cast<const char *>(self->data()), self->size());
+        return std::string(reinterpret_cast<const char *>(data()), size());
     }
 
     std::vector<std::uint8_t> buffer()
     {
-        auto self = static_cast<const Derived *>(this);
-
-        if (self->data() == nullptr) {
+        if (data() == nullptr) {
             return std::vector<std::uint8_t>();
         }
 
-        return std::vector<std::uint8_t>(
-            self->data(), self->data() + self->size());
+        return std::vector<std::uint8_t>(data(), data() + size());
     }
 };
 
-template <typename Derived>
 class Reader
 {
   public:
@@ -75,24 +75,25 @@ class Reader
 
     Reader &operator=(Reader &&) = delete;
 
+    virtual ~Reader() = default;
+
+    virtual DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) = 0;
+
     DataFrame read(const std::string &str)
     {
-        auto self = static_cast<const Derived *>(this);
-        return self->read_buffer(
+        return read_buffer(
             str.size(), reinterpret_cast<const uint8_t *>(str.data()));
     }
 
     template <typename Alloc>
     DataFrame read(const std::vector<std::uint8_t, Alloc> &buf)
     {
-        auto self = static_cast<const Derived *>(this);
-        return self->read_buffer(buf.size(), buf.data());
+        return read_buffer(buf.size(), buf.data());
     }
 
     DataFrame read(std::size_t n, const std::uint8_t *buf)
     {
-        auto self = static_cast<const Derived *>(this);
-        return self->read_buffer(n, buf);
+        return read_buffer(n, buf);
     }
 };
 

@@ -23,10 +23,10 @@
 
 namespace dataframe {
 
-class RecordBatchFileWriter : public Writer<RecordBatchFileWriter>
+class RecordBatchFileWriter : public Writer
 {
   public:
-    std::size_t size() const
+    std::size_t size() const final
     {
         if (buffer_ == nullptr) {
             return 0;
@@ -35,7 +35,7 @@ class RecordBatchFileWriter : public Writer<RecordBatchFileWriter>
         return static_cast<std::size_t>(buffer_->size());
     }
 
-    const std::uint8_t *data() const
+    const std::uint8_t *data() const final
     {
         if (buffer_ == nullptr) {
             return nullptr;
@@ -44,7 +44,7 @@ class RecordBatchFileWriter : public Writer<RecordBatchFileWriter>
         return buffer_->data();
     }
 
-    void write(const DataFrame &df)
+    void write(const DataFrame &df) final
     {
         std::shared_ptr<::arrow::io::BufferOutputStream> stream;
         DF_ARROW_ERROR_HANDLER(::arrow::io::BufferOutputStream::Create(
@@ -63,10 +63,10 @@ class RecordBatchFileWriter : public Writer<RecordBatchFileWriter>
     std::shared_ptr<::arrow::Buffer> buffer_;
 };
 
-class RecordBatchFileReader : public Reader<RecordBatchFileReader>
+class RecordBatchFileReader : public Reader
 {
   public:
-    DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) const
+    DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) final
     {
         auto buffer = std::make_shared<::arrow::Buffer>(
             buf, static_cast<std::int64_t>(n));
