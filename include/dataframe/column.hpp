@@ -166,6 +166,15 @@ class ConstColumnProxy
         return ret;
     }
 
+    std::size_t size() const
+    {
+        if (data_ == nullptr) {
+            return 0;
+        }
+
+        return static_cast<std::size_t>(data_->length());
+    }
+
     DataType dtype() const
     {
         if (data_ == nullptr) {
@@ -203,16 +212,74 @@ class ConstColumnProxy
         return as<T>();
     }
 
-    /// \brief Return the underlying Arrow array
-    ///
-    /// \note
-    /// It may be empty the column haven't been assgined to
-    const ::arrow::Array &array() const { return *data_; }
-
   protected:
     std::string name_;
     std::shared_ptr<::arrow::Array> data_;
 };
+
+inline bool operator==(
+    const ConstColumnProxy &col1, const ConstColumnProxy &col2)
+{
+    if (col1.name() != col2.name()) {
+        return false;
+    }
+
+    if (col1.size() != col2.size()) {
+        return false;
+    }
+
+    if (col1.dtype() != col2.dtype()) {
+        return false;
+    }
+
+    switch (col1.dtype()) {
+        case DataType::UInt8:
+            return col1.as_view<std::uint8_t>() ==
+                col2.as_view<std::uint8_t>();
+        case DataType::Int8:
+            return col1.as_view<std::int8_t>() == col2.as_view<std::int8_t>();
+        case DataType::UInt16:
+            return col1.as_view<std::uint16_t>() ==
+                col2.as_view<std::uint16_t>();
+        case DataType::Int16:
+            return col1.as_view<std::int16_t>() ==
+                col2.as_view<std::int16_t>();
+        case DataType::UInt32:
+            return col1.as_view<std::uint32_t>() ==
+                col2.as_view<std::uint32_t>();
+        case DataType::Int32:
+            return col1.as_view<std::int32_t>() ==
+                col2.as_view<std::int32_t>();
+        case DataType::UInt64:
+            return col1.as_view<std::uint64_t>() ==
+                col2.as_view<std::uint64_t>();
+        case DataType::Int64:
+            return col1.as_view<std::int64_t>() ==
+                col2.as_view<std::int64_t>();
+        case DataType::Float32:
+            return col1.as_view<float>() == col2.as_view<float>();
+        case DataType::Float64:
+            return col1.as_view<double>() == col2.as_view<double>();
+        case DataType::String:
+            return col1.as<std::string_view>() == col2.as<std::string_view>();
+        case DataType::Date:
+            return col1.as<Date>() == col2.as<Date>();
+        case DataType::Timestamp:
+            return col1.as<Timestamp>() == col2.as<Timestamp>();
+        case DataType::Categorical:
+            return col1.as<std::string_view>() == col2.as<std::string_view>();
+        case DataType::Unknown:
+            throw DataFrameException("Unknown dtype cannot be compared");
+    }
+
+    return true;
+}
+
+inline bool operator!=(
+    const ConstColumnProxy &col1, const ConstColumnProxy &col2)
+{
+    return !(col1 == col2);
+}
 
 /// \brief Mutable proxy class of DataFrame column
 class ColumnProxy : public ConstColumnProxy

@@ -83,6 +83,30 @@ class DataFrame
     std::shared_ptr<::arrow::Table> table_;
 };
 
+inline bool operator==(const DataFrame &df1, const DataFrame &df2)
+{
+    if (df1.nrow() != df2.nrow()) {
+        return false;
+    }
+
+    if (df1.ncol() != df2.ncol()) {
+        return false;
+    }
+
+    for (std::size_t i = 0; i != df1.ncol(); ++i) {
+        auto col1 = df1[i];
+        auto col2 = df2[col1.name()];
+        if (!col2) {
+            return false;
+        }
+        if (col1 != col2) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_DATAFRAME_HPP
