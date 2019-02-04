@@ -220,7 +220,7 @@ class CategoricalArray : public ArrayMask
 
     void reserve(std::size_t n) { index_.reserve(n); }
 
-    std::shared_ptr<::arrow::Array> as_array() const
+    std::shared_ptr<::arrow::Array> make_array() const
     {
         ::arrow::StringBuilder level_builder(::arrow::default_memory_pool());
         DF_ARROW_ERROR_HANDLER(level_builder.AppendValues(levels_));
@@ -261,7 +261,7 @@ inline bool is_convertible(::arrow::Type::type type, CategoricalArray *)
 inline std::shared_ptr<::arrow::Array> make_array(
     const CategoricalArray &values)
 {
-    return values.as_array();
+    return values.make_array();
 }
 
 inline void cast_array(const ::arrow::Array &values, CategoricalArray *out)
