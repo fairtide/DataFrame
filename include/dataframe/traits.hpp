@@ -33,6 +33,7 @@ inline bool is_ctype(::arrow::Type::type type, T *)
             return false;
         case ::arrow::Type::BOOL:
             return false;
+
         case ::arrow::Type::UINT8:
             return std::is_same_v<::arrow::UInt8Type::c_type, T>;
         case ::arrow::Type::INT8:
@@ -49,18 +50,22 @@ inline bool is_ctype(::arrow::Type::type type, T *)
             return std::is_same_v<::arrow::UInt64Type::c_type, T>;
         case ::arrow::Type::INT64:
             return std::is_same_v<::arrow::Int64Type::c_type, T>;
+
         case ::arrow::Type::HALF_FLOAT:
             return false;
+
         case ::arrow::Type::FLOAT:
             return std::is_same_v<::arrow::FloatType::c_type, T>;
         case ::arrow::Type::DOUBLE:
             return std::is_same_v<::arrow::DoubleType::c_type, T>;
+
         case ::arrow::Type::STRING:
             return false;
         case ::arrow::Type::BINARY:
             return false;
         case ::arrow::Type::FIXED_SIZE_BINARY:
             return false;
+
         case ::arrow::Type::DATE32:
             return std::is_same_v<::arrow::Date32Type::c_type, T>;
         case ::arrow::Type::DATE64:
@@ -71,6 +76,7 @@ inline bool is_ctype(::arrow::Type::type type, T *)
             return std::is_same_v<::arrow::Time32Type::c_type, T>;
         case ::arrow::Type::TIME64:
             return std::is_same_v<::arrow::Time64Type::c_type, T>;
+
         case ::arrow::Type::INTERVAL:
             return false;
         case ::arrow::Type::DECIMAL:
@@ -96,44 +102,52 @@ inline bool is_convertible(::arrow::Type::type type, T *)
             return false;
         case ::arrow::Type::BOOL:
             return false;
+
         case ::arrow::Type::UINT8:
-            return std::is_constructible_v<T, ::arrow::UInt8Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::UInt8Type::c_type>;
         case ::arrow::Type::INT8:
-            return std::is_constructible_v<T, ::arrow::Int8Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Int8Type::c_type>;
         case ::arrow::Type::UINT16:
-            return std::is_constructible_v<T, ::arrow::UInt16Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::UInt16Type::c_type>;
         case ::arrow::Type::INT16:
-            return std::is_constructible_v<T, ::arrow::Int16Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Int16Type::c_type>;
         case ::arrow::Type::UINT32:
-            return std::is_constructible_v<T, ::arrow::UInt32Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::UInt32Type::c_type>;
         case ::arrow::Type::INT32:
-            return std::is_constructible_v<T, ::arrow::Int32Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Int32Type::c_type>;
         case ::arrow::Type::UINT64:
-            return std::is_constructible_v<T, ::arrow::UInt64Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::UInt64Type::c_type>;
         case ::arrow::Type::INT64:
-            return std::is_constructible_v<T, ::arrow::Int64Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Int64Type::c_type>;
+
         case ::arrow::Type::HALF_FLOAT:
             return false;
+
         case ::arrow::Type::FLOAT:
-            return std::is_constructible_v<T, ::arrow::FloatType::c_type>;
+            return std::is_assignable_v<T, ::arrow::FloatType::c_type>;
         case ::arrow::Type::DOUBLE:
-            return std::is_constructible_v<T, ::arrow::DoubleType::c_type>;
+            return std::is_assignable_v<T, ::arrow::DoubleType::c_type>;
+
         case ::arrow::Type::STRING:
             return std::is_constructible_v<T, std::string_view>;
         case ::arrow::Type::BINARY:
             return std::is_constructible_v<T, std::string_view>;
         case ::arrow::Type::FIXED_SIZE_BINARY:
             return std::is_constructible_v<T, std::string_view>;
+
         case ::arrow::Type::DATE32:
-            return std::is_constructible_v<T, ::arrow::Date32Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Date32Type::c_type>;
         case ::arrow::Type::DATE64:
-            return std::is_constructible_v<T, ::arrow::Date64Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Date64Type::c_type>;
+
         case ::arrow::Type::TIMESTAMP:
-            return std::is_constructible_v<T, ::arrow::TimestampType::c_type>;
+            return std::is_assignable_v<T, ::arrow::TimestampType::c_type>;
+
         case ::arrow::Type::TIME32:
-            return std::is_constructible_v<T, ::arrow::Time32Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Time32Type::c_type>;
         case ::arrow::Type::TIME64:
-            return std::is_constructible_v<T, ::arrow::Time64Type::c_type>;
+            return std::is_assignable_v<T, ::arrow::Time64Type::c_type>;
+
         case ::arrow::Type::INTERVAL:
             return false;
         case ::arrow::Type::DECIMAL:
