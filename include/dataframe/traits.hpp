@@ -19,6 +19,97 @@
 
 namespace dataframe {
 
+enum class DataType {
+    UInt8 = ::arrow::Type::UINT8,
+    Int8 = ::arrow::Type::INT8,
+    UInt16 = ::arrow::Type::UINT16,
+    Int16 = ::arrow::Type::INT16,
+    UInt32 = ::arrow::Type::UINT32,
+    Int32 = ::arrow::Type::INT32,
+    UInt64 = ::arrow::Type::UINT64,
+    Int64 = ::arrow::Type::INT64,
+
+    Float32 = ::arrow::Type::FLOAT,
+    Float64 = ::arrow::Type::DOUBLE,
+
+    String = ::arrow::Type::STRING,
+
+    Date = ::arrow::Type::DATE32,
+    Timestamp = ::arrow::Type::TIMESTAMP,
+
+    Categorical = ::arrow::Type::DICTIONARY,
+
+    Unknown
+};
+
+inline DataType dtype(::arrow::Type::type type)
+{
+    switch (type) {
+        case ::arrow::Type::NA:
+            return DataType::Unknown;
+        case ::arrow::Type::BOOL:
+            return DataType::Unknown;
+
+        case ::arrow::Type::UINT8:
+            return DataType::UInt8;
+        case ::arrow::Type::INT8:
+            return DataType::Int8;
+        case ::arrow::Type::UINT16:
+            return DataType::UInt16;
+        case ::arrow::Type::INT16:
+            return DataType::Int16;
+        case ::arrow::Type::UINT32:
+            return DataType::UInt32;
+        case ::arrow::Type::INT32:
+            return DataType::Int32;
+        case ::arrow::Type::UINT64:
+            return DataType::UInt64;
+        case ::arrow::Type::INT64:
+            return DataType::Int64;
+
+        case ::arrow::Type::HALF_FLOAT:
+            return DataType::Unknown;
+
+        case ::arrow::Type::FLOAT:
+            return DataType::Float32;
+        case ::arrow::Type::DOUBLE:
+            return DataType::Float64;
+
+        case ::arrow::Type::STRING:
+            return DataType::String;
+        case ::arrow::Type::BINARY:
+            return DataType::Unknown;
+        case ::arrow::Type::FIXED_SIZE_BINARY:
+            return DataType::Unknown;
+
+        case ::arrow::Type::DATE32:
+            return DataType::Date;
+        case ::arrow::Type::DATE64:
+            return DataType::Unknown;
+        case ::arrow::Type::TIMESTAMP:
+            return DataType::Timestamp;
+        case ::arrow::Type::TIME32:
+            return DataType::Unknown;
+        case ::arrow::Type::TIME64:
+            return DataType::Unknown;
+
+        case ::arrow::Type::INTERVAL:
+            return DataType::Unknown;
+        case ::arrow::Type::DECIMAL:
+            return DataType::Unknown;
+        case ::arrow::Type::LIST:
+            return DataType::Unknown;
+        case ::arrow::Type::STRUCT:
+            return DataType::Unknown;
+        case ::arrow::Type::UNION:
+            return DataType::Unknown;
+        case ::arrow::Type::DICTIONARY:
+            return DataType::Categorical;
+        case ::arrow::Type::MAP:
+            return DataType::Unknown;
+    }
+}
+
 template <typename T>
 inline constexpr bool is_scalar(T *)
 {

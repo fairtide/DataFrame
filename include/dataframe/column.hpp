@@ -166,6 +166,15 @@ class ConstColumnProxy
         return ret;
     }
 
+    DataType dtype() const
+    {
+        if (data_ == nullptr) {
+            return DataType::Unknown;
+        }
+
+        return ::dataframe::dtype(data_->type()->id());
+    }
+
     template <typename T>
     bool is_ctype() const
     {
