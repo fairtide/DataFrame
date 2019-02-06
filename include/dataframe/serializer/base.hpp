@@ -71,22 +71,13 @@ class Writer
 
     virtual void write(const DataFrame &df) = 0;
 
-    virtual std::string str() const
+    std::string str() const
     {
         if (data() == nullptr) {
             return std::string();
         }
 
         return std::string(reinterpret_cast<const char *>(data()), size());
-    }
-
-    virtual std::vector<std::uint8_t> buffer()
-    {
-        if (data() == nullptr) {
-            return std::vector<std::uint8_t>();
-        }
-
-        return std::vector<std::uint8_t>(data(), data() + size());
     }
 };
 
