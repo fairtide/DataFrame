@@ -37,7 +37,6 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 ##############################################################################
 
 option(DataFrame_ENABLE_TESTS "Enable building of tests" ON)
-option(DataFrame_ENABLE_EXAMPLE "Enable building of example" ON)
 
 ##############################################################################
 # Installation
@@ -51,26 +50,12 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/dataframe
     PATTERN ".DS_Store" EXCLUDE PATTERN "*.swp" EXCLUDE)
 
 ##############################################################################
-# Check features
-##############################################################################
-
-if(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
-    include(DataFrame)
-else(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
-    return()
-endif(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
-
-##############################################################################
 # Tests
 ##############################################################################
 
 if(DataFrame_ENABLE_TESTS)
+    include(DataFrame)
     enable_testing()
     add_custom_target(tests)
-    add_subdirectory(tests EXCLUDE_FROM_ALL)
+    add_subdirectory(tests)
 endif(DataFrame_ENABLE_TESTS)
-
-if(DataFrame_ENABLE_EXAMPLE)
-    add_custom_target(example)
-    add_subdirectory(example EXCLUDE_FROM_ALL)
-endif(DataFrame_ENABLE_EXAMPLE)
