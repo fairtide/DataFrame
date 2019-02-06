@@ -79,6 +79,10 @@ class DataFrame
 
     void clear() { table_.reset(); }
 
+    bool empty() const { return nrow() * ncol() == 0; }
+
+    explicit operator bool() const { return table_ != nullptr; }
+
   private:
     std::shared_ptr<::arrow::Table> table_;
 };
