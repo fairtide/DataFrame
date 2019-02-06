@@ -65,6 +65,7 @@ endif(DataFrame_ENABLE_TESTS OR DataFrame_EANBLE_EXAMPLE)
 ##############################################################################
 
 if(DataFrame_ENABLE_TESTS)
+    enable_testing()
     add_custom_target(tests)
     add_subdirectory(tests EXCLUDE_FROM_ALL)
 endif(DataFrame_ENABLE_TESTS)
