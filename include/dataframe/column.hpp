@@ -206,12 +206,6 @@ class ConstColumnProxy
             data_->type()->id(), static_cast<T *>(nullptr));
     }
 
-    template <typename T>
-    operator T() const
-    {
-        return as<T>();
-    }
-
   protected:
     std::string name_;
     std::shared_ptr<::arrow::Array> data_;
@@ -357,6 +351,11 @@ class ColumnProxy : public ConstColumnProxy
         }
 
         return *this;
+    }
+
+    ColumnProxy &operator=(const ConstColumnProxy &col)
+    {
+        return operator=(col.data());
     }
 
   private:
