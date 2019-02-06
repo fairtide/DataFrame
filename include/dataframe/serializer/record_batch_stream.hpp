@@ -18,8 +18,6 @@
 #define DATAFRAME_SERIALIZER_RECORD_BATCH_STREAM_HPP
 
 #include <dataframe/serializer/base.hpp>
-#include <arrow/io/api.h>
-#include <arrow/ipc/api.h>
 
 namespace dataframe {
 
@@ -66,15 +64,21 @@ class RecordBatchStreamWriter : public Writer
 class RecordBatchStreamReader : public Reader
 {
   public:
-    DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) final
+    DataFrame read_buffer(
+        std::size_t n, const std::uint8_t *buf, bool zero_copy) final
     {
-        auto buffer = std::make_shared<::arrow::Buffer>(
-            buf, static_cast<std::int64_t>(n));
+        std::unique_ptr<::arrow::io::BufferReader> source;
+        if (zero_copy) {
+            source = std::make_unique<::arrow::io::BufferReader>(
+                buf, static_cast<std::int64_t>(n));
+        } else {
+            source = std::make_unique<CopyBufferReader>(
+                buf, static_cast<std::int64_t>(n));
+        }
 
-        ::arrow::io::BufferReader stream(buffer);
         std::shared_ptr<::arrow::ipc::RecordBatchReader> reader;
-        DF_ARROW_ERROR_HANDLER(
-            ::arrow::ipc::RecordBatchStreamReader::Open(&stream, &reader));
+        DF_ARROW_ERROR_HANDLER(::arrow::ipc::RecordBatchStreamReader::Open(
+            source.get(), &reader));
 
         std::vector<std::shared_ptr<::arrow::RecordBatch>> batches;
         while (true) {

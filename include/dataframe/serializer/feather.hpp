@@ -18,8 +18,6 @@
 #define DATAFRAME_SERIALIZER_FEATHER_HPP
 
 #include <dataframe/serializer/base.hpp>
-#include <arrow/io/api.h>
-#include <arrow/ipc/api.h>
 
 namespace dataframe {
 
@@ -78,12 +76,18 @@ class FeatherWriter : public Writer
 class FeatherReader : public Reader
 {
   public:
-    DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) final
+    DataFrame read_buffer(
+        std::size_t n, const std::uint8_t *buf, bool zero_copy) final
     {
-        auto buffer = std::make_shared<::arrow::Buffer>(
-            buf, static_cast<std::int64_t>(n));
+        std::shared_ptr<::arrow::io::BufferReader> source;
+        if (zero_copy) {
+            source = std::make_shared<::arrow::io::BufferReader>(
+                buf, static_cast<std::int64_t>(n));
+        } else {
+            source = std::make_shared<CopyBufferReader>(
+                buf, static_cast<std::int64_t>(n));
+        }
 
-        auto source = std::make_shared<::arrow::io::BufferReader>(buffer);
         std::unique_ptr<::arrow::ipc::feather::TableReader> reader;
         DF_ARROW_ERROR_HANDLER(
             ::arrow::ipc::feather::TableReader::Open(source, &reader));

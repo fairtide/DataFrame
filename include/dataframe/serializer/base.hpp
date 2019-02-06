@@ -18,9 +18,37 @@
 #define DATAFRAME_SERIALIZER_BASE_HPP
 
 #include <dataframe/dataframe.hpp>
-#include <string>
+#include <arrow/io/api.h>
+#include <arrow/ipc/api.h>
 
 namespace dataframe {
+
+class CopyBufferReader : public ::arrow::io::BufferReader
+{
+  public:
+    using ::arrow::io::BufferReader::BufferReader;
+
+    ::arrow::Status Read(
+        int64_t nbytes, std::shared_ptr<::arrow::Buffer> *out) override
+    {
+        std::shared_ptr<::arrow::Buffer> ret;
+        ARROW_RETURN_NOT_OK(::arrow::io::BufferReader::Read(nbytes, &ret));
+
+        return ret->Copy(0, ret->size(), out);
+    }
+
+    ::arrow::Status ReadAt(std::int64_t position, std::int64_t nbytes,
+        std::shared_ptr<::arrow::Buffer> *out) override
+    {
+        std::shared_ptr<::arrow::Buffer> ret;
+        ARROW_RETURN_NOT_OK(
+            ::arrow::io::BufferReader::ReadAt(position, nbytes, &ret));
+
+        return ret->Copy(0, ret->size(), out);
+    }
+
+    bool supports_zero_copy() const override { return false; }
+};
 
 class Writer
 {
@@ -77,23 +105,26 @@ class Reader
 
     virtual ~Reader() = default;
 
-    virtual DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) = 0;
+    virtual DataFrame read_buffer(
+        std::size_t n, const std::uint8_t *buf, bool zero_copy) = 0;
 
-    DataFrame read(const std::string &str)
+    DataFrame read(const std::string &str, bool zero_copy = false)
     {
-        return read_buffer(
-            str.size(), reinterpret_cast<const uint8_t *>(str.data()));
+        return read_buffer(str.size(),
+            reinterpret_cast<const uint8_t *>(str.data()), zero_copy);
     }
 
     template <typename Alloc>
-    DataFrame read(const std::vector<std::uint8_t, Alloc> &buf)
+    DataFrame read(
+        const std::vector<std::uint8_t, Alloc> &buf, bool zero_copy = false)
     {
-        return read_buffer(buf.size(), buf.data());
+        return read_buffer(buf.size(), buf.data(), zero_copy);
     }
 
-    DataFrame read(std::size_t n, const std::uint8_t *buf)
+    DataFrame read(
+        std::size_t n, const std::uint8_t *buf, bool zero_copy = false)
     {
-        return read_buffer(n, buf);
+        return read_buffer(n, buf, zero_copy);
     }
 };
 
