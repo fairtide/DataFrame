@@ -83,6 +83,17 @@ class DataFrame
 
     explicit operator bool() const { return table_ != nullptr; }
 
+    DataFrame rows(std::size_t i, std::size_t j) const
+    {
+        DataFrame ret;
+        for (std::size_t k = 0; k != ncol(); ++k) {
+            auto col = operator[](k);
+            ret[col.name()] = col(i, j);
+        }
+
+        return ret;
+    }
+
   private:
     std::shared_ptr<::arrow::Table> table_;
 };
