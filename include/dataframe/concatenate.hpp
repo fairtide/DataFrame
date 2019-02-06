@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_CONCATENATE_HPP
 #define DATAFRAME_CONCATENATE_HPP
 
-#include <dataframe/dataframe.hpp>
+#include <dataframe/data_frame.hpp>
 
 namespace dataframe {
 
@@ -104,9 +104,9 @@ class BindRowsVisitor : public ::arrow::ArrayVisitor
         auto n = values.length();
         for (std::int64_t i = 0; i != n; ++i) {
             if (values.IsValid(i)) {
-                FT_ARROW_ERROR_HANDLER(builder->Append(values.GetView(i)));
+                DF_ARROW_ERROR_HANDLER(builder->Append(values.GetView(i)));
             } else {
-                FT_ARROW_ERROR_HANDLER(builder->AppendNull());
+                DF_ARROW_ERROR_HANDLER(builder->AppendNull());
             }
         }
 
@@ -129,10 +129,10 @@ class BindRowsVisitor : public ::arrow::ArrayVisitor
 
         for (std::int64_t i = 0; i != n; ++i) {
             if (iptr->IsValid(i)) {
-                FT_ARROW_ERROR_HANDLER(builder->Append(
+                DF_ARROW_ERROR_HANDLER(builder->Append(
                     dptr->GetView(sidx[static_cast<std::size_t>(i)])));
             } else {
-                FT_ARROW_ERROR_HANDLER(builder->AppendNull());
+                DF_ARROW_ERROR_HANDLER(builder->AppendNull());
             }
         }
 
@@ -154,13 +154,13 @@ class BindRowsVisitor : public ::arrow::ArrayVisitor
         auto n = values.length();
         auto v = values.raw_values();
         if (values.null_count() == 0) {
-            FT_ARROW_ERROR_HANDLER(builder->AppendValues(v, n));
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(v, n));
         } else {
             std::vector<bool> bits(static_cast<std::size_t>(n));
             for (std::int64_t i = 0; i != n; ++i) {
                 bits[static_cast<std::size_t>(i)] = values.IsValid(i);
             }
-            FT_ARROW_ERROR_HANDLER(builder->AppendValues(v, n, bits));
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(v, n, bits));
         }
 
         return ::arrow::Status::OK();
@@ -253,7 +253,7 @@ inline std::shared_ptr<::arrow::Table> bind_rows(
                 });
             for (auto &&data : col->data()->chunks()) {
                 internal::ArrowBindRowsVisitor visitor(&iter->builder);
-                FT_ARROW_ERROR_HANDLER(data->Accept(&visitor));
+                DF_ARROW_ERROR_HANDLER(data->Accept(&visitor));
             }
         }
     }
@@ -262,7 +262,7 @@ inline std::shared_ptr<::arrow::Table> bind_rows(
     columns.reserve(builders.size());
     std::shared_ptr<::arrow::Array> values;
     for (auto &&builder : builders) {
-        FT_ARROW_ERROR_HANDLER(builder.builder->Finish(&values));
+        DF_ARROW_ERROR_HANDLER(builder.builder->Finish(&values));
         values = Normalize(values);
         columns.push_back(std::make_shared<::arrow::Column>(
             ::arrow::field(

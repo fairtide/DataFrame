@@ -150,20 +150,14 @@ class ConstColumnProxy
 
     const std::shared_ptr<::arrow::Array> &data() const { return data_; }
 
-    std::vector<bool> mask() const
+    ArrayMask mask() const
     {
-        auto n = static_cast<std::size_t>(data_->length());
-        auto v = data_->null_bitmap_data();
-        std::vector<bool> ret(n);
-        if (data_->null_count() == 0 || v == nullptr) {
-            std::fill(ret.begin(), ret.end(), true);
-        } else {
-            for (std::size_t i = 0; i != n; ++i) {
-                ret[i] = v[i / 8] & (1 << (i % 8));
-            }
+        if (data_->null_count() == 0) {
+            return ArrayMask();
         }
 
-        return ret;
+        return ArrayMask(static_cast<std::size_t>(data_->length()),
+            data_->null_bitmap_data());
     }
 
     // attributes
@@ -405,17 +399,23 @@ class ColumnProxy : public ConstColumnProxy
     }
 
     /// \brief Assign a pre-constructed Arrow array
-    ColumnProxy &operator=(const std::shared_ptr<::arrow::Array> &data)
+    ColumnProxy &operator=(std::shared_ptr<::arrow::Array> data)
     {
-        if (table_ != nullptr && table_->num_columns() != 0 &&
-            table_->num_rows() != data->length()) {
-            throw DataFrameException(
-                "New column length is not the same as the old column");
+        if (data == nullptr) {
+            throw DataFrameException("Cannot assign a null array");
         }
 
-        data_ = data;
-        auto fld = ::arrow::field(name_, data->type());
-        auto col = std::make_shared<::arrow::Column>(fld, data);
+        if (table_ != nullptr && table_->num_columns() != 0 &&
+            table_->num_rows() != data->length()) {
+            throw DataFrameException("Length of new column " + name_ + " (" +
+                std::to_string(data->length()) +
+                ") is not the same as the old columns (" +
+                std::to_string(table_->num_rows()) + ")");
+        }
+
+        data_ = std::move(data);
+        auto fld = ::arrow::field(name_, data_->type());
+        auto col = std::make_shared<::arrow::Column>(fld, data_);
 
         if (table_ == nullptr || table_->num_columns() == 0) {
             std::vector<std::shared_ptr<::arrow::Field>> fields = {fld};

@@ -24,6 +24,11 @@ namespace dataframe {
 class CSVWriter : public Writer
 {
   public:
+    explicit CSVWriter(char delim = ',')
+        : delim_(delim)
+    {
+    }
+
     std::size_t size() const final { return buffer_.size(); }
 
     const std::uint8_t *data() const final
@@ -128,7 +133,7 @@ class CSVWriter : public Writer
 
         for (std::size_t i = 0; i != keys.size(); ++i) {
             if (i > 0) {
-                ss << ',';
+                ss << delim_;
             }
             ss << keys[i];
         }
@@ -137,7 +142,7 @@ class CSVWriter : public Writer
         for (auto &&r : rows) {
             for (std::size_t i = 0; i != r.size(); ++i) {
                 if (i > 0) {
-                    ss << ',';
+                    ss << delim_;
                 }
                 ss << r[i];
             }
@@ -148,6 +153,7 @@ class CSVWriter : public Writer
     }
 
   private:
+    char delim_;
     std::string buffer_;
 };
 

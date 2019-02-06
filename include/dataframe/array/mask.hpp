@@ -24,36 +24,78 @@ namespace dataframe {
 class ArrayMask
 {
   public:
-    ArrayMask() = default;
-
-    explicit ArrayMask(std::vector<bool> mask)
-        : mask_(std::move(mask))
+    ArrayMask()
+        : size_(0)
+        , null_count_(0)
     {
     }
 
-    const std::vector<bool> mask() const { return mask_; }
-
-    std::size_t null_count() const
+    explicit ArrayMask(std::vector<bool> data)
+        : data_(std::move(data))
+        , size_(data_.size())
+        , null_count_(0)
     {
-        if (mask_.empty()) {
-            return 0;
+        if (data_.empty()) {
+            return;
         }
 
-        std::size_t ret = 0;
-        for (auto v : mask_) {
-            ret += !v;
+        for (auto v : data_) {
+            null_count_ += !v;
         }
-
-        return ret;
     }
+
+    ArrayMask(std::size_t n, const uint8_t *bytes)
+        : data_(n)
+        , size_(n)
+        , null_count_(0)
+    {
+        for (std::size_t i = 0; i != n; ++i) {
+            auto v = static_cast<bool>(bytes[i / 8] & (1 << (i % 8)));
+            data_[i] = v;
+            null_count_ += !v;
+        }
+    }
+
+    const std::vector<bool> &data() const { return data_; }
+
+    std::size_t size() const { return size_; }
+
+    std::size_t null_count() const { return null_count_; }
 
     bool operator[](std::size_t i) const
     {
-        return mask_.empty() || mask_.at(i);
+        return null_count_ == 0 || data_[i];
+    }
+
+    bool at(std::size_t i) const { return null_count_ == 0 || data_.at(i); }
+
+    void push_back(bool flag)
+    {
+        ++size_;
+        null_count_ += !flag;
+        if (data_.empty()) {
+            if (flag) {
+                return;
+            } else {
+                data_.resize(size_, true);
+                data_.push_back(flag);
+            }
+        } else {
+            data_.push_back(flag);
+        }
+    }
+
+    void clear()
+    {
+        data_.clear();
+        size_ = 0;
+        null_count_ = 0;
     }
 
   protected:
-    std::vector<bool> mask_;
+    std::vector<bool> data_;
+    std::size_t size_;
+    std::size_t null_count_;
 };
 
 } // namespace dataframe

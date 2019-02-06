@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_SPLIT_HPP
 #define DATAFRAME_SPLIT_HPP
 
-#include <dataframe/dataframe.hpp>
+#include <dataframe/data_frame.hpp>
 
 namespace dataframe {
 

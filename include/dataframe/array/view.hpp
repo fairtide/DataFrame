@@ -26,7 +26,7 @@ namespace dataframe {
 
 /// \brief Simple class that wrap the size and pointer of a raw array
 template <typename T>
-class ArrayViewBase : public ArrayMask
+class ArrayViewBase
 {
   public:
     ArrayViewBase()
@@ -35,30 +35,31 @@ class ArrayViewBase : public ArrayMask
     {
     }
 
-    ArrayViewBase(std::size_t size, const T *data, std::vector<bool> mask = {})
-        : ArrayMask(std::move(mask))
-        , size_(size)
+    ArrayViewBase(std::size_t size, const T *data, ArrayMask mask = {})
+        : size_(size)
         , data_(data)
+        , mask_(std::move(mask))
     {
     }
 
     template <typename Alloc>
     explicit ArrayViewBase(
-        const std::vector<T, Alloc> &values, std::vector<bool> mask = {})
-        : ArrayMask(std::move(mask))
-        , size_(values.size())
+        const std::vector<T, Alloc> &values, ArrayMask mask = {})
+        : size_(values.size())
         , data_(values.data())
+        , mask_(std::move(mask))
     {
     }
 
     template <std::size_t N>
-    explicit ArrayViewBase(
-        const std::array<T, N> &values, std::vector<bool> mask = {})
-        : ArrayMask(std::move(mask))
-        , size_(values.size())
+    explicit ArrayViewBase(const std::array<T, N> &values, ArrayMask mask = {})
+        : size_(values.size())
         , data_(values.data())
+        , mask_(std::move(mask))
     {
     }
+
+    const ArrayMask &mask() const { return mask_; }
 
     std::size_t size() const { return size_; }
 
@@ -102,6 +103,7 @@ class ArrayViewBase : public ArrayMask
   private:
     std::size_t size_;
     const T *data_;
+    ArrayMask mask_;
 };
 
 struct NullStorage;
@@ -183,7 +185,22 @@ inline bool operator==(
         return false;
     }
 
+    const auto &m1 = v1.mask();
+    const auto &m2 = v2.mask();
+
     for (std::size_t i = 0; i != n; ++i) {
+        if (m1[i] && !m2[i]) {
+            return false;
+        }
+
+        if (!m1[i] && m2[i]) {
+            return false;
+        }
+
+        if (!m1[i] && !m2[i]) {
+            continue;
+        }
+
         if (p1[i] != p2[i]) {
             return false;
         }

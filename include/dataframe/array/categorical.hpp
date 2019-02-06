@@ -145,10 +145,12 @@ class CategoricalVisitor : public ::arrow::ArrayVisitor
 
 } // namespace internal
 
-class CategoricalArray : public ArrayMask
+class CategoricalArray
 {
   public:
     CategoricalArray() = default;
+
+    const ArrayMask &mask() const { return mask_; }
 
     void push_back(const std::string_view &str)
     {
@@ -165,9 +167,13 @@ class CategoricalArray : public ArrayMask
             }
         }
 
-        if (!mask_.empty()) {
-            mask_.push_back(true);
-        }
+        mask_.push_back(true);
+    }
+
+    template <typename... Args>
+    void emplace_back(Args &&... args)
+    {
+        push_back(std::string_view(std::forward<Args>(args)...));
     }
 
     template <typename T, typename... Args>
@@ -179,11 +185,6 @@ class CategoricalArray : public ArrayMask
 
     void emplace_back()
     {
-        if (mask_.empty()) {
-            mask_.resize(index_.size());
-            std::fill(mask_.begin(), mask_.end(), true);
-        }
-
         mask_.push_back(false);
         index_.push_back(-1);
     }
@@ -229,10 +230,11 @@ class CategoricalArray : public ArrayMask
         DF_ARROW_ERROR_HANDLER(level_builder.Finish(&level_array));
 
         ::arrow::Int32Builder index_builder(::arrow::default_memory_pool());
-        if (null_count() == 0) {
+        if (mask_.null_count() == 0) {
             DF_ARROW_ERROR_HANDLER(index_builder.AppendValues(index_));
         } else {
-            DF_ARROW_ERROR_HANDLER(index_builder.AppendValues(index_, mask_));
+            DF_ARROW_ERROR_HANDLER(
+                index_builder.AppendValues(index_, mask_.data()));
         }
 
         std::shared_ptr<::arrow::Array> index_array;
@@ -251,6 +253,7 @@ class CategoricalArray : public ArrayMask
     std::vector<std::int32_t> index_;
     std::vector<std::string> levels_;
     std::unordered_map<std::string_view, std::int32_t> pool_;
+    ArrayMask mask_;
 };
 
 inline std::shared_ptr<::arrow::Array> make_array(

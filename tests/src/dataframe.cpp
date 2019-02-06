@@ -45,62 +45,6 @@ inline std::vector<T> generate_int(std::size_t n)
     return ret;
 }
 
-TEST(DataFrame, Int8)
-{
-    auto x = generate_int<std::int8_t>(1000);
-    ::dataframe::DataFrame df;
-    df["x"] = x;
-    EXPECT_TRUE(df["x"].is_ctype<std::int8_t>());
-    EXPECT_TRUE(df["x"].is_convertible<std::int8_t>());
-    EXPECT_EQ(df["x"].as<std::int8_t>(), x);
-    EXPECT_EQ(
-        df["x"].view<std::int8_t>(), ::dataframe::ArrayView<std::int8_t>(x));
-    EXPECT_EQ(df["x"].view<std::int8_t>().data(),
-        df["x"].as_view<std::int8_t>().data());
-}
-
-TEST(DataFrame, Int16)
-{
-    auto x = generate_int<std::int16_t>(1000);
-    ::dataframe::DataFrame df;
-    df["x"] = x;
-    EXPECT_TRUE(df["x"].is_ctype<std::int16_t>());
-    EXPECT_TRUE(df["x"].is_convertible<std::int16_t>());
-    EXPECT_EQ(df["x"].as<std::int16_t>(), x);
-    EXPECT_EQ(
-        df["x"].view<std::int16_t>(), ::dataframe::ArrayView<std::int16_t>(x));
-    EXPECT_EQ(df["x"].view<std::int16_t>().data(),
-        df["x"].as_view<std::int16_t>().data());
-}
-
-TEST(DataFrame, Int32)
-{
-    auto x = generate_int<std::int32_t>(1000);
-    ::dataframe::DataFrame df;
-    df["x"] = x;
-    EXPECT_TRUE(df["x"].is_ctype<std::int32_t>());
-    EXPECT_TRUE(df["x"].is_convertible<std::int32_t>());
-    EXPECT_EQ(df["x"].as<std::int32_t>(), x);
-    EXPECT_EQ(
-        df["x"].view<std::int32_t>(), ::dataframe::ArrayView<std::int32_t>(x));
-    EXPECT_EQ(df["x"].view<std::int32_t>().data(),
-        df["x"].as_view<std::int32_t>().data());
-}
-
-TEST(DataFrame, Int64)
-{
-    auto x = generate_int<std::int64_t>(1000);
-    ::dataframe::DataFrame df;
-    df["x"] = x;
-    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
-    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
-    EXPECT_EQ(df["x"].as<std::int64_t>(), x);
-    EXPECT_EQ(
-        df["x"].view<std::int64_t>(), ::dataframe::ArrayView<std::int64_t>(x));
-    EXPECT_EQ(df["x"].view<std::int64_t>().data(),
-        df["x"].as_view<std::int64_t>().data());
-}
-
 TEST(DataFrame, UInt8)
 {
     auto x = generate_int<std::uint8_t>(1000);
@@ -113,6 +57,20 @@ TEST(DataFrame, UInt8)
         df["x"].view<std::uint8_t>(), ::dataframe::ArrayView<std::uint8_t>(x));
     EXPECT_EQ(df["x"].view<std::uint8_t>().data(),
         df["x"].as_view<std::uint8_t>().data());
+}
+
+TEST(DataFrame, Int8)
+{
+    auto x = generate_int<std::int8_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_TRUE(df["x"].is_ctype<std::int8_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int8_t>());
+    EXPECT_EQ(df["x"].as<std::int8_t>(), x);
+    EXPECT_EQ(
+        df["x"].view<std::int8_t>(), ::dataframe::ArrayView<std::int8_t>(x));
+    EXPECT_EQ(df["x"].view<std::int8_t>().data(),
+        df["x"].as_view<std::int8_t>().data());
 }
 
 TEST(DataFrame, UInt16)
@@ -129,6 +87,20 @@ TEST(DataFrame, UInt16)
         df["x"].as_view<std::uint16_t>().data());
 }
 
+TEST(DataFrame, Int16)
+{
+    auto x = generate_int<std::int16_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_TRUE(df["x"].is_ctype<std::int16_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int16_t>());
+    EXPECT_EQ(df["x"].as<std::int16_t>(), x);
+    EXPECT_EQ(
+        df["x"].view<std::int16_t>(), ::dataframe::ArrayView<std::int16_t>(x));
+    EXPECT_EQ(df["x"].view<std::int16_t>().data(),
+        df["x"].as_view<std::int16_t>().data());
+}
+
 TEST(DataFrame, UInt32)
 {
     auto x = generate_int<std::uint32_t>(1000);
@@ -143,6 +115,20 @@ TEST(DataFrame, UInt32)
         df["x"].as_view<std::uint32_t>().data());
 }
 
+TEST(DataFrame, Int32)
+{
+    auto x = generate_int<std::int32_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_TRUE(df["x"].is_ctype<std::int32_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int32_t>());
+    EXPECT_EQ(df["x"].as<std::int32_t>(), x);
+    EXPECT_EQ(
+        df["x"].view<std::int32_t>(), ::dataframe::ArrayView<std::int32_t>(x));
+    EXPECT_EQ(df["x"].view<std::int32_t>().data(),
+        df["x"].as_view<std::int32_t>().data());
+}
+
 TEST(DataFrame, UInt64)
 {
     auto x = generate_int<std::uint64_t>(1000);
@@ -155,6 +141,20 @@ TEST(DataFrame, UInt64)
         ::dataframe::ArrayView<std::uint64_t>(x));
     EXPECT_EQ(df["x"].view<std::uint64_t>().data(),
         df["x"].as_view<std::uint64_t>().data());
+}
+
+TEST(DataFrame, Int64)
+{
+    auto x = generate_int<std::int64_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
+    EXPECT_EQ(df["x"].as<std::int64_t>(), x);
+    EXPECT_EQ(
+        df["x"].view<std::int64_t>(), ::dataframe::ArrayView<std::int64_t>(x));
+    EXPECT_EQ(df["x"].view<std::int64_t>().data(),
+        df["x"].as_view<std::int64_t>().data());
 }
 
 TEST(DataFrame, Float)

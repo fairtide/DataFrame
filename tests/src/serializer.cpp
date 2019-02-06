@@ -14,7 +14,7 @@
 // limitations under the License.
 // ============================================================================
 
-#include <dataframe/serializer.hpp>
+#include <dataframe/dataframe.hpp>
 #include <dataframe/serializer/json.hpp>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -22,7 +22,7 @@
 inline ::dataframe::DataFrame generate_dataframe()
 {
     ::dataframe::DataFrame df;
-    df["UInt8"] = std::vector<uint8_t>({0, 1, 2, 3, 4, 5, 6, 7});
+    df["UInt8"] = std::vector<std::uint8_t>({0, 1, 2, 3, 4, 5, 6, 7});
     df["Int8"] = INT8_C(8);
     df["UInt16"] = UINT16_C(16);
     df["Int16"] = INT16_C(16);
@@ -32,9 +32,8 @@ inline ::dataframe::DataFrame generate_dataframe()
     df["Int64"] = INT64_C(64);
     df["Float32"] = 32.0f;
     df["Float64"] = 64.0f;
-    df["Date"] = ::boost::gregorian::date(2018, 1, 1);
-    df["Timestamp"] =
-        ::boost::posix_time::ptime(::boost::gregorian::date(2018, 1, 1));
+    df["Date"] = ::dataframe::Date(2018, 1, 1);
+    df["Timestamp"] = ::dataframe::Timestamp(::dataframe::Date(2018, 1, 1));
     df["String"] = "string";
 
     ::dataframe::CategoricalArray categorical;

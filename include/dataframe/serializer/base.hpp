@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BASE_HPP
 #define DATAFRAME_SERIALIZER_BASE_HPP
 
-#include <dataframe/dataframe.hpp>
+#include <dataframe/data_frame.hpp>
 #include <arrow/io/api.h>
 #include <arrow/ipc/api.h>
 

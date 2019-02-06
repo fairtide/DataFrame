@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_SPLICE_HPP
 #define DATAFRAME_SPLICE_HPP
 
-#include <dataframe/dataframe.hpp>
+#include <dataframe/data_frame.hpp>
 
 namespace dataframe {
 

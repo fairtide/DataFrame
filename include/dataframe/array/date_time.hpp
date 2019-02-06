@@ -155,12 +155,12 @@ inline std::shared_ptr<::arrow::Array> make_array(
 
     ::arrow::Date32Builder builder(::arrow::default_memory_pool());
 
-    if (view.null_count() == 0) {
+    if (view.mask().null_count() == 0) {
         DF_ARROW_ERROR_HANDLER(builder.AppendValues(
             days.data(), static_cast<std::int64_t>(days.size())));
     } else {
-        DF_ARROW_ERROR_HANDLER(builder.AppendValues(
-            days.data(), static_cast<std::int64_t>(days.size()), view.mask()));
+        DF_ARROW_ERROR_HANDLER(builder.AppendValues(days.data(),
+            static_cast<std::int64_t>(days.size()), view.mask().data()));
     }
 
     std::shared_ptr<::arrow::Array> ret;
@@ -189,12 +189,12 @@ inline std::shared_ptr<::arrow::Array> make_array(
 
     ::arrow::TimestampBuilder builder(type, ::arrow::default_memory_pool());
 
-    if (view.null_count() == 0) {
+    if (view.mask().null_count() == 0) {
         DF_ARROW_ERROR_HANDLER(builder.AppendValues(
             nanos.data(), static_cast<std::int64_t>(nanos.size())));
     } else {
         DF_ARROW_ERROR_HANDLER(builder.AppendValues(nanos.data(),
-            static_cast<std::int64_t>(nanos.size()), view.mask()));
+            static_cast<std::int64_t>(nanos.size()), view.mask().data()));
     }
 
     std::shared_ptr<::arrow::Array> ret;

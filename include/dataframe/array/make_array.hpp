@@ -32,12 +32,12 @@ make_array(
     typename ::arrow::TypeTraits<ArrowType>::BuilderType builder(
         type, ::arrow::default_memory_pool());
 
-    if (view.null_count() == 0) {
+    if (view.mask().null_count() == 0) {
         DF_ARROW_ERROR_HANDLER(builder.AppendValues(
             view.data(), static_cast<std::int64_t>(view.size())));
     } else {
-        DF_ARROW_ERROR_HANDLER(builder.AppendValues(
-            view.data(), static_cast<std::int64_t>(view.size()), view.mask()));
+        DF_ARROW_ERROR_HANDLER(builder.AppendValues(view.data(),
+            static_cast<std::int64_t>(view.size()), view.mask().data()));
     }
 
     std::shared_ptr<::arrow::Array> ret;
