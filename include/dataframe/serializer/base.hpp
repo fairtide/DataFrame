@@ -43,7 +43,7 @@ class Writer
 
     virtual void write(const DataFrame &df) = 0;
 
-    std::string str() const
+    virtual std::string str() const
     {
         if (data() == nullptr) {
             return std::string();
@@ -52,7 +52,7 @@ class Writer
         return std::string(reinterpret_cast<const char *>(data()), size());
     }
 
-    std::vector<std::uint8_t> buffer()
+    virtual std::vector<std::uint8_t> buffer()
     {
         if (data() == nullptr) {
             return std::vector<std::uint8_t>();
@@ -79,19 +79,19 @@ class Reader
 
     virtual DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) = 0;
 
-    DataFrame read(const std::string &str)
+    virtual DataFrame read(const std::string &str)
     {
         return read_buffer(
             str.size(), reinterpret_cast<const uint8_t *>(str.data()));
     }
 
     template <typename Alloc>
-    DataFrame read(const std::vector<std::uint8_t, Alloc> &buf)
+    virtual DataFrame read(const std::vector<std::uint8_t, Alloc> &buf)
     {
         return read_buffer(buf.size(), buf.data());
     }
 
-    DataFrame read(std::size_t n, const std::uint8_t *buf)
+    virtual DataFrame read(std::size_t n, const std::uint8_t *buf)
     {
         return read_buffer(n, buf);
     }

@@ -118,10 +118,10 @@ class JSONRowWriter : public Writer
                 case DataType::Int64:
                     add_number(col.as_view<std::int64_t>());
                     break;
-                case DataType::Float32:
+                case DataType::Float:
                     add_number(col.as_view<float>());
                     break;
-                case DataType::Float64:
+                case DataType::Double:
                     add_number(col.as_view<double>());
                     break;
                 case DataType::String:
@@ -262,10 +262,10 @@ class JSONColumnWriter : public Writer
                 case DataType::Int64:
                     add_number(col.as_view<std::int64_t>());
                     break;
-                case DataType::Float32:
+                case DataType::Float:
                     add_number(col.as_view<float>());
                     break;
-                case DataType::Float64:
+                case DataType::Double:
                     add_number(col.as_view<double>());
                     break;
                 case DataType::String:
