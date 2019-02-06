@@ -18,7 +18,7 @@
 #define DATAFRAME_COLUMN_HPP
 
 #include <dataframe/array.hpp>
-#include <dataframe/traits.hpp>
+#include <dataframe/data_type.hpp>
 
 namespace dataframe {
 
