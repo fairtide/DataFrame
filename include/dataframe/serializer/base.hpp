@@ -79,19 +79,19 @@ class Reader
 
     virtual DataFrame read_buffer(std::size_t n, const std::uint8_t *buf) = 0;
 
-    virtual DataFrame read(const std::string &str)
+    DataFrame read(const std::string &str)
     {
         return read_buffer(
             str.size(), reinterpret_cast<const uint8_t *>(str.data()));
     }
 
     template <typename Alloc>
-    virtual DataFrame read(const std::vector<std::uint8_t, Alloc> &buf)
+    DataFrame read(const std::vector<std::uint8_t, Alloc> &buf)
     {
         return read_buffer(buf.size(), buf.data());
     }
 
-    virtual DataFrame read(std::size_t n, const std::uint8_t *buf)
+    DataFrame read(std::size_t n, const std::uint8_t *buf)
     {
         return read_buffer(n, buf);
     }
