@@ -157,6 +157,42 @@ inline DataType dtype(::arrow::Type::type type)
     }
 }
 
+inline std::string to_string(DataType dtype)
+{
+    switch (dtype) {
+        case DataType::Unknown:
+            return "unknown";
+        case DataType::UInt8:
+            return "uint8";
+        case DataType::Int8:
+            return "int8";
+        case DataType::UInt16:
+            return "uint16";
+        case DataType::Int16:
+            return "int16";
+        case DataType::UInt32:
+            return "uint32";
+        case DataType::Int32:
+            return "int32";
+        case DataType::UInt64:
+            return "uint64";
+        case DataType::Int64:
+            return "int64";
+        case DataType::Date:
+            return "date";
+        case DataType::Timestamp:
+            return "timestamp";
+        case DataType::Float:
+            return "float";
+        case DataType::Double:
+            return "double";
+        case DataType::String:
+            return "string";
+        case DataType::Categorical:
+            return "categorical";
+    }
+}
+
 template <typename T>
 inline constexpr bool is_scalar(T *)
 {
