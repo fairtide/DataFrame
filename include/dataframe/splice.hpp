@@ -88,21 +88,6 @@ class SpliceVisitor : public ::arrow::ArrayVisitor
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
-    {
-        return visit(array);
-    }
-
-    ::arrow::Status Visit(const ::arrow::Time32Array &array) final
-    {
-        return visit(array);
-    }
-
-    ::arrow::Status Visit(const ::arrow::Time64Array &array) final
-    {
-        return visit(array);
-    }
-
     ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
     {
         return visit(array);

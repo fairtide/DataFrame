@@ -191,23 +191,84 @@ class ConstColumnProxy
     template <typename T>
     bool is_ctype() const
     {
-        if (data_ == nullptr) {
-            return false;
-        }
+        switch (dtype()) {
+            case DataType::Unknown:
+                return false;
 
-        return ::dataframe::is_ctype(
-            data_->type()->id(), static_cast<T *>(nullptr));
+            case DataType::UInt8:
+                return std::is_same_v<T, std::uint8_t>;
+            case DataType::Int8:
+                return std::is_same_v<T, std::int8_t>;
+            case DataType::UInt16:
+                return std::is_same_v<T, std::uint16_t>;
+            case DataType::Int16:
+                return std::is_same_v<T, std::int16_t>;
+            case DataType::UInt32:
+                return std::is_same_v<T, std::uint32_t>;
+            case DataType::Int32:
+                return std::is_same_v<T, std::int32_t>;
+            case DataType::UInt64:
+                return std::is_same_v<T, std::uint64_t>;
+            case DataType::Int64:
+                return std::is_same_v<T, std::int64_t>;
+            case DataType::Date:
+                return std::is_same_v<T, std::int32_t>;
+            case DataType::Timestamp:
+                return std::is_same_v<T, std::int64_t>;
+
+            case DataType::Float:
+                return std::is_same_v<T, float>;
+            case DataType::Double:
+                return std::is_same_v<T, double>;
+
+            case DataType::String:
+                return false;
+            case DataType::Categorical:
+                return false;
+        }
     }
 
     template <typename T>
     bool is_convertible() const
     {
-        if (data_ == nullptr) {
-            return false;
-        }
+        switch (dtype()) {
+            case DataType::Unknown:
+                return false;
 
-        return ::dataframe::is_convertible(
-            data_->type()->id(), static_cast<T *>(nullptr));
+            case DataType::UInt8:
+                return std::is_assignable_v<T &, std::uint8_t>;
+            case DataType::Int8:
+                return std::is_assignable_v<T &, std::int8_t>;
+            case DataType::UInt16:
+                return std::is_assignable_v<T &, std::uint16_t>;
+            case DataType::Int16:
+                return std::is_assignable_v<T &, std::int16_t>;
+            case DataType::UInt32:
+                return std::is_assignable_v<T &, std::uint32_t>;
+            case DataType::Int32:
+                return std::is_assignable_v<T &, std::int32_t>;
+            case DataType::UInt64:
+                return std::is_assignable_v<T &, std::uint64_t>;
+            case DataType::Int64:
+                return std::is_assignable_v<T &, std::int64_t>;
+            case DataType::Date:
+                return std::is_assignable_v<T &, std::int32_t> ||
+                    std::is_same_v<T, Date>;
+            case DataType::Timestamp:
+                return std::is_assignable_v<T &, std::int64_t> ||
+                    std::is_same_v<T, Timestamp>;
+
+            case DataType::Float:
+                return std::is_assignable_v<T &, float>;
+            case DataType::Double:
+                return std::is_assignable_v<T &, double>;
+
+            case DataType::String:
+                return std::is_constructible_v<T, std::string_view>;
+            case DataType::Categorical:
+                return std::is_constructible_v<T, std::string_view> ||
+                    std::is_same_v<T, CategoricalArray>;
+        }
     }
 
     bool is_uint8() const { return dtype() == DataType::UInt8; }

@@ -253,11 +253,6 @@ class CategoricalArray : public ArrayMask
     std::unordered_map<std::string_view, std::int32_t> pool_;
 };
 
-inline bool is_convertible(::arrow::Type::type type, CategoricalArray *)
-{
-    return type == ::arrow::Type::DICTIONARY;
-}
-
 inline std::shared_ptr<::arrow::Array> make_array(
     const CategoricalArray &values)
 {

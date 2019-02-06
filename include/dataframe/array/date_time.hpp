@@ -138,16 +138,6 @@ inline constexpr bool is_scalar(Date *) { return true; }
 
 inline constexpr bool is_scalar(Timestamp *) { return true; }
 
-inline bool is_convertible(::arrow::Type::type type, Date *)
-{
-    return type == ::arrow::Type::DATE32;
-}
-
-inline bool is_convertible(::arrow::Type::type type, Timestamp *)
-{
-    return type == ::arrow::Type::TIMESTAMP;
-}
-
 inline std::shared_ptr<::arrow::Array> make_array(
     const ArrayViewBase<Date> &view)
 {
