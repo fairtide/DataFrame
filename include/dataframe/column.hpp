@@ -166,6 +166,8 @@ class ConstColumnProxy
         return ret;
     }
 
+    // attributes
+
     std::size_t size() const
     {
         if (data_ == nullptr) {
@@ -174,6 +176,8 @@ class ConstColumnProxy
 
         return static_cast<std::size_t>(data_->length());
     }
+
+    // type information
 
     DataType dtype() const
     {
@@ -205,6 +209,25 @@ class ConstColumnProxy
         return ::dataframe::is_convertible(
             data_->type()->id(), static_cast<T *>(nullptr));
     }
+
+    bool is_uint8() const { return dtype() == DataType::UInt8; }
+    bool is_int8() const { return dtype() == DataType::Int8; }
+    bool is_uint16() const { return dtype() == DataType::UInt16; }
+    bool is_int16() const { return dtype() == DataType::Int16; }
+    bool is_uint32() const { return dtype() == DataType::UInt32; }
+    bool is_int32() const { return dtype() == DataType::Int32; }
+    bool is_uint64() const { return dtype() == DataType::UInt64; }
+    bool is_int64() const { return dtype() == DataType::Int64; }
+    bool is_float() const { return dtype() == DataType::Float; }
+    bool is_double() const { return dtype() == DataType::Double; }
+    bool is_string() const { return dtype() == DataType::String; }
+    bool is_date() const { return dtype() == DataType::Date; }
+    bool is_timestamp() const { return dtype() == DataType::Timestamp; }
+    bool is_categorical() const { return dtype() == DataType::Categorical; }
+
+    bool is_integer() const { return static_cast<bool>(dtype() & Integer); }
+    bool is_real() const { return static_cast<bool>(dtype() & Real); }
+    bool is_binary() const { return static_cast<bool>(dtype() & Binary); }
 
   protected:
     std::string name_;
@@ -250,9 +273,9 @@ inline bool operator==(
         case DataType::Int64:
             return col1.as_view<std::int64_t>() ==
                 col2.as_view<std::int64_t>();
-        case DataType::Float32:
+        case DataType::Float:
             return col1.as_view<float>() == col2.as_view<float>();
-        case DataType::Float64:
+        case DataType::Double:
             return col1.as_view<double>() == col2.as_view<double>();
         case DataType::String:
             return col1.as<std::string_view>() == col2.as<std::string_view>();

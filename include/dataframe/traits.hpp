@@ -19,28 +19,75 @@
 
 namespace dataframe {
 
-enum class DataType {
-    UInt8 = ::arrow::Type::UINT8,
-    Int8 = ::arrow::Type::INT8,
-    UInt16 = ::arrow::Type::UINT16,
-    Int16 = ::arrow::Type::INT16,
-    UInt32 = ::arrow::Type::UINT32,
-    Int32 = ::arrow::Type::INT32,
-    UInt64 = ::arrow::Type::UINT64,
-    Int64 = ::arrow::Type::INT64,
+enum class DataType : std::uint32_t {
+    Unknown = 0,
 
-    Float32 = ::arrow::Type::FLOAT,
-    Float64 = ::arrow::Type::DOUBLE,
+    UInt8 = (1 << 8) | 1,
+    Int8,
+    UInt16,
+    Int16,
+    UInt32,
+    Int32,
+    UInt64,
+    Int64,
+    Date,
+    Timestamp,
 
-    String = ::arrow::Type::STRING,
+    Float = (1 << 9) | 1,
+    Double,
 
-    Date = ::arrow::Type::DATE32,
-    Timestamp = ::arrow::Type::TIMESTAMP,
-
-    Categorical = ::arrow::Type::DICTIONARY,
-
-    Unknown
+    String = (1 << 10) | 1,
+    Categorical
 };
+
+static constexpr DataType Integer = static_cast<DataType>(1 << 8);
+static constexpr DataType Real = static_cast<DataType>(1 << 9);
+static constexpr DataType Binary = static_cast<DataType>(1 << 10);
+
+inline constexpr DataType operator~(DataType dtype)
+{
+    return static_cast<DataType>(
+        ~static_cast<std::underlying_type_t<DataType>>(dtype));
+}
+
+inline constexpr DataType operator|(DataType dtype1, DataType dtype2)
+{
+    return static_cast<DataType>(
+        static_cast<std::underlying_type_t<DataType>>(dtype1) |
+        static_cast<std::underlying_type_t<DataType>>(dtype2));
+}
+
+inline constexpr DataType operator&(DataType dtype1, DataType dtype2)
+{
+    return static_cast<DataType>(
+        static_cast<std::underlying_type_t<DataType>>(dtype1) &
+        static_cast<std::underlying_type_t<DataType>>(dtype2));
+}
+
+inline constexpr DataType operator^(DataType dtype1, DataType dtype2)
+{
+    return static_cast<DataType>(
+        static_cast<std::underlying_type_t<DataType>>(dtype1) ^
+        static_cast<std::underlying_type_t<DataType>>(dtype2));
+}
+
+inline DataType &operator|=(DataType &dtype1, DataType dtype2)
+{
+    dtype1 = dtype1 | dtype2;
+    return dtype1;
+}
+
+inline DataType &operator&=(DataType &dtype1, DataType dtype2)
+{
+    dtype1 = dtype1 & dtype2;
+    return dtype1;
+}
+
+inline DataType &operator^=(DataType &dtype1, DataType dtype2)
+{
+    dtype1 = dtype1 ^ dtype2;
+    return dtype1;
+}
 
 inline DataType dtype(::arrow::Type::type type)
 {
@@ -71,9 +118,9 @@ inline DataType dtype(::arrow::Type::type type)
             return DataType::Unknown;
 
         case ::arrow::Type::FLOAT:
-            return DataType::Float32;
+            return DataType::Float;
         case ::arrow::Type::DOUBLE:
-            return DataType::Float64;
+            return DataType::Double;
 
         case ::arrow::Type::STRING:
             return DataType::String;
