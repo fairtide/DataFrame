@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_TRAITS_HPP
-#define DATAFRAME_TRAITS_HPP
+#ifndef DATAFRAME_DATA_TYPE_HPP
+#define DATAFRAME_DATA_TYPE_HPP
 
 namespace dataframe {
 
@@ -201,4 +201,4 @@ inline constexpr bool is_scalar(T *)
 
 } // namespace dataframe
 
-#endif // DATAFRAME_TRAITS_HPP
+#endif // DATAFRAME_DATA_TYPE_HPP

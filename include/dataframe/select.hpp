@@ -106,11 +106,11 @@ class SelectVisitor : public ::arrow::ArrayVisitor
 
         while (begin != end) {
             auto i = static_cast<std::int64_t>(*begin++);
-            if (i >= n || i < 0) {
+            if (i >= n) {
                 return ::arrow::Status::Invalid("Out of range select index");
             }
 
-            if (array.IsValid(i)) {
+            if (i >= 0 && array.IsValid(i)) {
                 ARROW_RETURN_NOT_OK(builder.Append(array.GetView(i)));
             } else {
                 ARROW_RETURN_NOT_OK(builder.AppendNull());
@@ -145,11 +145,11 @@ class SelectVisitor : public ::arrow::ArrayVisitor
 
         while (begin != end) {
             auto i = static_cast<std::int64_t>(*begin++);
-            if (i >= n || i < 0) {
+            if (i >= n) {
                 return ::arrow::Status::Invalid("Out of range select index");
             }
 
-            if (array.IsValid(i)) {
+            if (i >= 0 && array.IsValid(i)) {
                 ARROW_RETURN_NOT_OK(builder.Append(v[i]));
             } else {
                 ARROW_RETURN_NOT_OK(builder.AppendNull());
