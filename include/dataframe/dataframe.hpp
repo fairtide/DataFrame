@@ -35,7 +35,7 @@ class DataFrame
 
     DataFrame &operator=(DataFrame &&) noexcept = default;
 
-    DataFrame(std::shared_ptr<::arrow::Table> table)
+    explicit DataFrame(std::shared_ptr<::arrow::Table> table)
         : table_(std::move(table))
     {
     }
