@@ -27,7 +27,7 @@ namespace dataframe {
 namespace internal {
 
 template <typename T>
-class CategoricalIndexVisitor : public ::arrow::ArrayVisitor
+class CategoricalIndexVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     CategoricalIndexVisitor(const ::arrow::StringArray &levels, T *out)
@@ -102,7 +102,7 @@ class CategoricalIndexVisitor : public ::arrow::ArrayVisitor
 };
 
 template <typename T>
-class CategoricalLevelVisitor : public ::arrow::ArrayVisitor
+class CategoricalLevelVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     CategoricalLevelVisitor(const ::arrow::Array &index, T *out)
@@ -124,7 +124,7 @@ class CategoricalLevelVisitor : public ::arrow::ArrayVisitor
 };
 
 template <typename T>
-class CategoricalVisitor : public ::arrow::ArrayVisitor
+class CategoricalVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     CategoricalVisitor(T *out)
@@ -170,12 +170,6 @@ class CategoricalArray
         mask_.push_back(true);
     }
 
-    template <typename... Args>
-    void emplace_back(Args &&... args)
-    {
-        push_back(std::string_view(std::forward<Args>(args)...));
-    }
-
     template <typename T, typename... Args>
     void emplace_back(T &&v, Args &&... args)
     {
@@ -188,6 +182,8 @@ class CategoricalArray
         mask_.push_back(false);
         index_.push_back(-1);
     }
+
+    std::size_t size() const { return index_.size(); }
 
     void clear()
     {

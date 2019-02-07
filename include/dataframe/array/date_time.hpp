@@ -31,7 +31,7 @@ using Timestamp = ::boost::posix_time::ptime;
 
 namespace internal {
 
-class Date32Visitor : public ::arrow::ArrayVisitor
+class Date32Visitor final : public ::arrow::ArrayVisitor
 {
   public:
     Date32Visitor(Date *out)
@@ -63,7 +63,7 @@ class Date32Visitor : public ::arrow::ArrayVisitor
     Date *out_;
 };
 
-class TimestampVisitor : public ::arrow::ArrayVisitor
+class TimestampVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     TimestampVisitor(Timestamp *out)

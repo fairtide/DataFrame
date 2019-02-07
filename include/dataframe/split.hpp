@@ -53,9 +53,7 @@ inline std::vector<std::shared_ptr<::arrow::Table>> split(
             auto values = chunks.front()->Slice(offset, len);
 
             columns.push_back(std::make_shared<::arrow::Column>(
-                ::arrow::field(
-                    col->name(), values->type(), col->null_count() != 0),
-                values));
+                ::arrow::field(col->name(), values->type()), values));
         }
 
         fields.clear();

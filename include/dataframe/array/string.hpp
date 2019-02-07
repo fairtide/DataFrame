@@ -25,7 +25,7 @@ namespace dataframe {
 namespace internal {
 
 template <typename T>
-class StringVisitor : public ::arrow::ArrayVisitor
+class StringVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     StringVisitor(T *out)

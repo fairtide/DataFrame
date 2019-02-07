@@ -104,7 +104,7 @@ inline std::shared_ptr<::arrow::Array> make_primitive_array(
 }
 
 template <typename T>
-class PrimitiveViewVisitor : public ::arrow::ArrayVisitor
+class PrimitiveViewVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     ::arrow::Status Visit(const ::arrow::Int8Array &array) final
@@ -198,7 +198,7 @@ class PrimitiveViewVisitor : public ::arrow::ArrayVisitor
 };
 
 template <typename T>
-class PrimitiveValueVisitor : public ::arrow::ArrayVisitor
+class PrimitiveValueVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     PrimitiveValueVisitor(T *out)

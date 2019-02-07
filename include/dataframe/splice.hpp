@@ -24,7 +24,7 @@ namespace dataframe {
 namespace internal {
 
 template <typename T>
-class SpliceVisitor : public ::arrow::ArrayVisitor
+class SpliceVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     SpliceVisitor(T minval, T maxval)

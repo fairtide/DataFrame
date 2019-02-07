@@ -23,7 +23,7 @@ namespace dataframe {
 
 namespace internal {
 
-class SortVisitor : public ::arrow::ArrayVisitor
+class SortVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     std::vector<std::int64_t> index;

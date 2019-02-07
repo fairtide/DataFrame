@@ -24,7 +24,7 @@ namespace dataframe {
 namespace internal {
 
 template <typename InputIter>
-class SelectVisitor : public ::arrow::ArrayVisitor
+class SelectVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     std::shared_ptr<::arrow::Array> values;
@@ -164,7 +164,7 @@ class SelectVisitor : public ::arrow::ArrayVisitor
     InputIter end_;
 };
 
-class SelectMaskVisitor : public ::arrow::ArrayVisitor
+class SelectMaskVisitor final : public ::arrow::ArrayVisitor
 {
   public:
     std::shared_ptr<::arrow::Array> values;
