@@ -23,6 +23,15 @@
 
 namespace dataframe {
 
+inline std::shared_ptr<::arrow::Array> make_array(
+    ::arrow::ArrayBuilder &builder)
+{
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+
+    return ret;
+}
+
 template <typename T, typename ArrowType>
 inline std::enable_if_t<std::is_base_of_v<::arrow::DataType, ArrowType>,
     std::shared_ptr<::arrow::Array>>

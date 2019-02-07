@@ -19,7 +19,7 @@
 
 #include <dataframe/array.hpp>
 #include <dataframe/column.hpp>
-// #include <dataframe/concatenate.hpp>
+#include <dataframe/concatenate.hpp>
 #include <dataframe/data_frame.hpp>
 #include <dataframe/error.hpp>
 #include <dataframe/select.hpp>

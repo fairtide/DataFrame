@@ -27,13 +27,32 @@ class DataFrame
   public:
     DataFrame() = default;
 
-    DataFrame(const DataFrame &) = delete;
-
     DataFrame(DataFrame &&) noexcept = default;
 
-    DataFrame &operator=(const DataFrame &) = delete;
-
     DataFrame &operator=(DataFrame &&) noexcept = default;
+
+    DataFrame(const DataFrame &other)
+    {
+        auto ncol = other.ncol();
+        for (std::size_t i = 0; i != ncol; ++i) {
+            auto col = other[i];
+            operator[](col.name()) = col;
+        }
+    }
+
+    DataFrame &operator=(const DataFrame &other)
+    {
+        if (this != &other) {
+            clear();
+            auto ncol = other.ncol();
+            for (std::size_t i = 0; i != ncol; ++i) {
+                auto col = other[i];
+                operator[](col.name()) = col;
+            }
+        }
+
+        return *this;
+    }
 
     explicit DataFrame(std::shared_ptr<::arrow::Table> table)
         : table_(std::move(table))
@@ -83,12 +102,29 @@ class DataFrame
 
     explicit operator bool() const { return table_ != nullptr; }
 
-    DataFrame rows(std::size_t i, std::size_t j) const
+    /// \brief Select a range of rows
+    DataFrame rows(std::size_t begin, std::size_t end) const
     {
         DataFrame ret;
         for (std::size_t k = 0; k != ncol(); ++k) {
             auto col = operator[](k);
-            ret[col.name()] = col(i, j);
+            ret[col.name()] = col(begin, end);
+        }
+
+        return ret;
+    }
+
+    /// \brief Select a range of columns
+    DataFrame cols(std::size_t begin, std::size_t end) const
+    {
+        if (begin > end) {
+            return DataFrame();
+        }
+
+        DataFrame ret;
+        for (std::size_t k = begin; k != end; ++k) {
+            auto col = operator[](k);
+            ret[col.name()] = col;
         }
 
         return ret;

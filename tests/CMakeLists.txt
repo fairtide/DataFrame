@@ -53,5 +53,6 @@ function(add_dataframe_test testname)
 endfunction(add_dataframe_test src)
 
 add_dataframe_test(dataframe)
+add_dataframe_test(concatenate)
 add_dataframe_test(serializer)
 add_dataframe_test(sort)

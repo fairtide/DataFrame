@@ -376,16 +376,22 @@ class ColumnProxy : public ConstColumnProxy
 
     /// \brief Assign to the column, create the column if it does not exist yet
     template <typename T>
-    std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), ColumnProxy &>
-    operator=(const T &v)
+    std::enable_if_t<
+        !is_scalar(static_cast<std::remove_cv_t<std::remove_reference_t<T>> *>(
+            nullptr)),
+        ColumnProxy &>
+    operator=(T &&v)
     {
-        return operator=(make_array(v));
+        return operator=(make_array(std::forward<T>(v)));
     }
 
     /// \brief Assign to the column with repeated value of a scalar
     template <typename T>
-    std::enable_if_t<is_scalar(static_cast<T *>(nullptr)), ColumnProxy &>
-    operator=(const T &v)
+    std::enable_if_t<
+        is_scalar(static_cast<std::remove_cv_t<std::remove_reference_t<T>> *>(
+            nullptr)),
+        ColumnProxy &>
+    operator=(T &&v)
     {
         if (table_ == nullptr || table_->num_columns() == 0) {
             throw DataFrameException(
@@ -395,7 +401,7 @@ class ColumnProxy : public ConstColumnProxy
         std::vector<T> data(static_cast<std::size_t>(table_->num_rows()));
         std::fill_n(data.data(), data.size(), v);
 
-        return operator=(data);
+        return operator=(std::move(data));
     }
 
     /// \brief Assign a pre-constructed Arrow array
@@ -437,7 +443,7 @@ class ColumnProxy : public ConstColumnProxy
         return *this;
     }
 
-    ColumnProxy &operator=(const ConstColumnProxy &col)
+    ColumnProxy &operator=(ConstColumnProxy col)
     {
         return operator=(col.data());
     }
