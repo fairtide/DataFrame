@@ -59,6 +59,12 @@ class DataFrame
     {
     }
 
+    template <typename K, typename V, typename... Args>
+    DataFrame(std::pair<K, V> kv, Args &&... args)
+    {
+        insert_pair(std::move(kv), std::forward<Args>(args)...);
+    }
+
     ConstColumnProxy operator[](const std::string &name) const
     {
         return ConstColumnProxy(name, table_);
@@ -129,6 +135,16 @@ class DataFrame
 
         return ret;
     }
+
+  private:
+    template <typename K, typename V, typename... Args>
+    void insert_pair(std::pair<K, V> kv, Args &&... args)
+    {
+        operator[](std::move(kv.first)) = std::move(kv.second);
+        insert_pair(std::forward<Args>(args)...);
+    }
+
+    void insert_pair() {}
 
   private:
     std::shared_ptr<::arrow::Table> table_;
