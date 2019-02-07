@@ -393,12 +393,12 @@ class ColumnProxy : public ConstColumnProxy
         ColumnProxy &>
     operator=(T &&v)
     {
-        if (table_ == nullptr || table_->num_columns() == 0) {
-            throw DataFrameException(
-                "Cannot assign scalar to an empty DataFrame");
+        std::size_t nrow = 1;
+        if (table_ != nullptr && table_->num_columns() != 0) {
+            nrow = static_cast<std::size_t>(table_->num_rows());
         }
 
-        std::vector<T> data(static_cast<std::size_t>(table_->num_rows()));
+        std::vector<T> data(nrow);
         std::fill_n(data.data(), data.size(), v);
 
         return operator=(std::move(data));
@@ -467,12 +467,12 @@ class ColumnProxy : public ConstColumnProxy
     void remove()
     {
         if (table_ == nullptr) {
-            throw DataFrameException("Empty DataFrame");
+            return;
         }
 
         auto index = static_cast<int>(table_->schema()->GetFieldIndex(name_));
         if (index < 0) {
-            throw DataFrameException("Column does not exist");
+            return;
         }
 
         DF_ARROW_ERROR_HANDLER(table_->RemoveColumn(index, &table_));
