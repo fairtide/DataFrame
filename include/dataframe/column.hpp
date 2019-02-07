@@ -404,6 +404,12 @@ class ColumnProxy : public ConstColumnProxy
         return operator=(std::move(data));
     }
 
+    /// \brief Assign another column
+    ColumnProxy &operator=(ConstColumnProxy col)
+    {
+        return operator=(col.data());
+    }
+
     /// \brief Assign a pre-constructed Arrow array
     ColumnProxy &operator=(std::shared_ptr<::arrow::Array> data)
     {
@@ -431,10 +437,9 @@ class ColumnProxy : public ConstColumnProxy
             return *this;
         }
 
-        auto index = table_->schema()->GetFieldIndex(name_);
+        auto index = static_cast<int>(table_->schema()->GetFieldIndex(name_));
         if (index >= 0) {
-            DF_ARROW_ERROR_HANDLER(
-                table_->SetColumn(static_cast<int>(index), col, &table_));
+            DF_ARROW_ERROR_HANDLER(table_->SetColumn(index, col, &table_));
         } else {
             DF_ARROW_ERROR_HANDLER(
                 table_->AddColumn(table_->num_columns(), col, &table_));
@@ -443,9 +448,34 @@ class ColumnProxy : public ConstColumnProxy
         return *this;
     }
 
-    ColumnProxy &operator=(ConstColumnProxy col)
+    void rename(const std::string &name)
     {
-        return operator=(col.data());
+        if (table_ == nullptr) {
+            throw DataFrameException("Empty DataFrame");
+        }
+
+        auto index = static_cast<int>(table_->schema()->GetFieldIndex(name_));
+        if (index < 0) {
+            throw DataFrameException("Column does not exist");
+        }
+
+        auto fld = ::arrow::field(name, data_->type());
+        auto col = std::make_shared<::arrow::Column>(fld, data_);
+        DF_ARROW_ERROR_HANDLER(table_->SetColumn(index, col, &table_));
+    }
+
+    void remove()
+    {
+        if (table_ == nullptr) {
+            throw DataFrameException("Empty DataFrame");
+        }
+
+        auto index = static_cast<int>(table_->schema()->GetFieldIndex(name_));
+        if (index < 0) {
+            throw DataFrameException("Column does not exist");
+        }
+
+        DF_ARROW_ERROR_HANDLER(table_->RemoveColumn(index, &table_));
     }
 
   private:
