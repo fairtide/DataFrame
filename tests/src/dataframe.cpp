@@ -180,10 +180,3 @@ TEST(DataFrame, Double)
     EXPECT_EQ(df["x"].view<double>(), ::dataframe::ArrayView<double>(x));
     EXPECT_EQ(df["x"].view<double>().data(), df["x"].as_view<double>().data());
 }
-
-int main(int argc, char **argv)
-{
-    ::testing::InitGoogleTest(&argc, argv);
-
-    return RUN_ALL_TESTS();
-}

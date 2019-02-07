@@ -266,10 +266,3 @@ TEST(Sort, Categorical)
     EXPECT_THROW(::dataframe::sort(ret.orig, "Categorical", true),
         ::dataframe::DataFrameException);
 }
-
-int main(int argc, char **argv)
-{
-    ::testing::InitGoogleTest(&argc, argv);
-
-    return RUN_ALL_TESTS();
-}

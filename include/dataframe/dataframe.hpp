@@ -22,6 +22,8 @@
 #include <dataframe/concatenate.hpp>
 #include <dataframe/data_frame.hpp>
 #include <dataframe/error.hpp>
+#include <dataframe/io.hpp>
+#include <dataframe/join.hpp>
 #include <dataframe/select.hpp>
 #include <dataframe/serializer.hpp>
 #include <dataframe/sort.hpp>

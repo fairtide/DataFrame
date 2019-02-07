@@ -182,10 +182,3 @@ TEST(Concatenate, BindCols)
     EXPECT_EQ(df.cols(0, df1.ncol()), df1);
     EXPECT_EQ(df.cols(df1.ncol(), df.ncol()), df2);
 }
-
-int main(int argc, char **argv)
-{
-    ::testing::InitGoogleTest(&argc, argv);
-
-    return RUN_ALL_TESTS();
-}
