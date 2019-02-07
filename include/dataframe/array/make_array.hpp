@@ -72,7 +72,7 @@ inline std::shared_ptr<::arrow::Array> make_array(
 template <typename InputIter, typename GetField, typename... Args>
 inline std::enable_if_t<
     std::is_invocable_v<GetField,
-        const typename std::iterator_traits<InputIter>::value_type &>,
+        typename std::iterator_traits<InputIter>::reference>,
     std::shared_ptr<::arrow::Array>>
 make_array(
     InputIter first, InputIter last, GetField &&get_field, Args &&... args)

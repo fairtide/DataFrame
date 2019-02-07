@@ -179,6 +179,132 @@ inline bool operator!=(const DataFrame &df1, const DataFrame &df2)
     return !(df1 == df2);
 }
 
+namespace internal {
+
+template <typename InputIter>
+inline void insert_pair(DataFrame &, InputIter, InputIter)
+{
+}
+
+template <typename InputIter, typename K, typename V>
+inline std::enable_if_t<!std::is_member_pointer_v<V> &&
+    std::is_invocable_v<V,
+        typename std::iterator_traits<InputIter>::reference>>
+insert_pair1(
+    DataFrame &ret, InputIter first, InputIter last, std::pair<K, V> kv)
+{
+    ret[std::move(kv.first)].emplace(
+        first, last, [&](auto &&v) { return kv.second(v); });
+}
+
+template <typename InputIter, typename K, typename V>
+inline std::enable_if_t<std::is_member_function_pointer_v<V>> insert_pair1(
+    DataFrame &ret, InputIter first, InputIter last, std::pair<K, V> kv)
+{
+    ret[std::move(kv.first)].emplace(
+        first, last, [&](auto &&v) { return (v.*kv.second)(); });
+}
+
+template <typename InputIter, typename K, typename V>
+inline std::enable_if_t<std::is_member_object_pointer_v<V>> insert_pair1(
+    DataFrame &ret, InputIter first, InputIter last, std::pair<K, V> kv)
+{
+    ret[std::move(kv.first)].emplace(
+        first, last, [&](auto &&v) { return v.*kv.second; });
+}
+
+template <typename InputIter, typename K, typename V, typename... Args>
+inline void insert_pair(DataFrame &ret, InputIter first, InputIter last,
+    std::pair<K, V> kv, Args &&... args)
+{
+    insert_pair1(ret, first, last, std::move(kv));
+    internal::insert_pair(ret, first, last, std::forward<Args>(args)...);
+}
+
+} // namespace internal
+
+/// \brief Make a DataFrame from class objects, given member access functions,
+/// pointers, or callback
+template <typename InputIter, typename... Args>
+inline DataFrame make_dataframe(
+    InputIter first, InputIter last, Args &&... args)
+{
+    DataFrame ret;
+    internal::insert_pair(ret, first, last, std::forward<Args>(args)...);
+    return ret;
+}
+
+/// \brief Make a DataFrame from class objects, given member access functions,
+/// pointers, or callback
+template <typename T, typename... Args>
+inline DataFrame make_dataframe(std::size_t n, const T *data, Args &&... args)
+{
+    return make_dataframe(data, data + n, std::forward<Args>(args)...);
+}
+
+/// \brief Make a DataFrame from class objects, given member access functions,
+/// pointers, or callback
+template <typename T, typename Alloc, typename... Args>
+inline DataFrame make_dataframe(
+    const std::vector<T, Alloc> &data, Args &&... args)
+{
+    return make_dataframe(
+        data.begin(), data.end(), std::forward<Args>(args)...);
+}
+
+namespace internal {
+
+template <typename T>
+inline void cast_pair(const DataFrame &, T *)
+{
+}
+
+template <typename T, typename K, typename V>
+inline std::enable_if_t<std::is_member_object_pointer_v<V>> cast_pair1(
+    const DataFrame &df, T *ret, std::pair<K, V> kv)
+{
+    using U =
+        std::remove_cv_t<std::remove_reference_t<decltype(ret->*kv.second)>>;
+
+    df[std::move(kv.first)].template as_view<U>().set(
+        ret, [&](auto &&v, auto *data) {
+            data->*kv.second = std::forward<decltype(v)>(v);
+        });
+}
+
+template <typename T, typename K, typename V>
+inline std::enable_if_t<std::is_member_function_pointer_v<V>> cast_pair1(
+    const DataFrame &df, T *ret, std::pair<K, V> kv)
+{
+    using U = std::remove_cv_t<
+        std::remove_reference_t<decltype((ret->*kv.second)())>>;
+
+    df[std::move(kv.first)].template as_view<U>().set(
+        ret, [&](auto &&v, auto *data) {
+            (data->*kv.second)() = std::forward<decltype(v)>(v);
+        });
+}
+
+template <typename T, typename K, typename V, typename... Args>
+inline void cast_pair(
+    const DataFrame &df, T *data, std::pair<K, V> kv, Args &&... args)
+{
+    cast_pair1(df, data, std::move(kv));
+    cast_pair(df, data, std::forward<Args>(args)...);
+}
+
+} // namespace internal
+
+/// \brief Cast a DataFrame to a vector of class objects, given member access
+/// functions, pointers, or callback
+template <typename T, typename Alloc, typename... Args>
+inline void cast_dataframe(
+    const DataFrame &df, std::vector<T, Alloc> *ret, Args &&... args)
+{
+    ret->resize(df.nrow());
+    internal::cast_pair(df, ret->data(), std::forward<Args>(args)...);
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_DATA_FRAME_HPP

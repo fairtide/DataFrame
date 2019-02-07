@@ -180,3 +180,29 @@ TEST(DataFrame, Double)
     EXPECT_EQ(df["x"].view<double>(), ::dataframe::ArrayView<double>(x));
     EXPECT_EQ(df["x"].view<double>().data(), df["x"].as_view<double>().data());
 }
+
+TEST(DataFrame, make_dataframe)
+{
+    struct C {
+        int x = 1;
+        double y = 2;
+        std::string z() const { return "foo"; }
+    };
+
+    std::vector<C> c(1);
+
+    auto df = ::dataframe::make_dataframe(c,                //
+        std::pair{"x", &C::x},                              //
+        std::pair{"y", &C::y},                              //
+        std::pair{"z", &C::z},                              //
+        std::pair{"xy", [](auto &&v) { return v.x + v.y; }} //
+    );
+
+    ::dataframe::DataFrame ret;
+    ret["x"] = 1;
+    ret["y"] = 2.0;
+    ret["z"] = "foo";
+    ret["xy"] = 3.0;
+
+    EXPECT_EQ(df, ret);
+}
