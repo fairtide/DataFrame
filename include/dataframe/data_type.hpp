@@ -89,7 +89,7 @@ inline DataType &operator^=(DataType &dtype1, DataType dtype2)
     return dtype1;
 }
 
-inline DataType dtype(::arrow::Type::type type)
+inline constexpr DataType dtype(::arrow::Type::type type)
 {
     switch (type) {
         case ::arrow::Type::NA:
