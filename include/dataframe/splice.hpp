@@ -93,6 +93,9 @@ class SpliceVisitor final : public ::arrow::ArrayVisitor
         return visit(array);
     }
 
+    std::size_t begin() const { return begin_; }
+    std::size_t end() const { return end_; }
+
   private:
     template <typename ArrayType>
     ::arrow::Status visit(const ArrayType &array)
@@ -100,7 +103,7 @@ class SpliceVisitor final : public ::arrow::ArrayVisitor
         auto n = array.length();
         auto v = array.raw_values();
 
-        using U = std::remove_cv_t<std::remove_reference_t>(decltype(*v));
+        using U = std::remove_cv_t<std::remove_reference_t<decltype(*v)>>;
 
         auto minval = static_cast<U>(minval_);
         auto maxval = static_cast<U>(maxval_);
@@ -122,7 +125,7 @@ class SpliceVisitor final : public ::arrow::ArrayVisitor
                 ++end;
             }
         } else {
-            while (end < n && (v[end] < maxval || array.IsNull(end)) {
+            while (end < n && (v[end] < maxval || array.IsNull(end))) {
                 ++end;
             }
         }

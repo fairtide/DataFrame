@@ -27,6 +27,7 @@
 #include <dataframe/select.hpp>
 #include <dataframe/serializer.hpp>
 #include <dataframe/sort.hpp>
+#include <dataframe/splice.hpp>
 #include <dataframe/split.hpp>
 
 #endif // DATAFRAME_DATAFRAME_HPP
