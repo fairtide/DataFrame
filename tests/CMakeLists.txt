@@ -57,3 +57,37 @@ add_dataframe_test(concatenate)
 add_dataframe_test(serializer)
 add_dataframe_test(sort)
 add_dataframe_test(join)
+
+find_program(Rscript_EXECUTABLE Rscript)
+
+if (Rscript_EXECUTABLE)
+    execute_process(COMMAND ${Rscript_EXECUTABLE} -e
+        "cat(R.home())" OUTPUT_VARIABLE R_HOME)
+    message(STATUS "R_HOME ${R_HOME}")
+
+    execute_process(COMMAND ${Rscript_EXECUTABLE} -e
+        "x <- installed.packages(); cat(x[x[,\"Package\"] == \"Rcpp\", \"LibPath\"])"
+        OUTPUT_VARIABLE Rcpp_ROOT)
+    message(STATUS "Rcpp_ROOT ${Rcpp_ROOT}")
+
+    execute_process(COMMAND ${Rscript_EXECUTABLE} -e
+        "x <- installed.packages(); cat(x[x[,\"Package\"] == \"RInside\", \"LibPath\"])"
+        OUTPUT_VARIABLE RInside_ROOT)
+    message(STATUS "RInside_ROOT ${RInside_ROOT}")
+
+    if (EXISTS ${R_HOME} AND EXISTS ${Rcpp_ROOT} AND EXISTS ${RInside_ROOT})
+        include_directories(SYSTEM ${R_HOME}/include)
+        include_directories(SYSTEM ${Rcpp_ROOT}/Rcpp/include)
+        include_directories(SYSTEM ${RInside_ROOT}/RInside/include)
+
+        find_library(R_LIB R PATHS ${R_HOME}/lib NO_DEFAULT_PATH)
+        message(STATUS "R_LIB ${R_LIB}")
+
+        find_library(RInside_LIB RInside PATHS ${RInside_ROOT}/RInside/lib NO_DEFAULT_PATH)
+        message(STATUS "RInside_LIB ${RInside_LIB}")
+
+        if (R_LIB AND RInside_LIB)
+            add_dataframe_test(rcpp ${R_LIB} ${RInside_LIB})
+        endif (R_LIB AND RInside_LIB)
+    endif (EXISTS ${R_HOME} AND EXISTS ${Rcpp_ROOT} AND EXISTS ${RInside_ROOT})
+endif (Rscript_EXECUTABLE)
