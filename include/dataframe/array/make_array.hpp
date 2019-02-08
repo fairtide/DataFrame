@@ -99,6 +99,16 @@ make_array(std::size_t n, const T *data, GetField &&get_field, Args &&... args)
         std::forward<Args>(args)...);
 }
 
+template <typename T, typename Alloc, typename GetField, typename... Args>
+inline std::enable_if_t<std::is_invocable_v<GetField, const T &>,
+    std::shared_ptr<::arrow::Array>>
+make_array(
+    const std::vector<T, Alloc> &data, GetField &&get_field, Args &&... args)
+{
+    return make_array(data.begin(), data.end(),
+        std::forward<GetField>(get_field), std::forward<Args>(args)...);
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_MAKE_ARRAY_HPP
