@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_ARRAY_MASK_HPP
 #define DATAFRAME_ARRAY_MASK_HPP
 
+#include <cstdint>
 #include <vector>
 
 namespace dataframe {
@@ -44,7 +45,7 @@ class ArrayMask
         }
     }
 
-    ArrayMask(std::size_t n, const uint8_t *bytes)
+    ArrayMask(std::size_t n, const std::uint8_t *bytes)
         : data_(n)
         , size_(n)
         , null_count_(0)
