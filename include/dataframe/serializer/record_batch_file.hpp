@@ -49,10 +49,9 @@ class RecordBatchFileWriter : public Writer
             0, ::arrow::default_memory_pool(), &stream));
         std::shared_ptr<::arrow::ipc::RecordBatchWriter> writer;
 
-        auto table = df.table();
         DF_ARROW_ERROR_HANDLER(::arrow::ipc::RecordBatchFileWriter::Open(
-            stream.get(), table->schema(), &writer));
-        DF_ARROW_ERROR_HANDLER(writer->WriteTable(*table));
+            stream.get(), df.table().schema(), &writer));
+        DF_ARROW_ERROR_HANDLER(writer->WriteTable(df.table()));
         DF_ARROW_ERROR_HANDLER(writer->Close());
         DF_ARROW_ERROR_HANDLER(stream->Finish(&buffer_));
     }
@@ -92,7 +91,7 @@ class RecordBatchFileReader : public Reader
         DF_ARROW_ERROR_HANDLER(
             ::arrow::Table::FromRecordBatches(batches, &table));
 
-        return DataFrame(table);
+        return DataFrame(std::move(table));
     }
 };
 

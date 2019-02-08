@@ -48,15 +48,15 @@ class FeatherWriter : public Writer
         DF_ARROW_ERROR_HANDLER(::arrow::io::BufferOutputStream::Create(
             0, ::arrow::default_memory_pool(), &stream));
 
-        auto table = df.table();
+        auto &table = df.table();
         std::unique_ptr<::arrow::ipc::feather::TableWriter> writer;
         DF_ARROW_ERROR_HANDLER(
             ::arrow::ipc::feather::TableWriter::Open(stream, &writer));
-        writer->SetNumRows(table->num_rows());
+        writer->SetNumRows(table.num_rows());
 
-        auto ncols = table->num_columns();
+        auto ncols = table.num_columns();
         for (auto i = 0; i != ncols; ++i) {
-            auto col = table->column(i);
+            auto col = table.column(i);
             auto chunks = col->data()->chunks();
             for (auto &&ary : chunks) {
                 DF_ARROW_ERROR_HANDLER(
@@ -106,7 +106,7 @@ class FeatherReader : public Reader
         auto table = ::arrow::Table::Make(
             std::make_shared<::arrow::Schema>(fields), columns, nrows);
 
-        return DataFrame(table);
+        return DataFrame(std::move(table));
     }
 };
 

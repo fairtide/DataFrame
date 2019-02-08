@@ -23,27 +23,22 @@ namespace dataframe {
 
 namespace internal {
 
-inline std::vector<std::shared_ptr<::arrow::Table>> split(
-    const std::shared_ptr<::arrow::Table> &table, std::int64_t nrows)
+inline std::vector<std::shared_ptr<::arrow::Table>> split_rows(
+    const ::arrow::Table &table, std::int64_t nrows)
 {
     std::vector<std::shared_ptr<::arrow::Table>> ret;
-
-    if (table->num_rows() <= nrows) {
-        ret.push_back(table);
-        return ret;
-    }
 
     auto offset = INT64_C(0);
     std::vector<std::shared_ptr<::arrow::Column>> columns;
     std::vector<std::shared_ptr<::arrow::Field>> fields;
 
-    while (offset < table->num_rows()) {
-        auto end = std::min(table->num_rows(), offset + nrows);
+    while (offset < table.num_rows()) {
+        auto end = std::min(table.num_rows(), offset + nrows);
         auto len = end - offset;
 
         columns.clear();
-        for (auto i = 0; i != table->num_columns(); ++i) {
-            auto col = table->column(i);
+        for (auto i = 0; i != table.num_columns(); ++i) {
+            auto col = table.column(i);
             auto chunks = col->data()->chunks();
 
             if (chunks.size() != 1) {
@@ -72,10 +67,15 @@ inline std::vector<std::shared_ptr<::arrow::Table>> split(
 
 } // namespace internal
 
-inline std::vector<DataFrame> split(const DataFrame &df, std::size_t nrows)
+inline std::vector<DataFrame> split_rows(
+    const DataFrame &df, std::size_t nrows)
 {
+    if (df.nrow() == 0 || df.nrow() <= nrows) {
+        return std::vector{df};
+    }
+
     auto tables =
-        internal::split(df.table(), static_cast<std::int64_t>(nrows));
+        internal::split_rows(df.table(), static_cast<std::int64_t>(nrows));
 
     std::vector<DataFrame> ret;
     ret.reserve(tables.size());

@@ -54,9 +54,25 @@ class DataFrame
         return *this;
     }
 
-    explicit DataFrame(std::shared_ptr<::arrow::Table> table)
+    explicit DataFrame(std::shared_ptr<::arrow::Table> &&table)
         : table_(std::move(table))
     {
+    }
+
+    explicit DataFrame(const ::arrow::Table &table)
+    {
+        auto nrows = table.num_rows();
+        std::vector<std::shared_ptr<::arrow::Column>> columns;
+        std::vector<std::shared_ptr<::arrow::Field>> fields;
+        columns.reserve(static_cast<std::size_t>(table.num_columns()));
+        fields.reserve(static_cast<std::size_t>(table.num_columns()));
+        for (auto i = 0; i != table.num_columns(); ++i) {
+            auto col = table.column(i);
+            columns.push_back(col);
+            fields.push_back(col->field());
+        }
+        table_ = ::arrow::Table::Make(
+            std::make_shared<::arrow::Schema>(fields), columns, nrows);
     }
 
     template <typename K, typename V, typename... Args>
@@ -86,7 +102,7 @@ class DataFrame
             table_->column(static_cast<int>(j))->name(), table_);
     }
 
-    const std::shared_ptr<::arrow::Table> &table() const { return table_; }
+    const ::arrow::Table &table() const { return *table_; }
 
     std::size_t nrow() const
     {
