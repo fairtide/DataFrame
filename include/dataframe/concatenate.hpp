@@ -164,6 +164,16 @@ inline DataFrame bind_rows(InputIter first, InputIter last)
 
     DataFrame ret;
 
+    auto count = std::distance(first, last);
+    if (count == 0) {
+        return ret;
+    }
+
+    if (count == 1) {
+        ret = *first;
+        return ret;
+    }
+
     while (first != last && first->empty()) {
         ++first;
     }
@@ -238,6 +248,16 @@ template <typename InputIter>
 inline DataFrame bind_cols(InputIter first, InputIter last)
 {
     DataFrame ret;
+
+    auto count = std::distance(first, last);
+    if (count == 0) {
+        return ret;
+    }
+
+    if (count == 1) {
+        ret = *first;
+        return ret;
+    }
 
     while (first != last) {
         const auto &df = *first++;
