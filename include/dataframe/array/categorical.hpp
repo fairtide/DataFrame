@@ -170,6 +170,34 @@ class CategoricalArray
         mask_.push_back(true);
     }
 
+    template <typename T>
+    void resize(std::size_t n, T &&value)
+    {
+        if (n == size()) {
+            return;
+        }
+
+        if (n < size()) {
+            index_.resize(n);
+            return;
+        }
+
+        std::string_view str(std::forward<T>(value));
+
+        auto iter = pool_.find(std::string_view(str));
+
+        if (iter != pool_.end()) {
+            index_.resize(n, iter->second);
+        } else {
+            index_.resize(n, static_cast<std::int32_t>(levels_.size()));
+            levels_.emplace_back(str);
+            // TODO should be safe to more efficiently just emplace one element
+            for (std::size_t i = 0; i != levels_.size(); ++i) {
+                pool_[levels_[i]] = static_cast<std::int32_t>(i);
+            }
+        }
+    }
+
     template <typename T, typename... Args>
     void emplace_back(T &&v, Args &&... args)
     {
