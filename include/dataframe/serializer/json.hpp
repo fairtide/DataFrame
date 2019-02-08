@@ -95,7 +95,7 @@ class JSONRowWriter : public Writer
 
             switch (col.dtype()) {
                 case DataType::Bool:
-                    add_number(col.as<bool>());
+                    add_number(col.as_view<bool>());
                     break;
                 case DataType::UInt8:
                     add_number(col.as_view<std::uint8_t>());
@@ -128,10 +128,10 @@ class JSONRowWriter : public Writer
                     add_number(col.as_view<double>());
                     break;
                 case DataType::String:
-                    add_string_view(col.as<std::string_view>());
+                    add_string_view(col.as_view<std::string_view>());
                     break;
                 case DataType::Date: {
-                    auto data = col.as<Date>();
+                    auto data = col.as_view<Date>();
                     std::vector<std::string> strs;
                     strs.reserve(data.size());
                     for (auto &&v : data) {
@@ -141,7 +141,7 @@ class JSONRowWriter : public Writer
                     add_string(strs);
                 } break;
                 case DataType::Timestamp: {
-                    auto data = col.as<Timestamp>();
+                    auto data = col.as_view<Timestamp>();
                     std::vector<std::string> strs;
                     strs.reserve(data.size());
                     for (auto &&v : data) {
@@ -152,7 +152,7 @@ class JSONRowWriter : public Writer
                     add_string(strs);
                 } break;
                 case DataType::Categorical:
-                    add_string_view(col.as<std::string_view>());
+                    add_string_view(col.as_view<std::string_view>());
                     break;
                 case DataType::Unknown:
                     throw DataFrameException(
@@ -242,7 +242,7 @@ class JSONColumnWriter : public Writer
 
             switch (col.dtype()) {
                 case DataType::Bool:
-                    add_number(col.as<bool>());
+                    add_number(col.as_view<bool>());
                     break;
                 case DataType::UInt8:
                     add_number(col.as_view<std::uint8_t>());
@@ -275,10 +275,10 @@ class JSONColumnWriter : public Writer
                     add_number(col.as_view<double>());
                     break;
                 case DataType::String:
-                    add_string_view(col.as<std::string_view>());
+                    add_string_view(col.as_view<std::string_view>());
                     break;
                 case DataType::Date: {
-                    auto data = col.as<Date>();
+                    auto data = col.as_view<Date>();
                     std::vector<std::string> strs;
                     strs.reserve(data.size());
                     for (auto &&v : data) {
@@ -288,7 +288,7 @@ class JSONColumnWriter : public Writer
                     add_string(strs);
                 } break;
                 case DataType::Timestamp: {
-                    auto data = col.as<Timestamp>();
+                    auto data = col.as_view<Timestamp>();
                     std::vector<std::string> strs;
                     strs.reserve(data.size());
                     for (auto &&v : data) {
@@ -299,7 +299,7 @@ class JSONColumnWriter : public Writer
                     add_string(strs);
                 } break;
                 case DataType::Categorical:
-                    add_string_view(col.as<std::string_view>());
+                    add_string_view(col.as_view<std::string_view>());
                     break;
                 case DataType::Unknown:
                     throw DataFrameException(

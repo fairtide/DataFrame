@@ -80,7 +80,7 @@ class CSVWriter : public Writer
 
             switch (col.dtype()) {
                 case DataType::Bool:
-                    add_bool(col.as<bool>());
+                    add_bool(col.as_view<bool>());
                     break;
                 case DataType::UInt8:
                     add_number(col.as_view<std::uint8_t>());
@@ -113,10 +113,10 @@ class CSVWriter : public Writer
                     add_number(col.as_view<double>());
                     break;
                 case DataType::String:
-                    add_string(col.as<std::string_view>());
+                    add_string(col.as_view<std::string_view>());
                     break;
                 case DataType::Date: {
-                    auto data = col.as<Date>();
+                    auto data = col.as_view<Date>();
                     std::vector<std::string> strs;
                     strs.reserve(data.size());
                     for (auto &&v : data) {
@@ -126,7 +126,7 @@ class CSVWriter : public Writer
                     add_string(strs);
                 } break;
                 case DataType::Timestamp: {
-                    auto data = col.as<Timestamp>();
+                    auto data = col.as_view<Timestamp>();
                     std::vector<std::string> strs;
                     strs.reserve(data.size());
                     for (auto &&v : data) {
@@ -137,7 +137,7 @@ class CSVWriter : public Writer
                     add_string(strs);
                 } break;
                 case DataType::Categorical:
-                    add_string(col.as<std::string_view>());
+                    add_string(col.as_view<std::string_view>());
                     break;
                 case DataType::Unknown:
                     throw DataFrameException(

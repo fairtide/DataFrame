@@ -183,6 +183,10 @@ class CategoricalArray
         index_.push_back(-1);
     }
 
+    const std::vector<std::int32_t> &index() const { return index_; }
+
+    const std::vector<std::string> &levels() const { return levels_; }
+
     std::size_t size() const { return index_.size(); }
 
     void clear()

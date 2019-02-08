@@ -33,16 +33,6 @@ class StringVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
-    {
-        return visit(array);
-    }
-
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) final
-    {
-        return visit(array);
-    }
-
     ::arrow::Status Visit(const ::arrow::StringArray &array) final
     {
         return visit(array);

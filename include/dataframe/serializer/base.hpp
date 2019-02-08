@@ -20,6 +20,8 @@
 #include <dataframe/data_frame.hpp>
 #include <arrow/io/api.h>
 #include <arrow/ipc/api.h>
+#include <fstream>
+#include <iostream>
 
 namespace dataframe {
 
@@ -71,7 +73,15 @@ class Writer
 
     virtual void write(const DataFrame &df) = 0;
 
-    std::string str() const
+    virtual void write_file(const std::string &path, const DataFrame &df)
+    {
+        write(df);
+        std::ofstream out(path, std::ios::out | std::ios::binary);
+        out.write(reinterpret_cast<const char *>(data()),
+            static_cast<std::streamsize>(size()));
+    }
+
+    virtual std::string str() const
     {
         if (data() == nullptr) {
             return std::string();
@@ -98,6 +108,14 @@ class Reader
 
     virtual DataFrame read_buffer(
         std::size_t n, const std::uint8_t *buf, bool zero_copy) = 0;
+
+    virtual DataFrame read_file(const std::string &path)
+    {
+        std::ifstream in(path, std::ios::in | std::ios::binary);
+
+        return read(std::string(std::istreambuf_iterator<char>(in),
+            std::istreambuf_iterator<char>()));
+    }
 
     DataFrame read(const std::string &str, bool zero_copy = false)
     {

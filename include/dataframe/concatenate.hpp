@@ -181,7 +181,7 @@ inline DataFrame bind_rows(InputIter first, InputIter last)
         builders.emplace_back(col.name());
         auto &b = builders.back();
         if (col.dtype() == DataType::Categorical) {
-            b.categorical = col.template as<CategoricalArray>();
+            b.categorical = col.template as_view<CategoricalArray>();
         } else {
             internal::BindRowsVisitor visitor(&b.builder);
             DF_ARROW_ERROR_HANDLER(col.data()->Accept(&visitor));
@@ -207,7 +207,7 @@ inline DataFrame bind_rows(InputIter first, InputIter last)
             }
 
             if (b.builder == nullptr && col.dtype() == DataType::Categorical) {
-                auto v = col.template as<CategoricalArray>();
+                auto v = col.template as_view<CategoricalArray>();
                 const auto &m = v.mask();
                 for (std::size_t i = 0; i != v.size(); ++i) {
                     if (m[i]) {

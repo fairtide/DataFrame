@@ -205,37 +205,63 @@ inline std::shared_ptr<::arrow::Array> make_array(
 
 enum class TimeUnit { Day, Second, Millisecond, Microsecond, Nanosecond };
 
+namespace internal {
+
+template <typename T>
+inline std::shared_ptr<::arrow::Array> make_date_array(
+    const ArrayViewBase<T> &view)
+{
+    if constexpr (std::is_same_v<T, std::int32_t>) {
+        return make_array(view, std::make_shared<::arrow::Date32Type>());
+    } else {
+        std::vector<std::int32_t> dates(
+            view.data(), view.data() + view.size());
+        return make_date_array(
+            ArrayView<std::int32_t>(dates.size(), dates.data(), view.mask()));
+    }
+}
+
+template <typename T>
+inline std::shared_ptr<::arrow::Array> make_timestamp_array(
+    const ArrayViewBase<T> &view, ::arrow::TimeUnit::type unit)
+{
+    if constexpr (std::is_same_v<T, std::int64_t>) {
+        return make_array(
+            view, std::make_shared<::arrow::TimestampType>(unit));
+    } else {
+        std::vector<std::int64_t> timestamps(
+            view.data(), view.data() + view.size());
+        return make_timestamp_array(ArrayView<std::int64_t>(timestamps.size(),
+                                        timestamps.data(), view.mask()),
+            unit);
+    }
+}
+
+} // namespace internal
+
+template <typename T>
 inline std::shared_ptr<::arrow::Array> make_array(
-    const ArrayViewBase<std::int64_t> &view, TimeUnit unit)
+    const ArrayViewBase<T> &view, TimeUnit unit)
 {
     if (view.data() == nullptr) {
         return nullptr;
     }
 
     switch (unit) {
-        case TimeUnit::Day: {
-            std::vector<std::int32_t> dates(
-                view.data(), view.data() + view.size());
-            return make_array(
-                ArrayView<std::int32_t>(dates.size(), dates.data()),
-                std::make_shared<::arrow::Date32Type>());
-        }
+        case TimeUnit::Day:
+            return internal::make_date_array(view);
         case TimeUnit::Second:
-            return make_array(view,
-                std::make_shared<::arrow::TimestampType>(
-                    ::arrow::TimeUnit::SECOND));
+            return internal::make_timestamp_array(
+                view, ::arrow::TimeUnit::SECOND);
         case TimeUnit::Millisecond:
-            return make_array(view,
-                std::make_shared<::arrow::TimestampType>(
-                    ::arrow::TimeUnit::MILLI));
+            return internal::make_timestamp_array(
+                view, ::arrow::TimeUnit::MILLI);
         case TimeUnit::Microsecond:
-            return make_array(view,
-                std::make_shared<::arrow::TimestampType>(
-                    ::arrow::TimeUnit::MICRO));
+            return internal::make_timestamp_array(
+                view, ::arrow::TimeUnit::MICRO);
         case TimeUnit::Nanosecond:
-            return make_array(view,
-                std::make_shared<::arrow::TimestampType>(
-                    ::arrow::TimeUnit::NANO));
+            return internal::make_timestamp_array(
+                view, ::arrow::TimeUnit::NANO);
     }
 }
 
