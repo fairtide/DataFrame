@@ -336,9 +336,13 @@ inline bool operator==(
         return false;
     }
 
+    if (col1.data() == col2.data()) {
+        return true;
+    }
+
     switch (col1.dtype()) {
         case DataType::Bool:
-            return col1.as<bool>() == col2.as<bool>();
+            return col1.as_view<bool>() == col2.as_view<bool>();
         case DataType::UInt8:
             return col1.as_view<std::uint8_t>() ==
                 col2.as_view<std::uint8_t>();
@@ -367,13 +371,15 @@ inline bool operator==(
         case DataType::Double:
             return col1.as_view<double>() == col2.as_view<double>();
         case DataType::String:
-            return col1.as<std::string_view>() == col2.as<std::string_view>();
+            return col1.as_view<std::string_view>() ==
+                col2.as_view<std::string_view>();
         case DataType::Date:
-            return col1.as<Date>() == col2.as<Date>();
+            return col1.as_view<Date>() == col2.as_view<Date>();
         case DataType::Timestamp:
-            return col1.as<Timestamp>() == col2.as<Timestamp>();
+            return col1.as_view<Timestamp>() == col2.as_view<Timestamp>();
         case DataType::Categorical:
-            return col1.as<std::string_view>() == col2.as<std::string_view>();
+            return col1.as_view<std::string_view>() ==
+                col2.as_view<std::string_view>();
         case DataType::Unknown:
             throw DataFrameException("Unknown dtype cannot be compared");
     }
