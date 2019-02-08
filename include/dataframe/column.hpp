@@ -131,7 +131,15 @@ class ConstColumnProxy
     }
 
     template <typename T, typename Storage>
-    ArrayView<T, Storage> as_view() const
+    std::enable_if_t<!std::is_arithmetic_v<T>, ArrayView<T, Storage>>
+    as_view() const
+    {
+        return ArrayView<T, Storage>(as<Storage>());
+    }
+
+    template <typename T, typename Storage>
+    std::enable_if_t<std::is_arithmetic_v<T>, ArrayView<T, Storage>>
+    as_view() const
     {
         if (is_ctype<T>()) {
             return ArrayView<T, Storage>{view<T>()};
@@ -141,9 +149,25 @@ class ConstColumnProxy
     }
 
     template <typename T>
-    ArrayView<T, std::vector<T>> as_view() const
+    std::enable_if_t<is_scalar(static_cast<T *>(nullptr)) &&
+            !std::is_same_v<T, bool>,
+        ArrayView<T, std::vector<T>>>
+    as_view() const
     {
         return as_view<T, std::vector<T>>();
+    }
+
+    template <typename T>
+    std::enable_if_t<std::is_same_v<T, bool>, std::vector<bool>>
+    as_view() const
+    {
+        return as<std::vector<bool>>();
+    }
+
+    template <typename T>
+    std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), T> as_view() const
+    {
+        return as<T>();
     }
 
     const std::string &name() const { return name_; }
@@ -408,10 +432,7 @@ class ColumnProxy : public ConstColumnProxy
             nrow = static_cast<std::size_t>(table_->num_rows());
         }
 
-        std::vector<T> data(nrow);
-        std::fill_n(data.data(), data.size(), v);
-
-        return operator=(std::move(data));
+        return operator=(std::vector<T>(nrow, std::forward<T>(v)));
     }
 
     /// \brief Assign another column
