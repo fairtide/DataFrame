@@ -44,6 +44,11 @@ class RecordBatchStreamWriter : public Writer
 
     void write(const DataFrame &df) final
     {
+        if (df.empty()) {
+            buffer_ = nullptr;
+            return;
+        }
+
         std::shared_ptr<::arrow::io::BufferOutputStream> stream;
         DF_ARROW_ERROR_HANDLER(::arrow::io::BufferOutputStream::Create(
             0, ::arrow::default_memory_pool(), &stream));
