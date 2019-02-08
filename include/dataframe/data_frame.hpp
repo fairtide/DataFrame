@@ -17,6 +17,9 @@
 #ifndef DATAFRAME_DATA_FRAME_HPP
 #define DATAFRAME_DATA_FRAME_HPP
 
+#define DF_FIELD_PAIR(T, field)                                               \
+    std::pair { #field, &T::field }
+
 #include <dataframe/column.hpp>
 
 namespace dataframe {
@@ -241,31 +244,34 @@ inline void insert_pair(DataFrame &ret, InputIter first, InputIter last,
 
 /// \brief Make a DataFrame from class objects, given member access functions,
 /// pointers, or callback
-template <typename InputIter, typename... Args>
+template <typename InputIter, typename K, typename V, typename... Args>
 inline DataFrame make_dataframe(
-    InputIter first, InputIter last, Args &&... args)
+    InputIter first, InputIter last, std::pair<K, V> kv, Args &&... args)
 {
     DataFrame ret;
-    internal::insert_pair(ret, first, last, std::forward<Args>(args)...);
+    internal::insert_pair(
+        ret, first, last, std::move(kv), std::forward<Args>(args)...);
     return ret;
 }
 
 /// \brief Make a DataFrame from class objects, given member access functions,
 /// pointers, or callback
-template <typename T, typename... Args>
-inline DataFrame make_dataframe(std::size_t n, const T *data, Args &&... args)
+template <typename T, typename K, typename V, typename... Args>
+inline DataFrame make_dataframe(
+    std::size_t n, const T *data, std::pair<K, V> kv, Args &&... args)
 {
-    return make_dataframe(data, data + n, std::forward<Args>(args)...);
+    return make_dataframe(
+        data, data + n, std::move(kv), std::forward<Args>(args)...);
 }
 
 /// \brief Make a DataFrame from class objects, given member access functions,
 /// pointers, or callback
-template <typename T, typename Alloc, typename... Args>
+template <typename T, typename Alloc, typename K, typename V, typename... Args>
 inline DataFrame make_dataframe(
-    const std::vector<T, Alloc> &data, Args &&... args)
+    const std::vector<T, Alloc> &data, std::pair<K, V> kv, Args &&... args)
 {
     return make_dataframe(
-        data.begin(), data.end(), std::forward<Args>(args)...);
+        data.begin(), data.end(), std::move(kv), std::forward<Args>(args)...);
 }
 
 namespace internal {
