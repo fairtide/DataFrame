@@ -432,10 +432,7 @@ class ColumnProxy : public ConstColumnProxy
             nrow = static_cast<std::size_t>(table_->num_rows());
         }
 
-        std::vector<T> data(nrow);
-        std::fill_n(data.data(), data.size(), v);
-
-        return operator=(std::move(data));
+        return operator=(std::vector<T>(nrow, std::forward<T>(v)));
     }
 
     /// \brief Assign another column
