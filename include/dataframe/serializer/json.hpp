@@ -65,7 +65,7 @@ class JSONRowWriter : public Writer
             auto key = ::rapidjson::StringRef(keys[i].data(), keys[i].size());
 
             auto add_number = [&](auto &&data) {
-                auto ptr = data.data();
+                auto ptr = data.begin();
                 for (auto &&doc : rows) {
                     doc.AddMember(key, *ptr++, doc.GetAllocator());
                 }
@@ -94,6 +94,9 @@ class JSONRowWriter : public Writer
             };
 
             switch (col.dtype()) {
+                case DataType::Bool:
+                    add_number(col.as<bool>());
+                    break;
                 case DataType::UInt8:
                     add_number(col.as_view<std::uint8_t>());
                     break;
@@ -211,7 +214,7 @@ class JSONColumnWriter : public Writer
 
             auto add_number = [&](auto &&data) {
                 ::rapidjson::Value value(::rapidjson::kArrayType);
-                for (auto &&v : data) {
+                for (auto v : data) {
                     value.PushBack(v, root.GetAllocator());
                 }
                 cols.AddMember(key, value, cols.GetAllocator());
@@ -238,6 +241,9 @@ class JSONColumnWriter : public Writer
             };
 
             switch (col.dtype()) {
+                case DataType::Bool:
+                    add_number(col.as<bool>());
+                    break;
                 case DataType::UInt8:
                     add_number(col.as_view<std::uint8_t>());
                     break;

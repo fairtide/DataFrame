@@ -22,6 +22,8 @@ namespace dataframe {
 enum class DataType : std::uint32_t {
     Unknown = 0,
 
+    Bool,
+
     UInt8 = (1 << 8) | 1,
     Int8,
     UInt16,
@@ -39,10 +41,6 @@ enum class DataType : std::uint32_t {
     String = (1 << 10) | 1,
     Categorical
 };
-
-static constexpr DataType Integer = static_cast<DataType>(1 << 8);
-static constexpr DataType Real = static_cast<DataType>(1 << 9);
-static constexpr DataType Binary = static_cast<DataType>(1 << 10);
 
 inline constexpr DataType operator~(DataType dtype)
 {
@@ -89,13 +87,17 @@ inline DataType &operator^=(DataType &dtype1, DataType dtype2)
     return dtype1;
 }
 
+static constexpr DataType Integer = static_cast<DataType>(1 << 8);
+static constexpr DataType Real = static_cast<DataType>(1 << 9);
+static constexpr DataType Binary = static_cast<DataType>(1 << 10);
+
 inline constexpr DataType dtype(::arrow::Type::type type)
 {
     switch (type) {
         case ::arrow::Type::NA:
             return DataType::Unknown;
         case ::arrow::Type::BOOL:
-            return DataType::Unknown;
+            return DataType::Bool;
 
         case ::arrow::Type::UINT8:
             return DataType::UInt8;
@@ -162,6 +164,8 @@ inline std::string to_string(DataType dtype)
     switch (dtype) {
         case DataType::Unknown:
             return "unknown";
+        case DataType::Bool:
+            return "bool";
         case DataType::UInt8:
             return "uint8";
         case DataType::Int8:

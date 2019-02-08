@@ -51,6 +51,19 @@ class CSVWriter : public Writer
         for (std::size_t i = 0; i != ncol; ++i) {
             auto col = df[i];
 
+            auto add_bool = [&](auto &&data) {
+                auto ptr = data.begin();
+                std::string t("true");
+                std::string f("false");
+                for (auto &&doc : rows) {
+                    if (*ptr++) {
+                        doc.push_back(t);
+                    } else {
+                        doc.push_back(f);
+                    }
+                }
+            };
+
             auto add_number = [&](auto &&data) {
                 auto ptr = data.data();
                 for (auto &&doc : rows) {
@@ -66,6 +79,9 @@ class CSVWriter : public Writer
             };
 
             switch (col.dtype()) {
+                case DataType::Bool:
+                    add_bool(col.as<bool>());
+                    break;
                 case DataType::UInt8:
                     add_number(col.as_view<std::uint8_t>());
                     break;

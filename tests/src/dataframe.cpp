@@ -18,14 +18,13 @@
 #include <gtest/gtest.h>
 #include <random>
 
-template <typename T>
-inline std::vector<T> generate_real(std::size_t n)
+inline std::vector<bool> generate_bool(std::size_t n)
 {
-    std::vector<T> ret(n);
+    std::vector<bool> ret(n);
     std::mt19937_64 rng;
-    std::uniform_real_distribution<T> runif(0, 1);
-    for (auto &v : ret) {
-        v = runif(rng);
+    std::bernoulli_distribution runif;
+    for (std::size_t i = 0; i != n; ++i) {
+        ret[i] = runif(rng);
     }
 
     return ret;
@@ -43,6 +42,29 @@ inline std::vector<T> generate_int(std::size_t n)
     }
 
     return ret;
+}
+
+template <typename T>
+inline std::vector<T> generate_real(std::size_t n)
+{
+    std::vector<T> ret(n);
+    std::mt19937_64 rng;
+    std::uniform_real_distribution<T> runif(0, 1);
+    for (auto &v : ret) {
+        v = runif(rng);
+    }
+
+    return ret;
+}
+
+TEST(DataFrame, Bool)
+{
+    auto x = generate_bool(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_FALSE(df["x"].is_ctype<bool>());
+    EXPECT_TRUE(df["x"].is_convertible<bool>());
+    EXPECT_EQ(df["x"].as<bool>(), x);
 }
 
 TEST(DataFrame, UInt8)

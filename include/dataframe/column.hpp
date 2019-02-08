@@ -189,6 +189,9 @@ class ConstColumnProxy
             case DataType::Unknown:
                 return false;
 
+            case DataType::Bool:
+                return false;
+
             case DataType::UInt8:
                 return std::is_same_v<T, std::uint8_t>;
             case DataType::Int8:
@@ -229,6 +232,9 @@ class ConstColumnProxy
             case DataType::Unknown:
                 return false;
 
+            case DataType::Bool:
+                return std::is_assignable_v<T &, bool>;
+
             case DataType::UInt8:
                 return std::is_assignable_v<T &, std::uint8_t>;
             case DataType::Int8:
@@ -265,6 +271,8 @@ class ConstColumnProxy
         }
     }
 
+    bool is_unknown() const { return dtype() == DataType::Unknown; }
+    bool is_bool() const { return dtype() == DataType::Bool; }
     bool is_uint8() const { return dtype() == DataType::UInt8; }
     bool is_int8() const { return dtype() == DataType::Int8; }
     bool is_uint16() const { return dtype() == DataType::UInt16; }
@@ -305,6 +313,8 @@ inline bool operator==(
     }
 
     switch (col1.dtype()) {
+        case DataType::Bool:
+            return col1.as<bool>() == col2.as<bool>();
         case DataType::UInt8:
             return col1.as_view<std::uint8_t>() ==
                 col2.as_view<std::uint8_t>();

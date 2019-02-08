@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_ARRAY_HPP
 #define DATAFRAME_ARRAY_HPP
 
+#include <dataframe/array/bool.hpp>
 #include <dataframe/array/categorical.hpp>
 #include <dataframe/array/date_time.hpp>
 #include <dataframe/array/make_array.hpp>

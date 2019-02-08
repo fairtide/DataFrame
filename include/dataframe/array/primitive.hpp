@@ -206,6 +206,18 @@ class PrimitiveValueVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
+    ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+    {
+        auto n = array.length();
+        out_->clear();
+        out_->reserve(static_cast<std::size_t>(n));
+        for (std::int64_t i = 0; i != n; ++i) {
+            out_->push_back(array.Value(i));
+        }
+
+        return ::arrow::Status::OK();
+    }
+
     ::arrow::Status Visit(const ::arrow::Int8Array &array) final
     {
         return visit(array);
@@ -270,7 +282,8 @@ class PrimitiveValueVisitor final : public ::arrow::ArrayVisitor
     template <typename ArrayType>
     ::arrow::Status visit(const ArrayType &array)
     {
-        std::copy_n(array.raw_values(), array.length(), out_);
+        out_->resize(static_cast<std::size_t>(array.length()));
+        std::copy_n(array.raw_values(), array.length(), out_->begin());
 
         return ::arrow::Status::OK();
     }
@@ -319,8 +332,7 @@ template <typename T, typename Alloc>
 inline std::enable_if_t<std::is_arithmetic_v<T>> cast_array(
     const ::arrow::Array &values, std::vector<T, Alloc> *out)
 {
-    out->resize(static_cast<std::size_t>(values.length()));
-    internal::PrimitiveValueVisitor<T> visitor(out->data());
+    internal::PrimitiveValueVisitor<std::vector<T, Alloc>> visitor(out);
     DF_ARROW_ERROR_HANDLER(values.Accept(&visitor));
 }
 
