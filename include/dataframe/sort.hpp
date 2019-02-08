@@ -164,7 +164,21 @@ inline DataFrame sort(
     internal::SortVisitor visitor(rev);
     DF_ARROW_ERROR_HANDLER(df[by].data()->Accept(&visitor));
 
-    return select(df, visitor.index.begin(), visitor.index.end());
+    auto &index = visitor.index;
+    bool is_sorted = true;
+    for (std::int64_t i = 0; i != static_cast<std::int64_t>(index.size());
+         ++i) {
+        if (index[i] != i) {
+            is_sorted = false;
+            break;
+        }
+    }
+
+    if (is_sorted) {
+        return df;
+    }
+
+    return select(df, index.begin(), index.end());
 }
 
 } // namespace dataframe
