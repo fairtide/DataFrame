@@ -14,20 +14,15 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_DATAFRAME_HPP
-#define DATAFRAME_DATAFRAME_HPP
+#ifndef DATAFRAME_ARRAY_HPP
+#define DATAFRAME_ARRAY_HPP
 
-#include <dataframe/array.hpp>
-#include <dataframe/column.hpp>
-#include <dataframe/concatenate.hpp>
-#include <dataframe/data_frame.hpp>
-#include <dataframe/error.hpp>
-#include <dataframe/io.hpp>
-#include <dataframe/join.hpp>
-#include <dataframe/select.hpp>
-#include <dataframe/serializer.hpp>
-#include <dataframe/sort.hpp>
-#include <dataframe/splice.hpp>
-#include <dataframe/split.hpp>
+#include <dataframe/array/bool.hpp>
+#include <dataframe/array/categorical.hpp>
+#include <dataframe/array/date_time.hpp>
+#include <dataframe/array/make_array.hpp>
+#include <dataframe/array/primitive.hpp>
+#include <dataframe/array/string.hpp>
+#include <dataframe/array/view.hpp>
 
-#endif // DATAFRAME_DATAFRAME_HPP
+#endif // DATAFRAME_ARRAY_HPP

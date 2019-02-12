@@ -28,14 +28,15 @@ endif(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 # Basics
 ##############################################################################
 
-project(DataFrame C CXX)
+project(DataFrame LANGUAGES C CXX VERSION 0.0.1)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 ##############################################################################
 # Options
 ##############################################################################
 
-option(DataFrame_ENABLE_TESTS "Enable building of example" ON)
+option(DataFrame_ENABLE_TESTS "Enable building of tests" ON)
 
 ##############################################################################
 # Installation
@@ -48,21 +49,32 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/dataframe
     DESTINATION ${DataFrame_INSTALL_INC_DIR}
     PATTERN ".DS_Store" EXCLUDE PATTERN "*.swp" EXCLUDE)
 
-##############################################################################
-# Check features
-##############################################################################
+include(CMakePackageConfigHelpers)
+set(prefix ${CMAKE_INSTALL_PREFIX}/lib/cmake/${PROJECT_NAME})
 
-if(DataFrame_ENABLE_TESTS)
-    include(DataFrame)
-else(DataFrame_ENABLE_TESTS)
-    return()
-endif(DataFrame_ENABLE_TESTS)
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/${PROJECT_NAME}Config.cmake.in
+    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+    INSTALL_DESTINATION ${prefix} PATH_VARS DataFrame_INSTALL_INC_DIR
+    INSTALL_PREFIX ${${PROJECT_NAME}_INSTALL_PREFIX})
+
+write_basic_package_version_file(
+    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES
+    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
+    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
+    DESTINATION ${prefix})
 
 ##############################################################################
 # Tests
 ##############################################################################
 
 if(DataFrame_ENABLE_TESTS)
+    include(DataFrame)
+    enable_testing()
     add_custom_target(tests)
-    add_subdirectory(tests EXCLUDE_FROM_ALL)
+    add_subdirectory(tests)
 endif(DataFrame_ENABLE_TESTS)

@@ -14,20 +14,12 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_DATAFRAME_HPP
-#define DATAFRAME_DATAFRAME_HPP
+#ifndef DATAFRAME_SERIALIZER_HPP
+#define DATAFRAME_SERIALIZER_HPP
 
-#include <dataframe/array.hpp>
-#include <dataframe/column.hpp>
-#include <dataframe/concatenate.hpp>
-#include <dataframe/data_frame.hpp>
-#include <dataframe/error.hpp>
-#include <dataframe/io.hpp>
-#include <dataframe/join.hpp>
-#include <dataframe/select.hpp>
-#include <dataframe/serializer.hpp>
-#include <dataframe/sort.hpp>
-#include <dataframe/splice.hpp>
-#include <dataframe/split.hpp>
+#include <dataframe/serializer/csv.hpp>
+#include <dataframe/serializer/feather.hpp>
+#include <dataframe/serializer/record_batch_file.hpp>
+#include <dataframe/serializer/record_batch_stream.hpp>
 
-#endif // DATAFRAME_DATAFRAME_HPP
+#endif // DATAFRAME_SERIALIZER_HPP

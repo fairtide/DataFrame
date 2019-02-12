@@ -14,20 +14,19 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_DATAFRAME_HPP
-#define DATAFRAME_DATAFRAME_HPP
+#include <dataframe/serializer/csv.hpp>
+#include <iostream>
 
-#include <dataframe/array.hpp>
-#include <dataframe/column.hpp>
-#include <dataframe/concatenate.hpp>
-#include <dataframe/data_frame.hpp>
-#include <dataframe/error.hpp>
-#include <dataframe/io.hpp>
-#include <dataframe/join.hpp>
-#include <dataframe/select.hpp>
-#include <dataframe/serializer.hpp>
-#include <dataframe/sort.hpp>
-#include <dataframe/splice.hpp>
-#include <dataframe/split.hpp>
+namespace dataframe {
 
-#endif // DATAFRAME_DATAFRAME_HPP
+template <typename CharT, typename Traits>
+inline std::basic_ostream<CharT, Traits> &operator<<(
+    std::basic_ostream<CharT, Traits> &os, const DataFrame &df)
+{
+    CSVWriter writer('\t');
+    writer.write(df);
+
+    return os << writer.str();
+}
+
+} // namespace dataframe
