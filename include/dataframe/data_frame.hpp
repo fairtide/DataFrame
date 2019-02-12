@@ -130,6 +130,10 @@ class DataFrame
     /// \brief Select a range of rows
     DataFrame rows(std::size_t begin, std::size_t end) const
     {
+        if (begin >= end) {
+            return DataFrame();
+        }
+
         DataFrame ret;
         for (std::size_t k = 0; k != ncol(); ++k) {
             auto col = operator[](k);
@@ -142,7 +146,7 @@ class DataFrame
     /// \brief Select a range of columns
     DataFrame cols(std::size_t begin, std::size_t end) const
     {
-        if (begin > end) {
+        if (begin >= end) {
             return DataFrame();
         }
 

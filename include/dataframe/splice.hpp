@@ -157,10 +157,6 @@ inline std::enable_if_t<std::is_arithmetic_v<T>, DataFrame> splice(
     internal::SpliceVisitor<T> visitor(minval, maxval);
     DF_ARROW_ERROR_HANDLER(col.data()->Accept(&visitor));
 
-    if (visitor.begin() == visitor.end()) {
-        return DataFrame();
-    }
-
     return df.rows(visitor.begin(), visitor.end());
 }
 
