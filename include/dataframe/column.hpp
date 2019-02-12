@@ -451,7 +451,8 @@ class ColumnProxy : public ConstColumnProxy
     ColumnProxy &operator=(std::shared_ptr<::arrow::Array> data)
     {
         if (data == nullptr) {
-            throw DataFrameException("Cannot assign a null array");
+            throw DataFrameException(
+                "Cannot assign a null array to column " + name_);
         }
 
         if (table_ != nullptr && table_->num_columns() != 0 &&
