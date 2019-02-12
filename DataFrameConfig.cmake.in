@@ -1,0 +1,3 @@
+@PACKAGE_INIT@
+set_and_check(DataFrame_INCLUDE_DIR @PACKAGE_DataFrame_INSTALL_INC_DIR@)
+message(STATUS "Found DataFrame headers: ${DataFrame_INCLUDE_DIR}")
