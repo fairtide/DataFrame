@@ -14,6 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
+#define BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+
 #include <dataframe/dataframe.hpp>
 #include <gtest/gtest.h>
 #include <random>
@@ -52,6 +54,45 @@ inline std::vector<T> generate_real(std::size_t n)
     std::uniform_real_distribution<T> runif(0, 1);
     for (auto &v : ret) {
         v = runif(rng);
+    }
+
+    return ret;
+}
+
+inline std::vector<::dataframe::Date> generate_date(std::size_t n)
+{
+    std::vector<::dataframe::Date> ret(n);
+    ::dataframe::Date epoch(1970, 1, 1);
+    std::mt19937_64 rng;
+    std::uniform_real_distribution<int> runif(0, 1000);
+    for (auto &v : ret) {
+        v = epoch + ::boost::gregorian::days(runif(rng));
+    }
+
+    return ret;
+}
+
+inline std::vector<::dataframe::Timestamp> generate_timestamp(std::size_t n)
+{
+    std::vector<::dataframe::Timestamp> ret(n);
+    ::dataframe::Timestamp epoch(::dataframe::Date(1970, 1, 1));
+    std::mt19937_64 rng;
+    std::uniform_real_distribution<int> runif(0, 1000);
+    for (auto &v : ret) {
+        v = epoch + ::boost::posix_time::seconds(runif(rng));
+    }
+
+    return ret;
+}
+
+template <typename U, typename T>
+inline std::vector<::dataframe::Timestamp> int2timestamp(
+    const std::vector<T> &x)
+{
+    std::vector<::dataframe::Timestamp> ret(x.size());
+    ::dataframe::Timestamp epoch(::dataframe::Date(1970, 1, 1));
+    for (std::size_t i = 0; i != x.size(); ++i) {
+        ret[i] = epoch + U(x[i]);
     }
 
     return ret;
@@ -201,6 +242,84 @@ TEST(DataFrame, Double)
     EXPECT_EQ(df["x"].as<double>(), x);
     EXPECT_EQ(df["x"].view<double>(), ::dataframe::ArrayView<double>(x));
     EXPECT_EQ(df["x"].view<double>().data(), df["x"].as_view<double>().data());
+}
+
+TEST(DataFrame, Date)
+{
+    auto x = generate_date(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_TRUE(df["x"].is_ctype<std::int32_t>());
+    EXPECT_TRUE(df["x"].is_convertible<::dataframe::Date>());
+    EXPECT_EQ(df["x"].as<::dataframe::Date>(), x);
+}
+
+TEST(DataFrame, DateD)
+{
+    auto x = generate_int<std::int32_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"].emplace(x, ::dataframe::TimeUnit::Day);
+    EXPECT_TRUE(df["x"].is_ctype<std::int32_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
+    EXPECT_EQ(df["x"].as<std::int32_t>(), x);
+}
+
+TEST(DataFrame, Timestamp)
+{
+    auto x = generate_timestamp(1000);
+    ::dataframe::DataFrame df;
+    df["x"] = x;
+    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
+    EXPECT_TRUE(df["x"].is_convertible<::dataframe::Timestamp>());
+    EXPECT_EQ(df["x"].as<::dataframe::Timestamp>(), x);
+}
+
+TEST(DataFrame, TimestampS)
+{
+    auto x = generate_int<std::int64_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"].emplace(x, ::dataframe::TimeUnit::Second);
+    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
+    EXPECT_EQ(df["x"].as<std::int64_t>(), x);
+    auto t = int2timestamp<::boost::posix_time::seconds>(x);
+    EXPECT_EQ(df["x"].as<::dataframe::Timestamp>(), t);
+}
+
+TEST(DataFrame, TimestampMS)
+{
+    auto x = generate_int<std::int64_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"].emplace(x, ::dataframe::TimeUnit::Millisecond);
+    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
+    EXPECT_EQ(df["x"].as<std::int64_t>(), x);
+    auto t = int2timestamp<::boost::posix_time::milliseconds>(x);
+    EXPECT_EQ(df["x"].as<::dataframe::Timestamp>(), t);
+}
+
+TEST(DataFrame, TimestampUS)
+{
+    auto x = generate_int<std::int64_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"].emplace(x, ::dataframe::TimeUnit::Microsecond);
+    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
+    EXPECT_EQ(df["x"].as<std::int64_t>(), x);
+    auto t = int2timestamp<::boost::posix_time::microseconds>(x);
+    EXPECT_EQ(df["x"].as<::dataframe::Timestamp>(), t);
+}
+
+TEST(DataFrame, TimestampNS)
+{
+    auto x = generate_int<std::int64_t>(1000);
+    ::dataframe::DataFrame df;
+    df["x"].emplace(x, ::dataframe::TimeUnit::Nanosecond);
+    EXPECT_TRUE(df["x"].is_ctype<std::int64_t>());
+    EXPECT_TRUE(df["x"].is_convertible<std::int64_t>());
+    EXPECT_EQ(df["x"].as<std::int64_t>(), x);
+    auto t = int2timestamp<::boost::posix_time::nanoseconds>(x);
+    EXPECT_EQ(df["x"].as<::dataframe::Timestamp>(), t);
 }
 
 TEST(DataFrame, make_dataframe)
