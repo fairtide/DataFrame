@@ -64,7 +64,7 @@ inline std::vector<::dataframe::Date> generate_date(std::size_t n)
     std::vector<::dataframe::Date> ret(n);
     ::dataframe::Date epoch(1970, 1, 1);
     std::mt19937_64 rng;
-    std::uniform_real_distribution<int> runif(0, 1000);
+    std::uniform_int_distribution<int> runif(0, 1000);
     for (auto &v : ret) {
         v = epoch + ::boost::gregorian::days(runif(rng));
     }
@@ -77,7 +77,7 @@ inline std::vector<::dataframe::Timestamp> generate_timestamp(std::size_t n)
     std::vector<::dataframe::Timestamp> ret(n);
     ::dataframe::Timestamp epoch(::dataframe::Date(1970, 1, 1));
     std::mt19937_64 rng;
-    std::uniform_real_distribution<int> runif(0, 1000);
+    std::uniform_int_distribution<int> runif(0, 1000);
     for (auto &v : ret) {
         v = epoch + ::boost::posix_time::seconds(runif(rng));
     }
