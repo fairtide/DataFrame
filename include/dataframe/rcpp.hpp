@@ -442,75 +442,82 @@ inline void cast_dataframe(const DataFrame &df, ::Rcpp::List *out)
 {
     ::Rcpp::List ret;
 
-    ::Rcpp::LogicalVector logi;
-    ::Rcpp::IntegerVector ints;
-    ::Rcpp::NumericVector dbls;
-    ::Rcpp::CharacterVector strs;
-    ::Rcpp::newDateVector date(0);
-    ::Rcpp::newDatetimeVector time(0);
-
     auto ncol = df.ncol();
     for (std::size_t i = 0; i != ncol; ++i) {
         auto col = df[i];
         auto key = col.name();
 
         switch (col.dtype()) {
-            case DataType::Bool:
-                cast_array(*col.data(), &logi);
-                ret[key] = logi;
-                break;
-            case DataType::UInt8:
-                cast_array(*col.data(), &ints);
-                ret[key] = ints;
-                break;
-            case DataType::Int8:
-                cast_array(*col.data(), &ints);
-                ret[key] = ints;
-                break;
-            case DataType::UInt16:
-                cast_array(*col.data(), &ints);
-                ret[key] = ints;
-                break;
-            case DataType::Int16:
-                cast_array(*col.data(), &ints);
-                ret[key] = ints;
-                break;
-            case DataType::UInt32:
-                cast_array(*col.data(), &ints);
-                ret[key] = ints;
-                break;
-            case DataType::Int32:
-                cast_array(*col.data(), &ints);
-                ret[key] = ints;
-                break;
-            case DataType::UInt64:
-                cast_array(*col.data(), &dbls);
-                ret[key] = dbls;
-                break;
-            case DataType::Int64:
-                cast_array(*col.data(), &dbls);
-                ret[key] = dbls;
-                break;
-            case DataType::Float:
-                cast_array(*col.data(), &dbls);
-                ret[key] = dbls;
-                break;
-            case DataType::Double:
-                cast_array(*col.data(), &dbls);
-                ret[key] = dbls;
-                break;
-            case DataType::String:
-                cast_array(*col.data(), &strs);
-                ret[key] = strs;
-                break;
-            case DataType::Date:
-                cast_array(*col.data(), &date);
-                ret[key] = date;
-                break;
-            case DataType::Timestamp:
-                cast_array(*col.data(), &time);
-                ret[key] = time;
-                break;
+            case DataType::Bool: {
+                ::Rcpp::LogicalVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::UInt8: {
+                ::Rcpp::IntegerVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Int8: {
+                ::Rcpp::IntegerVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::UInt16: {
+                ::Rcpp::IntegerVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Int16: {
+                ::Rcpp::IntegerVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::UInt32: {
+                ::Rcpp::IntegerVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Int32: {
+                ::Rcpp::IntegerVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::UInt64: {
+                ::Rcpp::NumericVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Int64: {
+                ::Rcpp::NumericVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Float: {
+                ::Rcpp::NumericVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Double: {
+                ::Rcpp::NumericVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::String: {
+                ::Rcpp::CharacterVector vec;
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Date: {
+                ::Rcpp::newDateVector vec(0);
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
+            case DataType::Timestamp: {
+                ::Rcpp::newDatetimeVector vec(0);
+                cast_array(*col.data(), &vec);
+                ret[key] = vec;
+            } break;
             case DataType::Categorical: {
                 auto data = col.as_view<CategoricalArray>();
 
