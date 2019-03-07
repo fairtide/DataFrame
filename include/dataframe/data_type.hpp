@@ -157,6 +157,7 @@ inline constexpr DataType dtype(::arrow::Type::type type)
         case ::arrow::Type::MAP:
             return DataType::Unknown;
     }
+    return DataType::Unknown;
 }
 
 inline std::string to_string(DataType dtype)
@@ -195,6 +196,7 @@ inline std::string to_string(DataType dtype)
         case DataType::Categorical:
             return "categorical";
     }
+    return "unknown";
 }
 
 template <typename T>

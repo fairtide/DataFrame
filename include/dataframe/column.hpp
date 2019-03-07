@@ -247,6 +247,8 @@ class ConstColumnProxy
             case DataType::Categorical:
                 return false;
         }
+
+        return false;
     }
 
     template <typename T>
@@ -293,6 +295,8 @@ class ConstColumnProxy
                 return std::is_constructible_v<T, std::string_view> ||
                     std::is_same_v<T, CategoricalArray>;
         }
+
+        return false;
     }
 
     bool is_unknown() const { return dtype() == DataType::Unknown; }
