@@ -197,17 +197,36 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
     ::arrow::Status Visit(const ::arrow::StructArray &array) final
     {
-        ::bsoncxx::builder::basic::array data;
+        using ::bsoncxx::builder::basic::document;
+        using ::bsoncxx::builder::basic::kvp;
 
-        auto n = array.num_fields();
+        document fields;
+        auto &type = dynamic_cast<const ::arrow::StructType &>(*array.type());
+        auto n = type.num_children();
         for (auto i = 0; i != n; ++i) {
-            auto field = array.field(i);
-            ::bsoncxx::builder::basic::document field_builder;
+            auto field = type.child(i);
+
+            auto field_data = array.field(i);
+            if (field_data == nullptr) {
+                throw DataFrameException(
+                    "Field dat for " + field->name() + " not found");
+            }
+
+            document field_builder;
+
             DataWriter writer(
                 field_builder, buffer1_, buffer2_, compression_level_);
-            DF_ARROW_ERROR_HANDLER(field->Accept(&writer));
-            data.append(field_builder.extract());
+
+            DF_ARROW_ERROR_HANDLER(field_data->Accept(&writer));
+
+            fields.append(::bsoncxx::builder::basic::kvp(
+                field->name(), field_builder.extract()));
         }
+
+        document data;
+        data.append(
+            kvp(Schema::LENGTH(), static_cast<std::int64_t>(array.length())));
+        data.append(kvp(Schema::FIELDS(), fields.extract()));
 
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));

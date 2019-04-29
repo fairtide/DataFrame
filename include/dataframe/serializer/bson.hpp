@@ -17,10 +17,8 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_HPP
 #define DATAFRAME_SERIALIZER_BSON_HPP
 
+#include <dataframe/serializer/bson/column_reader.hpp>
 #include <dataframe/serializer/bson/column_writer.hpp>
-#include <dataframe/serializer/bson/data_writer.hpp>
-#include <dataframe/serializer/bson/reader.hpp>
-#include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
 
@@ -62,6 +60,33 @@ class BSONWriter : public Writer
   protected:
     bson::ColumnWriter column_writer_;
     std::unique_ptr<::bsoncxx::document::value> data_;
+};
+
+class BSONReader : public Reader
+{
+  public:
+    BSONReader(::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : column_reader_(pool)
+    {
+    }
+
+    DataFrame read_buffer(
+        std::size_t n, const std::uint8_t *buf, bool = false) override
+    {
+        ::bsoncxx::document::view doc(buf, n);
+        ::dataframe::DataFrame data;
+
+        for (auto &&col : doc) {
+            auto b_key = col.key();
+            std::string key(b_key.data(), b_key.size());
+            data[key] = column_reader_.read(col.get_document().view());
+        }
+
+        return data;
+    }
+
+  protected:
+    bson::ColumnReader column_reader_;
 };
 
 } // namespace dataframe

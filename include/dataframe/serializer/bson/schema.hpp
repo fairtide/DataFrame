@@ -36,9 +36,11 @@ struct Schema {
     static view DATA() { return "d"; }
     static view MASK() { return "m"; }
     static view TYPE() { return "t"; }
-    static view NAME() { return "n"; }
     static view PARAM() { return "o"; }
+    static view NAME() { return "n"; }
     static view OFFSET() { return "p"; }
+    static view LENGTH() { return "l"; }
+    static view FIELDS() { return "f"; }
 };
 
 template <typename T>
