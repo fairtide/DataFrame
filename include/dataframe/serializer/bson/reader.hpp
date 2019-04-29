@@ -75,8 +75,8 @@ class ColumnReader : public ::arrow::TypeVisitor
     DF_DEFINE_VISITOR(Interval)
     // DF_DEFINE_VISITOR(Decimal128)
     DF_DEFINE_VISITOR(FixedSizeBinary)
-    // DF_DEFINE_VISITOR(Binary)
-    // DF_DEFINE_VISITOR(String)
+    DF_DEFINE_VISITOR(Binary)
+    DF_DEFINE_VISITOR(String)
     // DF_DEFINE_VISITOR(List)
     // DF_DEFINE_VISITOR(Struct)
     // DF_DEFINE_VISITOR(Union)
@@ -175,6 +175,22 @@ class ColumnReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
+    ::arrow::Status make_data(::arrow::ArrayData &data,
+        const ::bsoncxx::document::view &view, const ::arrow::BinaryType &)
+    {
+        auto values = decompress(view[Schema::DATA()].get_binary(), pool_);
+
+        auto offsets = decompress<std::int32_t>(
+            view[Schema::OFFSET()].get_binary(), pool_);
+
+        auto byte_width = static_cast<std::int64_t>(sizeof(std::int32_t));
+        data.length = offsets->size() / byte_width - 1;
+        data.buffers.push_back(std::move(offsets));
+        data.buffers.push_back(std::move(values));
+
+        return ::arrow::Status::OK();
+    }
+
 #undef DF_DEFINE_MAKE_DATA
 
     static auto make_type_mapping()
@@ -223,7 +239,7 @@ class ColumnReader : public ::arrow::TypeVisitor
                 ::arrow::IntervalType::Unit::DAY_TIME));
 
         ret.emplace("utf8", ::arrow::utf8());
-        ret.emplace("binary", ::arrow::binary());
+        ret.emplace("bytes", ::arrow::binary());
 
         return ret;
     }
@@ -247,7 +263,7 @@ class ColumnReader : public ::arrow::TypeVisitor
             return iter->second;
         }
 
-        auto tp = view_[Schema::TYPE_PARAMETERS()];
+        auto tp = view_[Schema::PARAM()];
 
         if (stype == "decimal") {
             auto param = tp.get_document().view();

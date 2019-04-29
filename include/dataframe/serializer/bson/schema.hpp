@@ -35,7 +35,8 @@ struct Schema {
     static view DATA() { return "d"; }
     static view MASK() { return "m"; }
     static view TYPE() { return "t"; }
-    static view TYPE_PARAMETERS() { return "tp"; }
+    static view OFFSET() { return "p"; }
+    static view PARAM() { return "o"; }
 }; // namespace bsonstructSchema
 
 template <typename T>

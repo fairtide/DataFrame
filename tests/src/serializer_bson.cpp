@@ -283,8 +283,6 @@ TEST(SerializerBSON, Time64_NANO)
     DoTest(generate_time64<::arrow::TimeUnit::NANO>);
 }
 
-TEST(SerializerBSON, POD) { DoTest(generate_pod); }
-
 // TEST(SerializerBSON, Interval_YEAR_MONTH)
 // {
 //     DoTest(generate_interval<::arrow::IntervalType::Unit::YEAR_MONTH>);
@@ -294,3 +292,9 @@ TEST(SerializerBSON, POD) { DoTest(generate_pod); }
 // {
 //     DoTest(generate_interval<::arrow::IntervalType::Unit::DAY_TIME>);
 // }
+
+TEST(SerializerBSON, POD) { DoTest(generate_pod); }
+
+TEST(SerializerBSON, Bytes) { DoTest(generate_bytes); }
+
+TEST(SerializerBSON, UTF8) { DoTest(generate_utf8); }

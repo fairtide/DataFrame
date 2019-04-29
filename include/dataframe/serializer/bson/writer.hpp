@@ -79,8 +79,8 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(Interval)
     // DF_DEFINE_VISITOR(Decimal128)
     DF_DEFINE_VISITOR(FixedSizeBinary)
-    // DF_DEFINE_VISITOR(Binary)
-    // DF_DEFINE_VISITOR(String)
+    DF_DEFINE_VISITOR(Binary)
+    DF_DEFINE_VISITOR(String)
     // DF_DEFINE_VISITOR(List)
     // DF_DEFINE_VISITOR(Struct)
     // DF_DEFINE_VISITOR(Union)
@@ -178,6 +178,8 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_MAKE_DATA(Date64)
     DF_DEFINE_MAKE_DATA(Timestamp)
 
+#undef DF_DEFINE_MAKE_DATA
+
     void make_data(::bsoncxx::builder::basic::document &builder,
         const ::arrow::FixedSizeBinaryArray &array)
     {
@@ -189,7 +191,40 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
                 &buffer2_, compression_level_)));
     }
 
-#undef DF_DEFINE_MAKE_DATA
+    void make_data(::bsoncxx::builder::basic::document &builder,
+        const ::arrow::BinaryArray &array)
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        auto data = array.value_data()->data();
+        auto data_offset = array.value_offset(0);
+        auto data_length = array.value_offset(array.length()) - data_offset;
+
+        builder.append(kvp(Schema::DATA(),
+            compress(data_length, data + data_offset, &buffer2_,
+                compression_level_)));
+
+        auto length = array.length() + 1;
+        auto offsets = array.raw_value_offsets();
+        auto start = offsets[0];
+
+        static_assert(sizeof(start) == sizeof(std::int32_t));
+
+        if (start != 0) {
+            buffer1_.resize(
+                static_cast<std::size_t>(length) * sizeof(std::int32_t));
+
+            auto tmp = reinterpret_cast<std::int32_t *>(buffer1_.data());
+            for (std::int64_t i = 0; i != length; ++i) {
+                tmp[i] = offsets[i] - start;
+            }
+
+            offsets = tmp;
+        }
+
+        builder.append(kvp(Schema::OFFSET(),
+            compress(length, offsets, &buffer2_, compression_level_)));
+    }
 
 #define DF_DEFINE_MAKE_TYPE(TypeName, type)                                   \
     void make_type(::bsoncxx::builder::basic::document &builder,              \
@@ -213,7 +248,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_MAKE_TYPE(Double, "float64")
     DF_DEFINE_MAKE_TYPE(Date32, "date32")
     DF_DEFINE_MAKE_TYPE(Date64, "date64")
-    DF_DEFINE_MAKE_TYPE(Binary, "binary")
+    DF_DEFINE_MAKE_TYPE(Binary, "bytes")
     DF_DEFINE_MAKE_TYPE(String, "utf8")
 
 #undef DF_DEFINE_MAKE_TYPE
@@ -276,8 +311,8 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
             dynamic_cast<const ::arrow::FixedSizeBinaryType &>(*array.type());
 
         builder.append(kvp(Schema::TYPE(), "pod"));
-        builder.append(kvp(Schema::TYPE_PARAMETERS(),
-            static_cast<std::int32_t>(type.byte_width())));
+        builder.append(kvp(
+            Schema::PARAM(), static_cast<std::int32_t>(type.byte_width())));
     }
 
   private:
