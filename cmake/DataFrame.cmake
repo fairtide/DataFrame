@@ -17,11 +17,15 @@
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(Arrow)
-find_package(RapidJSON)
+find_package(BSONCXX)
 find_package(Boost COMPONENTS date_time)
+find_package(LZ4)
+find_package(RapidJSON)
 
 include_directories(SYSTEM ${Arrow_INCLUDE_DIR})
+include_directories(SYSTEM ${BSONCXX_INCLUDE_DIR})
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
 include_directories(SYSTEM ${RAPIDJSON_INCLUDE_DIRS})
 set(link_libraries ${Arrow_LINK_LIBRARIES} Boost::date_time)
 

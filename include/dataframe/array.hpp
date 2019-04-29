@@ -24,5 +24,6 @@
 #include <dataframe/array/primitive.hpp>
 #include <dataframe/array/string.hpp>
 #include <dataframe/array/view.hpp>
+#include <dataframe/array/list.hpp>
 
 #endif // DATAFRAME_ARRAY_HPP

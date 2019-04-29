@@ -32,6 +32,7 @@ inline ::dataframe::DataFrame generate_dataframe()
     df["Int64"] = INT64_C(64);
     df["Float32"] = 32.0f;
     df["Float64"] = 64.0f;
+
     df["Date"] = ::dataframe::Date(2018, 1, 1);
     df["Timestamp"] = ::dataframe::Timestamp(::dataframe::Date(2018, 1, 1));
     df["String"] = "string";

@@ -104,6 +104,8 @@ class TimestampVisitor final : public ::arrow::ArrayVisitor
                 return ::arrow::Status::OK();
 #endif // BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
         }
+
+        return ::arrow::Status::Invalid("Unknown unit");
     }
 
   private:
@@ -263,6 +265,8 @@ inline std::shared_ptr<::arrow::Array> make_array(
             return internal::make_timestamp_array(
                 view, ::arrow::TimeUnit::NANO);
     }
+
+    return nullptr;
 }
 
 template <typename Alloc>

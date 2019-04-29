@@ -22,20 +22,20 @@ using Mask = ::dataframe::ArrayMask;
 
 TEST(Join, Inner)
 {
-    ::dataframe::DataFrame people(                             //
-        std::pair{"ID", std::vector{20, 40}},                  //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}} //
+    ::dataframe::DataFrame people(                                  //
+        std::make_pair("ID", std::vector{20, 40}),                  //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}) //
     );
 
-    ::dataframe::DataFrame jobs(                          //
-        std::pair{"ID", std::vector{20, 60}},             //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+    ::dataframe::DataFrame jobs(                               //
+        std::make_pair("ID", std::vector{20, 60}),             //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
-    ::dataframe::DataFrame ret(        //
-        std::pair{"ID", 20},           //
-        std::pair{"Name", "John Doe"}, //
-        std::pair{"Job", "Lawyer"}     //
+    ::dataframe::DataFrame ret(             //
+        std::make_pair("ID", 20),           //
+        std::make_pair("Name", "John Doe"), //
+        std::make_pair("Job", "Lawyer")     //
     );
 
     EXPECT_EQ(::dataframe::join(
@@ -45,24 +45,24 @@ TEST(Join, Inner)
 
 TEST(Join, Outer)
 {
-    ::dataframe::DataFrame people(                             //
-        std::pair{"ID", std::vector{20, 40}},                  //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}} //
+    ::dataframe::DataFrame people(                                  //
+        std::make_pair("ID", std::vector{20, 40}),                  //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}) //
     );
 
-    ::dataframe::DataFrame jobs(                          //
-        std::pair{"ID", std::vector{20, 60}},             //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+    ::dataframe::DataFrame jobs(                               //
+        std::make_pair("ID", std::vector{20, 60}),             //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
-    ::dataframe::DataFrame ret(                   //
-        std::pair{"ID", std::vector{20, 40, 60}}, //
-        std::pair{"Name",
+    ::dataframe::DataFrame ret(                        //
+        std::make_pair("ID", std::vector{20, 40, 60}), //
+        std::make_pair("Name",
             View{std::vector{"John Doe", "Jane Doe", ""},
-                Mask{std::vector{true, true, false}}}}, //
-        std::pair{"Job",
+                Mask{std::vector{true, true, false}}}), //
+        std::make_pair("Job",
             View{std::vector{"Lawyer", "", "Doctor"},
-                Mask{std::vector{true, false, true}}}} //
+                Mask{std::vector{true, false, true}}}) //
     );
 
     EXPECT_EQ(::dataframe::join(
@@ -72,22 +72,20 @@ TEST(Join, Outer)
 
 TEST(Join, Left)
 {
-    ::dataframe::DataFrame people(                             //
-        std::pair{"ID", std::vector{20, 40}},                  //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}} //
+    ::dataframe::DataFrame people(                                  //
+        std::make_pair("ID", std::vector{20, 40}),                  //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}) //
     );
 
-    ::dataframe::DataFrame jobs(                          //
-        std::pair{"ID", std::vector{20, 60}},             //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+    ::dataframe::DataFrame jobs(                               //
+        std::make_pair("ID", std::vector{20, 60}),             //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
-    ::dataframe::DataFrame ret(                                 //
-        std::pair{"ID", std::vector{20, 40}},                   //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}}, //
-        std::pair{"Job",
-            View{std::vector{"Lawyer", ""}, Mask{std::vector{true, false}}}} //
-    );
+    ::dataframe::DataFrame ret(std::make_pair("ID", std::vector{20, 40}), //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}),      //
+        std::make_pair("Job",
+            View{std::vector{"Lawyer", ""}, Mask{std::vector{true, false}}}));
 
     EXPECT_EQ(::dataframe::join(
                   people, jobs, "ID", ::dataframe::JoinType::Left, true),
@@ -96,22 +94,22 @@ TEST(Join, Left)
 
 TEST(Join, Right)
 {
-    ::dataframe::DataFrame people(                             //
-        std::pair{"ID", std::vector{20, 40}},                  //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}} //
+    ::dataframe::DataFrame people(                                  //
+        std::make_pair("ID", std::vector{20, 40}),                  //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}) //
     );
 
-    ::dataframe::DataFrame jobs(                          //
-        std::pair{"ID", std::vector{20, 60}},             //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+    ::dataframe::DataFrame jobs(                               //
+        std::make_pair("ID", std::vector{20, 60}),             //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
-    ::dataframe::DataFrame ret(               //
-        std::pair{"ID", std::vector{20, 60}}, //
-        std::pair{"Name",
+    ::dataframe::DataFrame ret(                    //
+        std::make_pair("ID", std::vector{20, 60}), //
+        std::make_pair("Name",
             View{std::vector{"John Doe", ""},
-                Mask{std::vector{true, false}}}},         //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+                Mask{std::vector{true, false}}}),              //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
     EXPECT_EQ(::dataframe::join(
@@ -121,19 +119,19 @@ TEST(Join, Right)
 
 TEST(Join, Semi)
 {
-    ::dataframe::DataFrame people(                             //
-        std::pair{"ID", std::vector{20, 40}},                  //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}} //
+    ::dataframe::DataFrame people(                                  //
+        std::make_pair("ID", std::vector{20, 40}),                  //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}) //
     );
 
-    ::dataframe::DataFrame jobs(                          //
-        std::pair{"ID", std::vector{20, 60}},             //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+    ::dataframe::DataFrame jobs(                               //
+        std::make_pair("ID", std::vector{20, 60}),             //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
-    ::dataframe::DataFrame ret(       //
-        std::pair{"ID", 20},          //
-        std::pair{"Name", "John Doe"} //
+    ::dataframe::DataFrame ret(            //
+        std::make_pair("ID", 20),          //
+        std::make_pair("Name", "John Doe") //
     );
 
     EXPECT_EQ(::dataframe::join(
@@ -143,19 +141,19 @@ TEST(Join, Semi)
 
 TEST(Join, Anti)
 {
-    ::dataframe::DataFrame people(                             //
-        std::pair{"ID", std::vector{20, 40}},                  //
-        std::pair{"Name", std::vector{"John Doe", "Jane Doe"}} //
+    ::dataframe::DataFrame people(                                  //
+        std::make_pair("ID", std::vector{20, 40}),                  //
+        std::make_pair("Name", std::vector{"John Doe", "Jane Doe"}) //
     );
 
-    ::dataframe::DataFrame jobs(                          //
-        std::pair{"ID", std::vector{20, 60}},             //
-        std::pair{"Job", std::vector{"Lawyer", "Doctor"}} //
+    ::dataframe::DataFrame jobs(                               //
+        std::make_pair("ID", std::vector{20, 60}),             //
+        std::make_pair("Job", std::vector{"Lawyer", "Doctor"}) //
     );
 
-    ::dataframe::DataFrame ret(       //
-        std::pair{"ID", 40},          //
-        std::pair{"Name", "Jane Doe"} //
+    ::dataframe::DataFrame ret(            //
+        std::make_pair("ID", 40),          //
+        std::make_pair("Name", "Jane Doe") //
     );
 
     EXPECT_EQ(::dataframe::join(

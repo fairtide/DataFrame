@@ -332,11 +332,11 @@ TEST(DataFrame, make_dataframe)
 
     std::vector<C> c(1);
 
-    auto df = ::dataframe::make_dataframe(c,                //
-        std::pair{"x", &C::x},                              //
-        std::pair{"y", &C::y},                              //
-        std::pair{"z", &C::z},                              //
-        std::pair{"xy", [](auto &&v) { return v.x + v.y; }} //
+    auto df = ::dataframe::make_dataframe(c,                     //
+        std::make_pair("x", &C::x),                              //
+        std::make_pair("y", &C::y),                              //
+        std::make_pair("z", &C::z),                              //
+        std::make_pair("xy", [](auto &&v) { return v.x + v.y; }) //
     );
 
     ::dataframe::DataFrame ret;
