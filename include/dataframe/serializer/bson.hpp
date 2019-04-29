@@ -37,7 +37,7 @@ class BSONWriter : public Writer
 
     const std::uint8_t *data() const final
     {
-        return data_ == nullptr ? 0 : data_->view().data();
+        return data_ == nullptr ? nullptr : data_->view().data();
     }
 
     void write(const DataFrame &data) override
