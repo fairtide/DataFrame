@@ -45,7 +45,12 @@ inline std::vector<T> generate_real(std::size_t n)
     return ret;
 }
 
-inline auto generate_float16(std::size_t n)
+inline std::shared_ptr<::arrow::Array> generate_null(std::size_t n)
+{
+    return std::make_shared<::arrow::NullArray>(static_cast<std::int64_t>(n));
+}
+
+inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)
 {
     auto values = generate_int<std::uint16_t>(n);
 
@@ -74,6 +79,7 @@ inline void DoTest(Gen &&gen)
     EXPECT_TRUE(df["test"].data()->Equals(ret["test"].data()));
 }
 
+TEST(SerializerBSON, Null) { DoTest(generate_null); }
 TEST(SerializerBSON, Int8) { DoTest(generate_int<std::int8_t>); }
 TEST(SerializerBSON, Int16) { DoTest(generate_int<std::int16_t>); }
 TEST(SerializerBSON, Int32) { DoTest(generate_int<std::int32_t>); }

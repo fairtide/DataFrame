@@ -41,83 +41,88 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     }
 
   private:
-#define DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Type)                            \
+#define DF_DEFINE_VISITOR(Type)                                               \
     ::arrow::Status Visit(const ::arrow::Type##Array &array) final            \
     {                                                                         \
-        return make_column(array);                                            \
+        using ::bsoncxx::builder::basic::document;                            \
+        using ::bsoncxx::builder::basic::kvp;                                 \
+                                                                              \
+        document col;                                                         \
+        make_mask(col, array);                                                \
+        make_data(col, array);                                                \
+        make_type(col, array);                                                \
+                                                                              \
+        column_ =                                                             \
+            std::make_unique<::bsoncxx::document::value>(col.extract());      \
+                                                                              \
+        return ::arrow::Status::OK();                                         \
     }
 
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Null)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Boolean)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Int8)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Int16)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Int32)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Int64)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(UInt8)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(UInt16)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(UInt32)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(UInt64)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(HalfFloat)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Float)
-    DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Double)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Binary)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(String)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Date32)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Date64)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Timestamp)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Time32)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Time64)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Interval)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Decimal128)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(FixedSizeBinary)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(List)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Struct)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Union)
-    // DF_DEFINE_BSON_COLUMN_WRITER_VISITOR(Dictionary)
+    DF_DEFINE_VISITOR(Null)
+    // DF_DEFINE_VISITOR(Boolean)
+    DF_DEFINE_VISITOR(Int8)
+    DF_DEFINE_VISITOR(Int16)
+    DF_DEFINE_VISITOR(Int32)
+    DF_DEFINE_VISITOR(Int64)
+    DF_DEFINE_VISITOR(UInt8)
+    DF_DEFINE_VISITOR(UInt16)
+    DF_DEFINE_VISITOR(UInt32)
+    DF_DEFINE_VISITOR(UInt64)
+    DF_DEFINE_VISITOR(HalfFloat)
+    DF_DEFINE_VISITOR(Float)
+    DF_DEFINE_VISITOR(Double)
+    // DF_DEFINE_VISITOR(Date32)
+    // DF_DEFINE_VISITOR(Date64)
+    // DF_DEFINE_VISITOR(Timestamp)
+    // DF_DEFINE_VISITOR(Time32)
+    // DF_DEFINE_VISITOR(Time64)
+    // DF_DEFINE_VISITOR(Interval)
+    // DF_DEFINE_VISITOR(Decimal128)
+    // DF_DEFINE_VISITOR(FixedSizeBinary)
+    // DF_DEFINE_VISITOR(Binary)
+    // DF_DEFINE_VISITOR(String)
+    // DF_DEFINE_VISITOR(List)
+    // DF_DEFINE_VISITOR(Struct)
+    // DF_DEFINE_VISITOR(Union)
+    // DF_DEFINE_VISITOR(Dictionary)
 
-#undef DF_DEFINE_BSON_COLUMN_WRITER_VISITOR
-
-    template <typename ArrayType>
-    ::arrow::Status make_column(const ArrayType &array)
-    {
-        using ::bsoncxx::builder::basic::document;
-        using ::bsoncxx::builder::basic::kvp;
-
-        document col;
-        make_mask(col, array);
-        make_data(col, array);
-        make_type(col, array);
-
-        column_ = std::make_unique<::bsoncxx::document::value>(col.extract());
-
-        return ::arrow::Status::OK();
-    }
+#undef DF_DEFINE_VISITOR
 
     void make_mask(::bsoncxx::builder::basic::document &builder,
         const ::arrow::Array &array)
     {
-        if (array.null_count() != 0) {
-            throw std::runtime_error("Nullable array not supported");
-        }
-
         auto n = static_cast<std::size_t>(array.length());
-
         buffer1_.resize((n + 7) / 8);
 
-        std::fill_n(buffer1_.data(), buffer1_.size(),
-            std::numeric_limits<std::uint8_t>::max());
+        if (array.type()->id() == ::arrow::Type::NA) {
+            std::fill_n(buffer1_.data(), buffer1_.size(), 0);
+        } else {
+            if (array.null_count() != 0) {
+                throw DataFrameException("Nullable array not supported");
+            }
 
-        if (!buffer1_.empty() && n % 8 != 0) {
-            auto last = buffer1_.back();
-            auto nzero = (8 - (n % 8));
-            buffer1_.back() =
-                static_cast<std::uint8_t>((last >> nzero) << nzero);
+            std::fill_n(buffer1_.data(), buffer1_.size(),
+                std::numeric_limits<std::uint8_t>::max());
+
+            if (!buffer1_.empty() && n % 8 != 0) {
+                auto last = buffer1_.back();
+                auto nzero = (8 - (n % 8));
+                buffer1_.back() =
+                    static_cast<std::uint8_t>((last >> nzero) << nzero);
+            }
         }
 
         auto mask = compress(static_cast<std::int64_t>(buffer1_.size()),
             buffer1_.data(), &buffer2_, compression_level_);
 
         builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(), mask));
+    }
+
+    void make_data(::bsoncxx::builder::basic::document &builder,
+        const ::arrow::NullArray &array)
+    {
+        builder.append(::bsoncxx::builder::basic::kvp(
+            Schema::DATA(), static_cast<std::int64_t>(array.length())));
     }
 
 #define DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(TypeName)                      \
@@ -129,8 +134,6 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
                 compression_level_)));                                        \
     }
 
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Null)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Boolean)
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int8)
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int16)
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int32)
@@ -142,20 +145,6 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(HalfFloat)
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Float)
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Double)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Date32)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Date64)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Timestamp)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Time32)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Time64)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Interval)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Decimal128)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(FixedSizeBinary)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Binary)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(String)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(List)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Struct)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Union)
-    // DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Dictionary)
 
 #undef DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA
 
@@ -179,20 +168,10 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(HalfFloat, "float16")
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Float, "float32")
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Double, "float64")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Date32, "date")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Date64, "datestamp")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Timestamp, "timestamp")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Time32, "time")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Time64, "time")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Interval, "interval")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Decimal128, "decimal")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(FixedSizeBinary, "pod")
+    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Date32, "date[d]")
+    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Date64, "date[ms]")
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Binary, "binary")
     DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(String, "utf8")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(List, "list")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Struct, "struct")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Union, "union")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Dictionary, "dictionary")
 
 #undef DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE
 

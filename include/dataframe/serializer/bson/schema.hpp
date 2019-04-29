@@ -51,7 +51,32 @@ struct Schema {
 }; // namespace bsonstructSchema
 
 template <typename T>
-using Vector = std::vector<T, ::arrow::stl_allocator<T>>;
+class Allocator : public ::arrow::stl_allocator<T>
+{
+  public:
+    template <typename U>
+    void construct(U *p)
+    {
+        construct_dispatch(p,
+            std::integral_constant<bool,
+                (std::is_scalar<U>::value || std::is_pod<U>::value)>());
+    }
+
+  private:
+    template <typename U>
+    void construct_dispatch(U *, std::true_type)
+    {
+    }
+
+    template <typename U>
+    void construct_dispatch(U *p, std::false_type)
+    {
+        ::new (static_cast<void *>(p)) U();
+    }
+};
+
+template <typename T>
+using Vector = std::vector<T, Allocator<T>>;
 
 } // namespace bson
 

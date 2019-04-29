@@ -48,46 +48,54 @@ class ColumnReader : public ::arrow::TypeVisitor
     }
 
   private:
-#define DF_DEFINE_BSON_COLUMN_READER_VISITOR(TypeName)                        \
+#define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Type &type) final          \
     {                                                                         \
         return make_data(*data_, view_, type);                                \
     }
 
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Null)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Boolean)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(Int8)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(Int16)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(Int32)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(Int64)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(UInt8)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(UInt16)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(UInt32)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(UInt64)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(HalfFloat)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(Float)
-    DF_DEFINE_BSON_COLUMN_READER_VISITOR(Double)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Date32)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Date64)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Timestamp)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Time32)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Time64)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Interval)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Decimal128)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(FixedSizeBinary)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Binary)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(String)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(List)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Struct)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Union)
-    // DF_DEFINE_BSON_COLUMN_READER_VISITOR(Dictionary)
+    DF_DEFINE_VISITOR(Null)
+    // DF_DEFINE_VISITOR(Boolean)
+    DF_DEFINE_VISITOR(Int8)
+    DF_DEFINE_VISITOR(Int16)
+    DF_DEFINE_VISITOR(Int32)
+    DF_DEFINE_VISITOR(Int64)
+    DF_DEFINE_VISITOR(UInt8)
+    DF_DEFINE_VISITOR(UInt16)
+    DF_DEFINE_VISITOR(UInt32)
+    DF_DEFINE_VISITOR(UInt64)
+    DF_DEFINE_VISITOR(HalfFloat)
+    DF_DEFINE_VISITOR(Float)
+    DF_DEFINE_VISITOR(Double)
+    // DF_DEFINE_VISITOR(Date32)
+    // DF_DEFINE_VISITOR(Date64)
+    // DF_DEFINE_VISITOR(Timestamp)
+    // DF_DEFINE_VISITOR(Time32)
+    // DF_DEFINE_VISITOR(Time64)
+    // DF_DEFINE_VISITOR(Interval)
+    // DF_DEFINE_VISITOR(Decimal128)
+    // DF_DEFINE_VISITOR(FixedSizeBinary)
+    // DF_DEFINE_VISITOR(Binary)
+    // DF_DEFINE_VISITOR(String)
+    // DF_DEFINE_VISITOR(List)
+    // DF_DEFINE_VISITOR(Struct)
+    // DF_DEFINE_VISITOR(Union)
+    // DF_DEFINE_VISITOR(Dictionary)
 
-#undef DF_DEFINE_BSON_COLUMN_READER_VISITOR
+#undef DF_DEFINE_VISITOR
 
     std::shared_ptr<::arrow::Buffer> make_mask(
         const ::bsoncxx::types::b_binary &)
     {
         return nullptr;
+    }
+
+    ::arrow::Status make_data(::arrow::ArrayData &data,
+        const ::bsoncxx::document::view &view, const ::arrow::NullType &)
+    {
+        data.length = view[Schema::DATA()].get_int64().value;
+
+        return ::arrow::Status::OK();
     }
 
 #define DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(TypeClass)                     \
@@ -109,8 +117,6 @@ class ColumnReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();                                         \
     }
 
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Null)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Boolean)
     DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int8)
     DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int16)
     DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int32)
@@ -122,20 +128,6 @@ class ColumnReader : public ::arrow::TypeVisitor
     DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(HalfFloat)
     DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Float)
     DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Double)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Date32)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Date64)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Timestamp)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Time32)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Time64)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Interval)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Decimal128)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(FixedSizeBinary)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Binary)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(String)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(List)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Struct)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Union)
-    // DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Dictionary)
 
 #undef DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA
 
