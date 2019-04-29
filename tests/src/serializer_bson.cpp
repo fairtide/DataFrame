@@ -183,7 +183,7 @@ template <typename Gen>
 inline void DoTest(Gen &&gen)
 {
     ::dataframe::DataFrame dat;
-    std::size_t n = 10000;
+    std::size_t n = 100000;
     dat["test"] = gen(n);
 
     ::dataframe::BSONWriter writer;
@@ -195,6 +195,17 @@ inline void DoTest(Gen &&gen)
     auto array1 = dat["test"].data();
     auto array2 = ret["test"].data();
     EXPECT_TRUE(array1->Equals(array2));
+
+    // slice
+    for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
+        writer.write(chunk);
+        str = writer.str();
+        ret = reader.read(str);
+
+        array1 = chunk["test"].data();
+        array2 = ret["test"].data();
+        EXPECT_TRUE(array1->Equals(array2));
+    }
 }
 
 TEST(SerializerBSON, Null) { DoTest(generate_null); }
