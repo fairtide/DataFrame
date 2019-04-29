@@ -57,6 +57,11 @@ class BSONWriter : public Writer
 
     ::bsoncxx::document::value extract() { return std::move(*data_); }
 
+    int compression_level() const
+    {
+        return column_writer_.compression_level();
+    }
+
   protected:
     bson::ColumnWriter column_writer_;
     std::unique_ptr<::bsoncxx::document::value> data_;

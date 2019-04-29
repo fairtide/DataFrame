@@ -38,6 +38,8 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
         return std::move(*column_);
     }
 
+    int compression_level() const { return compression_level_; }
+
   private:
 #define DF_DEFINE_VISITOR(Type)                                               \
     ::arrow::Status Visit(const ::arrow::Type##Array &array) final            \
