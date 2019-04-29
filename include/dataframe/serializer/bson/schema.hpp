@@ -36,9 +36,9 @@ struct Schema {
     static view DATA() { return "d"; }
     static view MASK() { return "m"; }
     static view TYPE() { return "t"; }
-    static view PARAM() { return "o"; }
+    static view PARAM() { return "p"; }
     static view NAME() { return "n"; }
-    static view OFFSET() { return "p"; }
+    static view OFFSET() { return "o"; }
     static view LENGTH() { return "l"; }
     static view FIELDS() { return "f"; }
 };

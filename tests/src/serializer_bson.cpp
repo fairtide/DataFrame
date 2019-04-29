@@ -16,8 +16,13 @@
 
 #include <dataframe/dataframe.hpp>
 #include <dataframe/serializer/bson.hpp>
+#include <bsoncxx/json.hpp>
 #include <gtest/gtest.h>
+#include <iostream>
 #include <random>
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
 
 template <typename T>
 inline std::vector<T> generate_int(std::size_t n)
@@ -206,6 +211,21 @@ inline void DoTest(Gen &&gen)
         array2 = ret["test"].data();
         EXPECT_TRUE(array1->Equals(array2));
     }
+
+    writer.write(dat.rows(0, 6));
+    auto bson_doc = writer.extract();
+    auto json_str = ::bsoncxx::to_json(
+        bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
+
+    ::rapidjson::Document json_doc;
+    json_doc.Parse(json_str.c_str());
+
+    ::rapidjson::StringBuffer json_buffer;
+    ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
+        json_buffer);
+    json_doc.Accept(json_writer);
+
+    std::cout << json_buffer.GetString() << std::endl;
 }
 
 TEST(SerializerBSON, Null) { DoTest(generate_null); }
@@ -298,3 +318,5 @@ TEST(SerializerBSON, POD) { DoTest(generate_pod); }
 TEST(SerializerBSON, Bytes) { DoTest(generate_bytes); }
 
 TEST(SerializerBSON, UTF8) { DoTest(generate_utf8); }
+
+// TEST(SerializerBSON, Nested) { DoTest(generate_nested); }

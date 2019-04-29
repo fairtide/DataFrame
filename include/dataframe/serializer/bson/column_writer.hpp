@@ -47,7 +47,6 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
         using ::bsoncxx::builder::basic::kvp;                                 \
                                                                               \
         document col;                                                         \
-        make_mask(col, array);                                                \
                                                                               \
         DataWriter data(col, buffer1_, buffer2_, compression_level_);         \
         DF_ARROW_ERROR_HANDLER(array.Accept(&data));                          \
@@ -90,36 +89,6 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     // DF_DEFINE_VISITOR(Dictionary)
 
 #undef DF_DEFINE_VISITOR
-
-    void make_mask(::bsoncxx::builder::basic::document &builder,
-        const ::arrow::Array &array)
-    {
-        auto n = static_cast<std::size_t>(array.length());
-        buffer1_.resize((n + 7) / 8);
-
-        if (array.type()->id() == ::arrow::Type::NA) {
-            std::fill_n(buffer1_.data(), buffer1_.size(), 0);
-        } else {
-            if (array.null_count() != 0) {
-                throw DataFrameException("Nullable array not supported");
-            }
-
-            std::fill_n(buffer1_.data(), buffer1_.size(),
-                std::numeric_limits<std::uint8_t>::max());
-
-            if (!buffer1_.empty() && n % 8 != 0) {
-                auto last = buffer1_.back();
-                auto nzero = (8 - (n % 8));
-                buffer1_.back() =
-                    static_cast<std::uint8_t>((last >> nzero) << nzero);
-            }
-        }
-
-        auto mask = compress(static_cast<std::int64_t>(buffer1_.size()),
-            buffer1_.data(), &buffer2_, compression_level_);
-
-        builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(), mask));
-    }
 
   private:
     int compression_level_;
