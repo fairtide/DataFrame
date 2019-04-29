@@ -88,6 +88,21 @@ inline std::unique_ptr<::arrow::Buffer> decompress(
     return ret;
 }
 
+template <typename T>
+inline std::unique_ptr<::arrow::Buffer> decompress(
+    const ::bsoncxx::types::b_binary &bin, ::arrow::MemoryPool *pool)
+{
+    auto buffer = decompress(bin, pool);
+
+    if (buffer->size() % static_cast<std::int64_t>(sizeof(T)) != 0) {
+        throw DataFrameException("Incorrect buffer size " +
+            std::to_string(buffer->size()) + " byte width " +
+            std::to_string(sizeof(T)));
+    }
+
+    return buffer;
+}
+
 } // namespace bson
 
 } // namespace dataframe

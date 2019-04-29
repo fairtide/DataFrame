@@ -67,12 +67,12 @@ class ColumnReader : public ::arrow::TypeVisitor
     DF_DEFINE_VISITOR(HalfFloat)
     DF_DEFINE_VISITOR(Float)
     DF_DEFINE_VISITOR(Double)
-    // DF_DEFINE_VISITOR(Date32)
-    // DF_DEFINE_VISITOR(Date64)
-    // DF_DEFINE_VISITOR(Timestamp)
-    // DF_DEFINE_VISITOR(Time32)
-    // DF_DEFINE_VISITOR(Time64)
-    // DF_DEFINE_VISITOR(Interval)
+    DF_DEFINE_VISITOR(Date32)
+    DF_DEFINE_VISITOR(Date64)
+    DF_DEFINE_VISITOR(Timestamp)
+    DF_DEFINE_VISITOR(Time32)
+    DF_DEFINE_VISITOR(Time64)
+    DF_DEFINE_VISITOR(Interval)
     // DF_DEFINE_VISITOR(Decimal128)
     // DF_DEFINE_VISITOR(FixedSizeBinary)
     // DF_DEFINE_VISITOR(Binary)
@@ -98,38 +98,68 @@ class ColumnReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-#define DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(TypeClass)                     \
+#define DF_DEFINE_MAKE_DATA(TypeClass)                                        \
     ::arrow::Status make_data(::arrow::ArrayData &data,                       \
         const ::bsoncxx::document::view &view,                                \
-        const ::arrow::TypeClass##Type &type)                                 \
+        const ::arrow::TypeClass##Type &)                                     \
     {                                                                         \
-        auto buffer = decompress(view[Schema::DATA()].get_binary(), pool_);   \
-        auto width = type.bit_width() / CHAR_BIT;                             \
-        if (buffer->size() % width != 0) {                                    \
-            throw DataFrameException("Incorrect buffer size " +               \
-                std::to_string(buffer->size()) + " width " +                  \
-                std::to_string(width));                                       \
-        }                                                                     \
+        using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
-        data.length = buffer->size() / width;                                 \
+        auto buffer =                                                         \
+            decompress<T>(view[Schema::DATA()].get_binary(), pool_);          \
+                                                                              \
+        data.length = buffer->size() / static_cast<std::int64_t>(sizeof(T));  \
         data.buffers.push_back(std::move(buffer));                            \
                                                                               \
         return ::arrow::Status::OK();                                         \
     }
 
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int8)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int16)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int32)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Int64)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(UInt8)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(UInt16)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(UInt32)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(UInt64)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(HalfFloat)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Float)
-    DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA(Double)
+    DF_DEFINE_MAKE_DATA(Int8)
+    DF_DEFINE_MAKE_DATA(Int16)
+    DF_DEFINE_MAKE_DATA(Int32)
+    DF_DEFINE_MAKE_DATA(Int64)
+    DF_DEFINE_MAKE_DATA(UInt8)
+    DF_DEFINE_MAKE_DATA(UInt16)
+    DF_DEFINE_MAKE_DATA(UInt32)
+    DF_DEFINE_MAKE_DATA(UInt64)
+    DF_DEFINE_MAKE_DATA(HalfFloat)
+    DF_DEFINE_MAKE_DATA(Float)
+    DF_DEFINE_MAKE_DATA(Double)
+    DF_DEFINE_MAKE_DATA(Time32)
+    DF_DEFINE_MAKE_DATA(Time64)
+    DF_DEFINE_MAKE_DATA(Interval)
 
-#undef DF_DEFINE_BSON_COLUMN_READER_MAKE_DATA
+#undef DF_DEFINE_MAKE_DATA
+
+#define DF_DEFINE_MAKE_DATA(TypeClass)                                        \
+    ::arrow::Status make_data(::arrow::ArrayData &data,                       \
+        const ::bsoncxx::document::view &view,                                \
+        const ::arrow::TypeClass##Type &)                                     \
+    {                                                                         \
+        using T = typename ::arrow::TypeClass##Type::c_type;                  \
+                                                                              \
+        auto buffer =                                                         \
+            decompress<T>(view[Schema::DATA()].get_binary(), pool_);          \
+                                                                              \
+        auto n = buffer->size() / static_cast<std::int64_t>(sizeof(T));       \
+        auto p = reinterpret_cast<T *>(                                       \
+            dynamic_cast<::arrow::MutableBuffer &>(*buffer).mutable_data());  \
+                                                                              \
+        for (std::int64_t i = 1; i < n; ++i) {                                \
+            p[i] += p[i - 1];                                                 \
+        }                                                                     \
+                                                                              \
+        data.length = n;                                                      \
+        data.buffers.push_back(std::move(buffer));                            \
+                                                                              \
+        return ::arrow::Status::OK();                                         \
+    }
+
+    DF_DEFINE_MAKE_DATA(Date32)
+    DF_DEFINE_MAKE_DATA(Date64)
+    DF_DEFINE_MAKE_DATA(Timestamp)
+
+#undef DF_DEFINE_MAKE_DATA
 
     static auto make_type_mapping()
     {
@@ -147,8 +177,8 @@ class ColumnReader : public ::arrow::TypeVisitor
         ret.emplace("float16", ::arrow::float16());
         ret.emplace("float32", ::arrow::float32());
         ret.emplace("float64", ::arrow::float64());
-        ret.emplace("date[d]", ::arrow::date32());
-        ret.emplace("data[ms]", ::arrow::date64());
+        ret.emplace("date32", ::arrow::date32());
+        ret.emplace("date64", ::arrow::date64());
 
         ret.emplace(
             "timestamp[s]", ::arrow::timestamp(::arrow::TimeUnit::SECOND));
@@ -159,10 +189,15 @@ class ColumnReader : public ::arrow::TypeVisitor
         ret.emplace(
             "timestamp[ns]", ::arrow::timestamp(::arrow::TimeUnit::NANO));
 
-        ret.emplace("time[s]", ::arrow::time32(::arrow::TimeUnit::SECOND));
-        ret.emplace("time[ms]", ::arrow::time32(::arrow::TimeUnit::MILLI));
-        ret.emplace("time[us]", ::arrow::time64(::arrow::TimeUnit::MICRO));
-        ret.emplace("time[ns]", ::arrow::time64(::arrow::TimeUnit::NANO));
+        ret.emplace("time32[s]", ::arrow::time32(::arrow::TimeUnit::SECOND));
+        ret.emplace("time32[ms]", ::arrow::time32(::arrow::TimeUnit::MILLI));
+        ret.emplace("time32[us]", ::arrow::time32(::arrow::TimeUnit::MICRO));
+        ret.emplace("time32[ns]", ::arrow::time32(::arrow::TimeUnit::NANO));
+
+        ret.emplace("time64[s]", ::arrow::time64(::arrow::TimeUnit::SECOND));
+        ret.emplace("time64[ms]", ::arrow::time64(::arrow::TimeUnit::MILLI));
+        ret.emplace("time64[us]", ::arrow::time64(::arrow::TimeUnit::MICRO));
+        ret.emplace("time64[ns]", ::arrow::time64(::arrow::TimeUnit::NANO));
 
         ret.emplace("interval[ym]",
             std::make_shared<::arrow::IntervalType>(
@@ -235,7 +270,7 @@ class ColumnReader : public ::arrow::TypeVisitor
             return nullptr;
         }
 
-        throw DataFrameException("Unkown type");
+        throw DataFrameException("Unkown type " + stype);
     }
 
   private:

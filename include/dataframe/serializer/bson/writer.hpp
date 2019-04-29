@@ -71,12 +71,12 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(HalfFloat)
     DF_DEFINE_VISITOR(Float)
     DF_DEFINE_VISITOR(Double)
-    // DF_DEFINE_VISITOR(Date32)
-    // DF_DEFINE_VISITOR(Date64)
-    // DF_DEFINE_VISITOR(Timestamp)
-    // DF_DEFINE_VISITOR(Time32)
-    // DF_DEFINE_VISITOR(Time64)
-    // DF_DEFINE_VISITOR(Interval)
+    DF_DEFINE_VISITOR(Date32)
+    DF_DEFINE_VISITOR(Date64)
+    DF_DEFINE_VISITOR(Timestamp)
+    DF_DEFINE_VISITOR(Time32)
+    DF_DEFINE_VISITOR(Time64)
+    DF_DEFINE_VISITOR(Interval)
     // DF_DEFINE_VISITOR(Decimal128)
     // DF_DEFINE_VISITOR(FixedSizeBinary)
     // DF_DEFINE_VISITOR(Binary)
@@ -125,7 +125,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
             Schema::DATA(), static_cast<std::int64_t>(array.length())));
     }
 
-#define DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(TypeName)                      \
+#define DF_DEFINE_MAKE_DATA(TypeName)                                         \
     void make_data(::bsoncxx::builder::basic::document &builder,              \
         const ::arrow::TypeName##Array &array)                                \
     {                                                                         \
@@ -134,46 +134,127 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
                 compression_level_)));                                        \
     }
 
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int8)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int16)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int32)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Int64)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(UInt8)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(UInt16)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(UInt32)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(UInt64)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(HalfFloat)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Float)
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA(Double)
+    DF_DEFINE_MAKE_DATA(Int8)
+    DF_DEFINE_MAKE_DATA(Int16)
+    DF_DEFINE_MAKE_DATA(Int32)
+    DF_DEFINE_MAKE_DATA(Int64)
+    DF_DEFINE_MAKE_DATA(UInt8)
+    DF_DEFINE_MAKE_DATA(UInt16)
+    DF_DEFINE_MAKE_DATA(UInt32)
+    DF_DEFINE_MAKE_DATA(UInt64)
+    DF_DEFINE_MAKE_DATA(HalfFloat)
+    DF_DEFINE_MAKE_DATA(Float)
+    DF_DEFINE_MAKE_DATA(Double)
+    DF_DEFINE_MAKE_DATA(Time32)
+    DF_DEFINE_MAKE_DATA(Time64)
+    DF_DEFINE_MAKE_DATA(Interval)
 
-#undef DF_DEFINE_BSON_COLUMN_WRITER_MAKE_DATA
+#undef DF_DEFINE_MAKE_DATA
 
-#define DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(TypeName, type)                \
+#define DF_DEFINE_MAKE_DATA(TypeName)                                         \
+    void make_data(::bsoncxx::builder::basic::document &builder,              \
+        const ::arrow::TypeName##Array &array)                                \
+    {                                                                         \
+        using T = typename ::arrow::TypeName##Array::TypeClass::c_type;       \
+                                                                              \
+        auto n = static_cast<std::size_t>(array.length());                    \
+        auto p = array.raw_values();                                          \
+        buffer1_.resize(n * sizeof(T));                                       \
+        auto q = reinterpret_cast<T *>(buffer1_.data());                      \
+                                                                              \
+        if (n > 0) {                                                          \
+            q[0] = p[0];                                                      \
+            for (std::size_t i = 1; i < n; ++i) {                             \
+                q[i] = p[i] - p[i - 1];                                       \
+            }                                                                 \
+        }                                                                     \
+                                                                              \
+        builder.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),         \
+            compress(static_cast<std::int64_t>(buffer1_.size()),              \
+                buffer1_.data(), &buffer2_, compression_level_)));            \
+    }
+
+    DF_DEFINE_MAKE_DATA(Date32)
+    DF_DEFINE_MAKE_DATA(Date64)
+    DF_DEFINE_MAKE_DATA(Timestamp)
+
+#undef DF_DEFINE_MAKE_DATA
+
+#define DF_DEFINE_MAKE_TYPE(TypeName, type)                                   \
     void make_type(::bsoncxx::builder::basic::document &builder,              \
         const ::arrow::TypeName##Array &)                                     \
     {                                                                         \
         builder.append(::bsoncxx::builder::basic::kvp(Schema::TYPE(), type)); \
     }
 
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Null, "null")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Boolean, "bool")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Int8, "int8")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Int16, "int16")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Int32, "int32")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Int64, "int64")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(UInt8, "uint8")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(UInt16, "uint16")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(UInt32, "uint32")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(UInt64, "uint64")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(HalfFloat, "float16")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Float, "float32")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Double, "float64")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Date32, "date[d]")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Date64, "date[ms]")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(Binary, "binary")
-    DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE(String, "utf8")
+    DF_DEFINE_MAKE_TYPE(Null, "null")
+    DF_DEFINE_MAKE_TYPE(Boolean, "bool")
+    DF_DEFINE_MAKE_TYPE(Int8, "int8")
+    DF_DEFINE_MAKE_TYPE(Int16, "int16")
+    DF_DEFINE_MAKE_TYPE(Int32, "int32")
+    DF_DEFINE_MAKE_TYPE(Int64, "int64")
+    DF_DEFINE_MAKE_TYPE(UInt8, "uint8")
+    DF_DEFINE_MAKE_TYPE(UInt16, "uint16")
+    DF_DEFINE_MAKE_TYPE(UInt32, "uint32")
+    DF_DEFINE_MAKE_TYPE(UInt64, "uint64")
+    DF_DEFINE_MAKE_TYPE(HalfFloat, "float16")
+    DF_DEFINE_MAKE_TYPE(Float, "float32")
+    DF_DEFINE_MAKE_TYPE(Double, "float64")
+    DF_DEFINE_MAKE_TYPE(Date32, "date32")
+    DF_DEFINE_MAKE_TYPE(Date64, "date64")
+    DF_DEFINE_MAKE_TYPE(Binary, "binary")
+    DF_DEFINE_MAKE_TYPE(String, "utf8")
 
-#undef DF_DEFINE_BSON_COLUMN_WRITER_MAKE_TYPE
+#undef DF_DEFINE_MAKE_TYPE
+
+#define DF_DEFINE_MAKE_TYPE(TypeName, prefix)                                 \
+    void make_type(::bsoncxx::builder::basic::document &builder,              \
+        const ::arrow::TypeName##Array &array)                                \
+    {                                                                         \
+        using ::bsoncxx::builder::basic::kvp;                                 \
+                                                                              \
+        auto &type =                                                          \
+            dynamic_cast<const ::arrow::TypeName##Type &>(*array.type());     \
+                                                                              \
+        switch (type.unit()) {                                                \
+            case ::arrow::TimeUnit::SECOND:                                   \
+                builder.append(kvp(Schema::TYPE(), prefix "[s]"));            \
+                break;                                                        \
+            case ::arrow::TimeUnit::MILLI:                                    \
+                builder.append(kvp(Schema::TYPE(), prefix "[ms]"));           \
+                break;                                                        \
+            case ::arrow::TimeUnit::MICRO:                                    \
+                builder.append(kvp(Schema::TYPE(), prefix "[us]"));           \
+                break;                                                        \
+            case ::arrow::TimeUnit::NANO:                                     \
+                builder.append(kvp(Schema::TYPE(), prefix "[ns]"));           \
+                break;                                                        \
+        }                                                                     \
+    }
+
+    DF_DEFINE_MAKE_TYPE(Timestamp, "timestamp")
+    DF_DEFINE_MAKE_TYPE(Time32, "time32")
+    DF_DEFINE_MAKE_TYPE(Time64, "time64")
+
+#undef DF_DEFINE_MAKE_TYPE
+
+    void make_type(::bsoncxx::builder::basic::document &builder,
+        const ::arrow::IntervalArray &array)
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        auto &type =
+            dynamic_cast<const ::arrow::IntervalType &>(*array.type());
+
+        switch (type.unit()) {
+            case ::arrow::IntervalType::Unit::YEAR_MONTH:
+                builder.append(kvp(Schema::TYPE(), "interval[ym]"));
+                break;
+            case ::arrow::IntervalType::Unit::DAY_TIME:
+                builder.append(kvp(Schema::TYPE(), "interval[dt]"));
+                break;
+        }
+    }
 
   private:
     int compression_level_;
