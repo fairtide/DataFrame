@@ -18,6 +18,7 @@
 #define DATAFRAME_SERIALIZER_BSON_SCHEMA_HPP
 
 #include <arrow/allocator.h>
+#include <arrow/api.h>
 #include <bsoncxx/builder/basic/array.hpp>
 #include <bsoncxx/builder/basic/document.hpp>
 #include <bsoncxx/document/value.hpp>
@@ -35,9 +36,10 @@ struct Schema {
     static view DATA() { return "d"; }
     static view MASK() { return "m"; }
     static view TYPE() { return "t"; }
-    static view OFFSET() { return "p"; }
+    static view NAME() { return "n"; }
     static view PARAM() { return "o"; }
-}; // namespace bsonstructSchema
+    static view OFFSET() { return "p"; }
+};
 
 template <typename T>
 class Allocator : public ::arrow::stl_allocator<T>
