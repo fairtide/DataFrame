@@ -78,7 +78,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(Time64)
     DF_DEFINE_VISITOR(Interval)
     // DF_DEFINE_VISITOR(Decimal128)
-    // DF_DEFINE_VISITOR(FixedSizeBinary)
+    DF_DEFINE_VISITOR(FixedSizeBinary)
     // DF_DEFINE_VISITOR(Binary)
     // DF_DEFINE_VISITOR(String)
     // DF_DEFINE_VISITOR(List)
@@ -178,6 +178,17 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_MAKE_DATA(Date64)
     DF_DEFINE_MAKE_DATA(Timestamp)
 
+    void make_data(::bsoncxx::builder::basic::document &builder,
+        const ::arrow::FixedSizeBinaryArray &array)
+    {
+        auto &type =
+            dynamic_cast<const ::arrow::FixedSizeBinaryType &>(*array.type());
+
+        builder.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
+            compress(array.length() * type.byte_width(), array.raw_values(),
+                &buffer2_, compression_level_)));
+    }
+
 #undef DF_DEFINE_MAKE_DATA
 
 #define DF_DEFINE_MAKE_TYPE(TypeName, type)                                   \
@@ -254,6 +265,19 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
                 builder.append(kvp(Schema::TYPE(), "interval[dt]"));
                 break;
         }
+    }
+
+    void make_type(::bsoncxx::builder::basic::document &builder,
+        const ::arrow::FixedSizeBinaryArray &array)
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        auto &type =
+            dynamic_cast<const ::arrow::FixedSizeBinaryType &>(*array.type());
+
+        builder.append(kvp(Schema::TYPE(), "pod"));
+        builder.append(kvp(Schema::TYPE_PARAMETERS(),
+            static_cast<std::int32_t>(type.byte_width())));
     }
 
   private:

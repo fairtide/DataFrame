@@ -74,7 +74,7 @@ class ColumnReader : public ::arrow::TypeVisitor
     DF_DEFINE_VISITOR(Time64)
     DF_DEFINE_VISITOR(Interval)
     // DF_DEFINE_VISITOR(Decimal128)
-    // DF_DEFINE_VISITOR(FixedSizeBinary)
+    DF_DEFINE_VISITOR(FixedSizeBinary)
     // DF_DEFINE_VISITOR(Binary)
     // DF_DEFINE_VISITOR(String)
     // DF_DEFINE_VISITOR(List)
@@ -159,6 +159,22 @@ class ColumnReader : public ::arrow::TypeVisitor
     DF_DEFINE_MAKE_DATA(Date64)
     DF_DEFINE_MAKE_DATA(Timestamp)
 
+    ::arrow::Status make_data(::arrow::ArrayData &data,
+        const ::bsoncxx::document::view &view,
+        const ::arrow::FixedSizeBinaryType &type)
+    {
+        auto buffer = decompress(view[Schema::DATA()].get_binary(), pool_);
+
+        if (buffer->size() % type.byte_width() != 0) {
+            throw DataFrameException("Incorrect buffer size for POD type");
+        }
+
+        data.length = buffer->size() / type.byte_width();
+        data.buffers.push_back(std::move(buffer));
+
+        return ::arrow::Status::OK();
+    }
+
 #undef DF_DEFINE_MAKE_DATA
 
     static auto make_type_mapping()
@@ -241,9 +257,7 @@ class ColumnReader : public ::arrow::TypeVisitor
         }
 
         if (stype == "pod") {
-            auto param = tp.get_document().view();
-            auto byte_width = param["byte_width"].get_int32().value;
-            return ::arrow::fixed_size_binary(byte_width);
+            return ::arrow::fixed_size_binary(tp.get_int32().value);
         }
 
         if (stype == "list") {

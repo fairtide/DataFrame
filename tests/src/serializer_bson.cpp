@@ -53,7 +53,7 @@ inline std::shared_ptr<::arrow::Array> generate_null(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)
 {
     auto values = generate_int<std::uint16_t>(n);
-    ::arrow::HalfFloatBuilder builder;
+    ::arrow::HalfFloatBuilder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
     std::shared_ptr<::arrow::Array> ret;
     DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
@@ -63,7 +63,7 @@ inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_date32(std::size_t n)
 {
     auto values = generate_int<std::int32_t>(n);
-    ::arrow::Date32Builder builder;
+    ::arrow::Date32Builder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
     std::shared_ptr<::arrow::Array> ret;
     DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
@@ -73,7 +73,7 @@ inline std::shared_ptr<::arrow::Array> generate_date32(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_date64(std::size_t n)
 {
     auto values = generate_int<std::int64_t>(n);
-    ::arrow::Date64Builder builder;
+    ::arrow::Date64Builder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
     std::shared_ptr<::arrow::Array> ret;
     DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
@@ -130,11 +130,60 @@ inline std::shared_ptr<::arrow::Array> generate_time64(std::size_t n)
 //     return ret;
 // }
 
+inline std::shared_ptr<::arrow::Array> generate_pod(std::size_t n)
+{
+    ::arrow::FixedSizeBinaryBuilder builder(
+        std::make_shared<::arrow::FixedSizeBinaryType>(7),
+        ::arrow::default_memory_pool());
+    auto values = generate_int<char>(7 * n);
+    auto p = values.data();
+    for (std::size_t i = 0; i != n; ++i, p += 7) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(p));
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
+inline std::shared_ptr<::arrow::Array> generate_bytes(std::size_t n)
+{
+    ::arrow::BinaryBuilder builder(::arrow::default_memory_pool());
+    auto values = generate_int<char>(10 * n);
+    auto p = values.data();
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::int32_t> size(0, 10);
+    for (std::size_t i = 0; i != n; ++i) {
+        auto k = size(rng);
+        DF_ARROW_ERROR_HANDLER(builder.Append(p, k));
+        p += k;
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
+inline std::shared_ptr<::arrow::Array> generate_utf8(std::size_t n)
+{
+    ::arrow::StringBuilder builder(::arrow::default_memory_pool());
+    auto values = generate_int<char>(10 * n);
+    auto p = values.data();
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::int32_t> size(0, 10);
+    for (std::size_t i = 0; i != n; ++i) {
+        auto k = size(rng);
+        DF_ARROW_ERROR_HANDLER(builder.Append(p, k));
+        p += k;
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
 template <typename Gen>
 inline void DoTest(Gen &&gen)
 {
     ::dataframe::DataFrame dat;
-    std::size_t n = 1000000;
+    std::size_t n = 10000;
     dat["test"] = gen(n);
 
     ::dataframe::BSONWriter writer;
@@ -222,6 +271,8 @@ TEST(SerializerBSON, Time64_NANO)
 {
     DoTest(generate_time64<::arrow::TimeUnit::NANO>);
 }
+
+TEST(SerializerBSON, POD) { DoTest(generate_pod); }
 
 // TEST(SerializerBSON, Interval_YEAR_MONTH)
 // {

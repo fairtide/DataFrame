@@ -35,19 +35,7 @@ struct Schema {
     static view DATA() { return "d"; }
     static view MASK() { return "m"; }
     static view TYPE() { return "t"; }
-
     static view TYPE_PARAMETERS() { return "tp"; }
-    static view UNIT() { return "u"; }
-
-    static view SECOND() { return "S"; }
-    static view MILLI() { return "ms"; }
-    static view MICRO() { return "us"; }
-    static view NANO() { return "ns"; }
-
-    static view NAME() { return "n"; }
-    static view VALUES() { return "v"; }
-    static view OFFSETS() { return "o"; }
-    static view WIDTH() { return "w"; }
 }; // namespace bsonstructSchema
 
 template <typename T>
