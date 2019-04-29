@@ -1,0 +1,60 @@
+//============================================================================
+// Copyright 2019 Fairtide Pte. Ltd.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//============================================================================
+
+#ifndef DATAFRAME_SERIALIZER_BSON_SCHEMA_HPP
+#define DATAFRAME_SERIALIZER_BSON_SCHEMA_HPP
+
+#include <arrow/allocator.h>
+#include <bsoncxx/builder/basic/array.hpp>
+#include <bsoncxx/builder/basic/document.hpp>
+#include <bsoncxx/document/value.hpp>
+#include <bsoncxx/document/view.hpp>
+#include <bsoncxx/stdx/string_view.hpp>
+#include <vector>
+
+namespace dataframe {
+
+namespace bson {
+
+struct Schema {
+    using view = ::bsoncxx::stdx::string_view;
+
+    static view DATA() { return "d"; }
+    static view MASK() { return "m"; }
+    static view TYPE() { return "t"; }
+
+    static view TYPE_PARAMETERS() { return "tp"; }
+    static view UNIT() { return "u"; }
+
+    static view SECOND() { return "S"; }
+    static view MILLI() { return "ms"; }
+    static view MICRO() { return "us"; }
+    static view NANO() { return "ns"; }
+
+    static view NAME() { return "n"; }
+    static view VALUES() { return "v"; }
+    static view OFFSETS() { return "o"; }
+    static view WIDTH() { return "w"; }
+}; // namespace bsonstructSchema
+
+template <typename T>
+using Vector = std::vector<T, ::arrow::stl_allocator<T>>;
+
+} // namespace bson
+
+} // namespace dataframe
+
+#endif // DATAFRAME_SERIALIZER_BSON_SCHEMA_HPP
