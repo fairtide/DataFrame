@@ -17,9 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_DATA_WRITER_HPP
 #define DATAFRAME_SERIALIZER_BSON_DATA_WRITER_HPP
 
-#include <dataframe/serializer/base.hpp>
-#include <dataframe/serializer/bson/compress.hpp>
-#include <dataframe/serializer/bson/schema.hpp>
+#include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
 
@@ -42,7 +40,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
     {
         builder_.append(::bsoncxx::builder::basic::kvp(
             Schema::DATA(), static_cast<std::int64_t>(array.length())));
+
         make_mask(builder_, array);
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
 
         return ::arrow::Status::OK();
     }
@@ -53,7 +55,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
             compress(array.length(), array.raw_values(), &buffer2_,           \
                 compression_level_)));                                        \
+                                                                              \
         make_mask(builder_, array);                                           \
+                                                                              \
+        TypeWriter type_writer(builder_);                                     \
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));           \
                                                                               \
         return ::arrow::Status::OK();                                         \
     }
@@ -95,7 +101,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
             compress(static_cast<std::int64_t>(buffer1_.size()),              \
                 buffer1_.data(), &buffer2_, compression_level_)));            \
+                                                                              \
         make_mask(builder_, array);                                           \
+                                                                              \
+        TypeWriter type_writer(builder_);                                     \
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));           \
                                                                               \
         return ::arrow::Status::OK();                                         \
     }
@@ -114,7 +124,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
             compress(array.length() * type.byte_width(), array.raw_values(),
                 &buffer2_, compression_level_)));
+
         make_mask(builder_, array);
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
 
         return ::arrow::Status::OK();
     }
@@ -123,6 +137,8 @@ class DataWriter final : public ::arrow::ArrayVisitor
     {
         using ::bsoncxx::builder::basic::kvp;
 
+        // data
+
         auto data = array.value_data()->data();
         auto data_offset = array.value_offset(0);
         auto data_length = array.value_offset(array.length()) - data_offset;
@@ -130,7 +146,17 @@ class DataWriter final : public ::arrow::ArrayVisitor
         builder_.append(kvp(Schema::DATA(),
             compress(data_length, data + data_offset, &buffer2_,
                 compression_level_)));
+
+        // mask
+
         make_mask(builder_, array);
+
+        // type
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
+
+        // offset
 
         auto length = array.length() + 1;
         auto offsets = array.raw_value_offsets();
@@ -165,6 +191,8 @@ class DataWriter final : public ::arrow::ArrayVisitor
     {
         using ::bsoncxx::builder::basic::kvp;
 
+        // data
+
         auto values_offset = array.value_offset(0);
         auto values_length =
             array.value_offset(array.length()) - values_offset;
@@ -175,7 +203,17 @@ class DataWriter final : public ::arrow::ArrayVisitor
         DF_ARROW_ERROR_HANDLER(values->Accept(&writer));
 
         builder_.append(kvp(Schema::DATA(), data.extract()));
+
+        // mask
+
         make_mask(builder_, array);
+
+        // type
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
+
+        // offset
 
         auto length = array.length() + 1;
         auto offsets = array.raw_value_offsets();
@@ -205,6 +243,8 @@ class DataWriter final : public ::arrow::ArrayVisitor
     {
         using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;
+
+        // data
 
         document fields;
         auto &type = dynamic_cast<const ::arrow::StructType &>(*array.type());
@@ -236,7 +276,15 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));
+
+        // mask
+
         make_mask(builder_, array);
+
+        // type
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
 
         return ::arrow::Status::OK();
     }

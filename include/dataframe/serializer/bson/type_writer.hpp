@@ -149,7 +149,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         }
 
         builder_.append(
-            ::bsoncxx::builder::basic::kvp(Schema::TYPE(), "list"));
+            ::bsoncxx::builder::basic::kvp(Schema::TYPE(), "struct"));
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::PARAM(), param.extract()));
 

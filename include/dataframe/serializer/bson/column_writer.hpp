@@ -18,7 +18,6 @@
 #define DATAFRAME_SERIALIZER_BSON_COLUMN_WRITER_HPP
 
 #include <dataframe/serializer/bson/data_writer.hpp>
-#include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
 
@@ -50,9 +49,6 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
                                                                               \
         DataWriter data(col, buffer1_, buffer2_, compression_level_);         \
         DF_ARROW_ERROR_HANDLER(array.Accept(&data));                          \
-                                                                              \
-        TypeWriter type(col);                                                 \
-        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type));                  \
                                                                               \
         column_ =                                                             \
             std::make_unique<::bsoncxx::document::value>(col.extract());      \

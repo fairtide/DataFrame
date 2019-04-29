@@ -331,6 +331,39 @@ inline void cast_dataframe(
     internal::cast_pair(df, ret->data(), std::forward<Args>(args)...);
 }
 
+/// \brief make StructArray from DataFrame
+inline std::shared_ptr<::arrow::Array> make_array(const DataFrame &data)
+{
+    std::vector<std::shared_ptr<::arrow::Field>> fields;
+    std::vector<std::shared_ptr<::arrow::Array>> children;
+
+    auto ncol = data.ncol();
+    for (std::size_t i = 0; i != ncol; ++i) {
+        auto col = data[i];
+        fields.push_back(::arrow::field(col.name(), col.data()->type()));
+        children.push_back(col.data());
+    }
+
+    auto type = ::arrow::struct_(fields);
+    auto length = static_cast<std::int64_t>(data.nrow());
+
+    return std::make_shared<::arrow::StructArray>(type, length, children);
+}
+
+/// \brief Cast StructArray as DataFrame
+inline void cast_array(const ::arrow::Array &values, DataFrame *out)
+{
+    auto &array = dynamic_cast<const ::arrow::StructArray &>(values);
+    auto &type = dynamic_cast<const ::arrow::StructType &>(*values.type());
+
+    out->clear();
+    auto n = type.num_children();
+    for (auto i = 0; i != n; ++i) {
+        auto field = type.child(i);
+        (*out)[field->name()] = array.field(i);
+    }
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_DATA_FRAME_HPP

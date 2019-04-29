@@ -184,6 +184,29 @@ inline std::shared_ptr<::arrow::Array> generate_utf8(std::size_t n)
     return ret;
 }
 
+inline std::shared_ptr<::arrow::Array> generate_nested(std::size_t n)
+{
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::int32_t> size(0, 10);
+
+    std::vector<std::int32_t> offsets;
+    offsets.push_back(0);
+
+    for (std::size_t i = 0; i != n; ++i) {
+        auto count = size(rng);
+        offsets.push_back(offsets.back() + count);
+    }
+
+    auto m = static_cast<std::size_t>(offsets.back());
+
+    ::dataframe::ListView<::dataframe::DataFrame> data;
+    data.offsets = ::dataframe::ArrayView<std::int32_t>(offsets);
+    data.values["int"] = generate_int<int>(m);
+    data.values["float"] = generate_real<float>(m);
+
+    return ::dataframe::make_array(data);
+}
+
 template <typename Gen>
 inline void DoTest(Gen &&gen)
 {
@@ -192,25 +215,7 @@ inline void DoTest(Gen &&gen)
     dat["test"] = gen(n);
 
     ::dataframe::BSONWriter writer;
-    writer.write(dat);
-    auto str = writer.str();
     ::dataframe::BSONReader reader;
-    auto ret = reader.read(str);
-
-    auto array1 = dat["test"].data();
-    auto array2 = ret["test"].data();
-    EXPECT_TRUE(array1->Equals(array2));
-
-    // slice
-    for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
-        writer.write(chunk);
-        str = writer.str();
-        ret = reader.read(str);
-
-        array1 = chunk["test"].data();
-        array2 = ret["test"].data();
-        EXPECT_TRUE(array1->Equals(array2));
-    }
 
     writer.write(dat.rows(0, 6));
     auto bson_doc = writer.extract();
@@ -226,6 +231,24 @@ inline void DoTest(Gen &&gen)
     json_doc.Accept(json_writer);
 
     std::cout << json_buffer.GetString() << std::endl;
+
+    writer.write(dat);
+    auto str = writer.str();
+    auto ret = reader.read(str);
+    auto array1 = dat["test"].data();
+    auto array2 = ret["test"].data();
+    EXPECT_TRUE(array1->Equals(array2));
+
+    // slice
+    for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
+        writer.write(chunk);
+        str = writer.str();
+        ret = reader.read(str);
+
+        array1 = chunk["test"].data();
+        array2 = ret["test"].data();
+        EXPECT_TRUE(array1->Equals(array2));
+    }
 }
 
 TEST(SerializerBSON, Null) { DoTest(generate_null); }
@@ -319,4 +342,4 @@ TEST(SerializerBSON, Bytes) { DoTest(generate_bytes); }
 
 TEST(SerializerBSON, UTF8) { DoTest(generate_utf8); }
 
-// TEST(SerializerBSON, Nested) { DoTest(generate_nested); }
+TEST(SerializerBSON, Nested) { DoTest(generate_nested); }
