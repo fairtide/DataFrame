@@ -25,26 +25,21 @@
 #include <rapidjson/stringbuffer.h>
 
 template <typename T>
-inline std::vector<T> generate_int(std::size_t n)
+inline std::vector<T> generate(std::size_t n)
 {
     std::vector<T> ret(n);
     std::mt19937_64 rng;
-    std::uniform_int_distribution<T> dist;
-    for (std::size_t i = 0; i != n; ++i) {
-        ret[i] = dist(rng);
-    }
 
-    return ret;
-}
-
-template <typename T>
-inline std::vector<T> generate_real(std::size_t n)
-{
-    std::vector<T> ret(n);
-    std::mt19937_64 rng;
-    std::uniform_real_distribution<T> dist;
-    for (std::size_t i = 0; i != n; ++i) {
-        ret[i] = dist(rng);
+    if constexpr (std::is_integral_v<T>) {
+        std::uniform_int_distribution<T> dist;
+        for (std::size_t i = 0; i != n; ++i) {
+            ret[i] = dist(rng);
+        }
+    } else {
+        std::uniform_real_distribution<T> dist;
+        for (std::size_t i = 0; i != n; ++i) {
+            ret[i] = dist(rng);
+        }
     }
 
     return ret;
@@ -57,7 +52,7 @@ inline std::shared_ptr<::arrow::Array> generate_null(std::size_t n)
 
 inline std::shared_ptr<::arrow::Array> generate_bool(std::size_t n)
 {
-    auto values = generate_real<std::uint8_t>(n);
+    auto values = generate<std::uint8_t>(n);
 
     ::arrow::BooleanBuilder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.Reserve(static_cast<std::int64_t>(n)));
@@ -73,7 +68,7 @@ inline std::shared_ptr<::arrow::Array> generate_bool(std::size_t n)
 
 inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)
 {
-    auto values = generate_int<std::uint16_t>(n);
+    auto values = generate<std::uint16_t>(n);
     ::arrow::HalfFloatBuilder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
     std::shared_ptr<::arrow::Array> ret;
@@ -83,7 +78,7 @@ inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)
 
 inline std::shared_ptr<::arrow::Array> generate_date32(std::size_t n)
 {
-    auto values = generate_int<std::int32_t>(n);
+    auto values = generate<std::int32_t>(n);
     ::arrow::Date32Builder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
     std::shared_ptr<::arrow::Array> ret;
@@ -93,7 +88,7 @@ inline std::shared_ptr<::arrow::Array> generate_date32(std::size_t n)
 
 inline std::shared_ptr<::arrow::Array> generate_date64(std::size_t n)
 {
-    auto values = generate_int<std::int64_t>(n);
+    auto values = generate<std::int64_t>(n);
     ::arrow::Date64Builder builder(::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
     std::shared_ptr<::arrow::Array> ret;
@@ -104,7 +99,7 @@ inline std::shared_ptr<::arrow::Array> generate_date64(std::size_t n)
 template <::arrow::TimeUnit::type Unit>
 inline std::shared_ptr<::arrow::Array> generate_timestamp(std::size_t n)
 {
-    auto values = generate_int<std::int64_t>(n);
+    auto values = generate<std::int64_t>(n);
     ::arrow::TimestampBuilder builder(
         std::make_shared<::arrow::TimestampType>(Unit),
         ::arrow::default_memory_pool());
@@ -117,7 +112,7 @@ inline std::shared_ptr<::arrow::Array> generate_timestamp(std::size_t n)
 template <::arrow::TimeUnit::type Unit>
 inline std::shared_ptr<::arrow::Array> generate_time32(std::size_t n)
 {
-    auto values = generate_int<std::int32_t>(n);
+    auto values = generate<std::int32_t>(n);
     ::arrow::Time32Builder builder(std::make_shared<::arrow::Time32Type>(Unit),
         ::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
@@ -129,7 +124,7 @@ inline std::shared_ptr<::arrow::Array> generate_time32(std::size_t n)
 template <::arrow::TimeUnit::type Unit>
 inline std::shared_ptr<::arrow::Array> generate_time64(std::size_t n)
 {
-    auto values = generate_int<std::int64_t>(n);
+    auto values = generate<std::int64_t>(n);
     ::arrow::Time64Builder builder(std::make_shared<::arrow::Time64Type>(Unit),
         ::arrow::default_memory_pool());
     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
@@ -141,7 +136,7 @@ inline std::shared_ptr<::arrow::Array> generate_time64(std::size_t n)
 // template <::arrow::IntervalType::Unit Unit>
 // inline std::shared_ptr<::arrow::Array> generate_interval(std::size_t n)
 // {
-//     auto values = generate_int<std::int64_t>(n);
+//     auto values = generate<std::int64_t>(n);
 //     ::arrow::Int64Builder builder(::arrow::default_memory_pool());
 //     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
 //     std::shared_ptr<::arrow::Array> ret;
@@ -159,7 +154,7 @@ inline std::shared_ptr<::arrow::Array> generate_pod(std::size_t n)
     ::arrow::FixedSizeBinaryBuilder builder(
         std::make_shared<::arrow::FixedSizeBinaryType>(7),
         ::arrow::default_memory_pool());
-    auto values = generate_int<char>(7 * n);
+    auto values = generate<char>(7 * n);
     auto p = values.data();
     for (std::size_t i = 0; i != n; ++i, p += 7) {
         DF_ARROW_ERROR_HANDLER(builder.Append(p));
@@ -174,7 +169,7 @@ inline std::shared_ptr<::arrow::Array> generate_decimal128(std::size_t n)
     ::arrow::Decimal128Builder builder(
         std::make_shared<::arrow::Decimal128Type>(10, 5),
         ::arrow::default_memory_pool());
-    auto values = generate_int<char>(16 * n);
+    auto values = generate<char>(16 * n);
     auto p = values.data();
     for (std::size_t i = 0; i != n; ++i, p += 16) {
         DF_ARROW_ERROR_HANDLER(builder.Append(p));
@@ -187,7 +182,7 @@ inline std::shared_ptr<::arrow::Array> generate_decimal128(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_bytes(std::size_t n)
 {
     ::arrow::BinaryBuilder builder(::arrow::default_memory_pool());
-    auto values = generate_int<char>(10 * n);
+    auto values = generate<char>(10 * n);
     auto p = values.data();
     std::mt19937 rng;
     std::uniform_int_distribution<std::int32_t> size(0, 10);
@@ -204,7 +199,7 @@ inline std::shared_ptr<::arrow::Array> generate_bytes(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_utf8(std::size_t n)
 {
     ::arrow::StringBuilder builder(::arrow::default_memory_pool());
-    auto values = generate_int<char>(10 * n);
+    auto values = generate<char>(10 * n);
     auto p = values.data();
     std::mt19937 rng;
     std::uniform_int_distribution<std::int32_t> size(0, 10);
@@ -235,15 +230,15 @@ inline std::shared_ptr<::arrow::Array> generate_nested(std::size_t n)
 
     ::dataframe::ListView<::dataframe::DataFrame> data;
     data.offsets = ::dataframe::ArrayView<std::int32_t>(offsets);
-    data.values["int"] = generate_int<int>(m);
-    data.values["float"] = generate_real<float>(m);
+    data.values["int"] = generate<int>(m);
+    data.values["float"] = generate<float>(m);
 
     return ::dataframe::make_array(data);
 }
 
 inline std::shared_ptr<::arrow::Array> generate_dict(std::size_t n)
 {
-    auto value = generate_int<char>(10);
+    auto value = generate<char>(10);
     std::mt19937 rng;
     std::uniform_int_distribution<std::int32_t> size(0, 9);
     ::arrow::StringDictionaryBuilder builder(::arrow::default_memory_pool());
@@ -309,17 +304,18 @@ inline void DoTest(Gen &&gen)
 }
 
 TEST(SerializerBSON, Null) { DoTest(generate_null); }
-TEST(SerializerBSON, Int8) { DoTest(generate_int<std::int8_t>); }
-TEST(SerializerBSON, Int16) { DoTest(generate_int<std::int16_t>); }
-TEST(SerializerBSON, Int32) { DoTest(generate_int<std::int32_t>); }
-TEST(SerializerBSON, Int64) { DoTest(generate_int<std::int64_t>); }
-TEST(SerializerBSON, UInt8) { DoTest(generate_int<std::uint8_t>); }
-TEST(SerializerBSON, UInt16) { DoTest(generate_int<std::uint16_t>); }
-TEST(SerializerBSON, UInt32) { DoTest(generate_int<std::uint32_t>); }
-TEST(SerializerBSON, UInt64) { DoTest(generate_int<std::uint64_t>); }
+TEST(SerializerBSON, Bool) { DoTest(generate_bool); }
+TEST(SerializerBSON, Int8) { DoTest(generate<std::int8_t>); }
+TEST(SerializerBSON, Int16) { DoTest(generate<std::int16_t>); }
+TEST(SerializerBSON, Int32) { DoTest(generate<std::int32_t>); }
+TEST(SerializerBSON, Int64) { DoTest(generate<std::int64_t>); }
+TEST(SerializerBSON, UInt8) { DoTest(generate<std::uint8_t>); }
+TEST(SerializerBSON, UInt16) { DoTest(generate<std::uint16_t>); }
+TEST(SerializerBSON, UInt32) { DoTest(generate<std::uint32_t>); }
+TEST(SerializerBSON, UInt64) { DoTest(generate<std::uint64_t>); }
 TEST(SerializerBSON, HalfFloat) { DoTest(generate_float16); }
-TEST(SerializerBSON, Float) { DoTest(generate_real<float>); }
-TEST(SerializerBSON, Double) { DoTest(generate_real<double>); }
+TEST(SerializerBSON, Float) { DoTest(generate<float>); }
+TEST(SerializerBSON, Double) { DoTest(generate<double>); }
 TEST(SerializerBSON, Date32) { DoTest(generate_date32); }
 TEST(SerializerBSON, Date64) { DoTest(generate_date64); }
 
