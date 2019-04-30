@@ -145,8 +145,7 @@ class DataReader : public ::arrow::TypeVisitor
         auto offsets = decompress<std::int32_t>(
             view_[Schema::OFFSET()].get_binary(), pool_);
 
-        auto byte_width = static_cast<std::int64_t>(sizeof(std::int32_t));
-        data_.length = offsets->size() / byte_width - 1;
+        data_.length = decode_offsets(offsets);
         data_.buffers.reserve(3);
         data_.buffers.push_back(make_mask());
         data_.buffers.push_back(std::move(offsets));
@@ -165,9 +164,7 @@ class DataReader : public ::arrow::TypeVisitor
         auto offsets = decompress<std::int32_t>(
             view_[Schema::OFFSET()].get_binary(), pool_);
 
-        auto byte_width = static_cast<std::int64_t>(sizeof(std::int32_t));
-        data_.length = offsets->size() / byte_width - 1;
-
+        data_.length = decode_offsets(offsets);
         data_.buffers.reserve(2);
         data_.buffers.push_back(make_mask());
         data_.buffers.push_back(std::move(offsets));
