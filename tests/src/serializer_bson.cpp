@@ -241,6 +241,20 @@ inline std::shared_ptr<::arrow::Array> generate_nested(std::size_t n)
     return ::dataframe::make_array(data);
 }
 
+inline std::shared_ptr<::arrow::Array> generate_dict(std::size_t n)
+{
+    auto value = generate_int<char>(10);
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::int32_t> size(0, 9);
+    ::arrow::StringDictionaryBuilder builder(::arrow::default_memory_pool());
+    for (std::size_t i = 0; i != n; ++i) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(value.data(), size(rng)));
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
 template <typename Gen>
 inline void DoTest(Gen &&gen)
 {
@@ -388,3 +402,5 @@ TEST(SerializerBSON, Bytes) { DoTest(generate_bytes); }
 TEST(SerializerBSON, UTF8) { DoTest(generate_utf8); }
 
 TEST(SerializerBSON, Nested) { DoTest(generate_nested); }
+
+TEST(SerializerBSON, Dictionary) { DoTest(generate_dict); }

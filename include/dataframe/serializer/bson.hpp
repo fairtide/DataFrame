@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_HPP
 #define DATAFRAME_SERIALIZER_BSON_HPP
 
+#include <dataframe/serializer/base.hpp>
 #include <dataframe/serializer/bson/column_reader.hpp>
 #include <dataframe/serializer/bson/column_writer.hpp>
 

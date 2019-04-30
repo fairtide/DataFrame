@@ -17,14 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_SCHEMA_HPP
 #define DATAFRAME_SERIALIZER_BSON_SCHEMA_HPP
 
-#include <arrow/allocator.h>
-#include <arrow/api.h>
-#include <bsoncxx/builder/basic/array.hpp>
-#include <bsoncxx/builder/basic/document.hpp>
-#include <bsoncxx/document/value.hpp>
-#include <bsoncxx/document/view.hpp>
 #include <bsoncxx/stdx/string_view.hpp>
-#include <vector>
 
 namespace dataframe {
 
@@ -37,41 +30,25 @@ struct Schema {
     static view MASK() { return "m"; }
     static view TYPE() { return "t"; }
     static view PARAM() { return "p"; }
-    static view NAME() { return "n"; }
+
+    // binary/string/list
     static view OFFSET() { return "o"; }
+
+    // list
     static view LENGTH() { return "l"; }
+
+    // struct
+    static view NAME() { return "n"; }
     static view FIELDS() { return "f"; }
+
+    // decimal128
     static view PRECISION() { return "p"; }
     static view SCALE() { return "s"; }
+
+    // dictionary
+    static view INDEX() { return "i"; }
+    static view DICT() { return "d"; }
 };
-
-template <typename T>
-class Allocator : public ::arrow::stl_allocator<T>
-{
-  public:
-    template <typename U>
-    void construct(U *p)
-    {
-        construct_dispatch(p,
-            std::integral_constant<bool,
-                (std::is_scalar<U>::value || std::is_pod<U>::value)>());
-    }
-
-  private:
-    template <typename U>
-    void construct_dispatch(U *, std::true_type)
-    {
-    }
-
-    template <typename U>
-    void construct_dispatch(U *p, std::false_type)
-    {
-        ::new (static_cast<void *>(p)) U();
-    }
-};
-
-template <typename T>
-using Vector = std::vector<T, Allocator<T>>;
 
 } // namespace bson
 

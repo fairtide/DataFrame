@@ -17,8 +17,6 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_TYPE_READER_HPP
 #define DATAFRAME_SERIALIZER_BSON_TYPE_READER_HPP
 
-#include <dataframe/serializer/base.hpp>
-#include <dataframe/serializer/bson/compress.hpp>
 #include <dataframe/serializer/bson/schema.hpp>
 
 namespace dataframe {
@@ -156,6 +154,14 @@ inline std::shared_ptr<::arrow::DataType> read_type(
 
     if (type == "bytes") {
         return ::arrow::binary();
+    }
+
+    if (type == "factor") {
+        return ::arrow::dictionary(nullptr, nullptr, false);
+    }
+
+    if (type == "ordered") {
+        return ::arrow::dictionary(nullptr, nullptr, true);
     }
 
     auto tp = view[Schema::PARAM()];

@@ -18,6 +18,7 @@
 #define DATAFRAME_SERIALIZER_BSON_COLUMN_WRITER_HPP
 
 #include <dataframe/serializer/bson/data_writer.hpp>
+#include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
 
@@ -84,7 +85,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(List)
     DF_DEFINE_VISITOR(Struct)
     // DF_DEFINE_VISITOR(Union)
-    // DF_DEFINE_VISITOR(Dictionary)
+    DF_DEFINE_VISITOR(Dictionary)
 
 #undef DF_DEFINE_VISITOR
 

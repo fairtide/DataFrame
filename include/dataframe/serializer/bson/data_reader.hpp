@@ -17,9 +17,8 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_DATA_READER_HPP
 #define DATAFRAME_SERIALIZER_BSON_DATA_READER_HPP
 
-#include <dataframe/serializer/base.hpp>
 #include <dataframe/serializer/bson/compress.hpp>
-#include <dataframe/serializer/bson/schema.hpp>
+#include <dataframe/serializer/bson/type_reader.hpp>
 
 namespace dataframe {
 
@@ -58,7 +57,7 @@ class DataReader : public ::arrow::TypeVisitor
         std::shared_ptr<::arrow::Array> ret;
         DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
 
-        data_ = *ret->data();
+        data_ = std::move(*ret->data());
 
         return ::arrow::Status::OK();
     }
@@ -213,6 +212,38 @@ class DataReader : public ::arrow::TypeVisitor
             data_.child_data.push_back(
                 std::make_shared<::arrow::ArrayData>(std::move(field_data)));
         }
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    {
+        auto data_view = view_[Schema::DATA()].get_document().view();
+
+        auto index_view = data_view[Schema::INDEX()].get_document().view();
+        ::arrow::ArrayData index_data(nullptr, 0);
+        index_data.type = read_type(index_view);
+        DataReader index_reader(index_data, index_view, pool_);
+        DF_ARROW_ERROR_HANDLER(index_data.type->Accept(&index_reader));
+
+        auto dict_view = data_view[Schema::DICT()].get_document().view();
+        ::arrow::ArrayData dict_data(nullptr, 0);
+        dict_data.type = read_type(dict_view);
+        DataReader dict_reader(dict_data, dict_view, pool_);
+        DF_ARROW_ERROR_HANDLER(dict_data.type->Accept(&dict_reader));
+
+        auto dict_type = ::arrow::dictionary(index_data.type,
+            ::arrow::MakeArray(
+                std::make_shared<::arrow::ArrayData>(std::move(dict_data))),
+            type.ordered());
+
+        std::shared_ptr<::arrow::Array> dict_array;
+        DF_ARROW_ERROR_HANDLER(::arrow::DictionaryArray::FromArrays(dict_type,
+            ::arrow::MakeArray(
+                std::make_shared<::arrow::ArrayData>(std::move(index_data))),
+            &dict_array));
+
+        data_ = std::move(*dict_array->data());
 
         return ::arrow::Status::OK();
     }

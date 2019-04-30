@@ -17,8 +17,6 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_TYPE_WRITER_HPP
 #define DATAFRAME_SERIALIZER_BSON_TYPE_WRITER_HPP
 
-#include <dataframe/serializer/base.hpp>
-#include <dataframe/serializer/bson/compress.hpp>
 #include <dataframe/serializer/bson/schema.hpp>
 
 namespace dataframe {
@@ -169,6 +167,19 @@ class TypeWriter final : public ::arrow::TypeVisitor
             ::bsoncxx::builder::basic::kvp(Schema::TYPE(), "struct"));
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::PARAM(), param.extract()));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        if (type.ordered()) {
+            builder_.append(kvp(Schema::TYPE(), "ordered"));
+        } else {
+            builder_.append(kvp(Schema::TYPE(), "factor"));
+        }
 
         return ::arrow::Status::OK();
     }

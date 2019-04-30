@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_DATA_WRITER_HPP
 #define DATAFRAME_SERIALIZER_BSON_DATA_WRITER_HPP
 
+#include <dataframe/serializer/bson/compress.hpp>
 #include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
@@ -298,6 +299,40 @@ class DataWriter final : public ::arrow::ArrayVisitor
         data.append(
             kvp(Schema::LENGTH(), static_cast<std::int64_t>(array.length())));
         data.append(kvp(Schema::FIELDS(), fields.extract()));
+
+        builder_.append(
+            ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));
+
+        // mask
+
+        make_mask(builder_, array);
+
+        // type
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    {
+        using ::bsoncxx::builder::basic::document;
+        using ::bsoncxx::builder::basic::kvp;
+
+        // data
+
+        document index;
+        DataWriter index_writer(index, buffer1_, buffer2_, compression_level_);
+        DF_ARROW_ERROR_HANDLER(array.indices()->Accept(&index_writer));
+
+        document dict;
+        DataWriter dict_writer(dict, buffer1_, buffer2_, compression_level_);
+        DF_ARROW_ERROR_HANDLER(array.dictionary()->Accept(&dict_writer));
+
+        document data;
+        data.append(kvp(Schema::INDEX(), index.extract()));
+        data.append(kvp(Schema::DICT(), dict.extract()));
 
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));
