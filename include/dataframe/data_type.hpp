@@ -156,6 +156,17 @@ inline constexpr DataType dtype(::arrow::Type::type type)
             return DataType::Categorical;
         case ::arrow::Type::MAP:
             return DataType::Unknown;
+
+#ifdef ARROW_VERSION
+
+#if ARROW_VERSION >= 13000
+
+        case ::arrow::Type::EXTENSION:
+            return DataType::Unknown;
+
+#endif
+
+#endif
     }
     return DataType::Unknown;
 }

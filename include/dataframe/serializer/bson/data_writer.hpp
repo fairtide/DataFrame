@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_DATA_WRITER_HPP
 #define DATAFRAME_SERIALIZER_BSON_DATA_WRITER_HPP
 
+#include <dataframe/serializer/bson/compress.hpp>
 #include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
@@ -40,6 +41,25 @@ class DataWriter final : public ::arrow::ArrayVisitor
     {
         builder_.append(::bsoncxx::builder::basic::kvp(
             Schema::DATA(), static_cast<std::int64_t>(array.length())));
+
+        make_mask(builder_, array);
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+    {
+        auto n = array.length();
+        buffer1_.resize(static_cast<std::size_t>(n));
+        for (std::int64_t i = 0; i != n; ++i) {
+            buffer1_[static_cast<std::size_t>(i)] = array.GetView(i);
+        }
+
+        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
+            compress(n, buffer1_.data(), &buffer2_, compression_level_)));
 
         make_mask(builder_, array);
 
@@ -77,7 +97,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(Double)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
-    DF_DEFINE_VISITOR(Interval)
+    // DF_DEFINE_VISITOR(Interval)
 
 #undef DF_DEFINE_VISITOR
 
@@ -131,6 +151,12 @@ class DataWriter final : public ::arrow::ArrayVisitor
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
 
         return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) final
+    {
+        return Visit(
+            static_cast<const ::arrow::FixedSizeBinaryArray &>(array));
     }
 
     ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
@@ -273,6 +299,40 @@ class DataWriter final : public ::arrow::ArrayVisitor
         data.append(
             kvp(Schema::LENGTH(), static_cast<std::int64_t>(array.length())));
         data.append(kvp(Schema::FIELDS(), fields.extract()));
+
+        builder_.append(
+            ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));
+
+        // mask
+
+        make_mask(builder_, array);
+
+        // type
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    {
+        using ::bsoncxx::builder::basic::document;
+        using ::bsoncxx::builder::basic::kvp;
+
+        // data
+
+        document index;
+        DataWriter index_writer(index, buffer1_, buffer2_, compression_level_);
+        DF_ARROW_ERROR_HANDLER(array.indices()->Accept(&index_writer));
+
+        document dict;
+        DataWriter dict_writer(dict, buffer1_, buffer2_, compression_level_);
+        DF_ARROW_ERROR_HANDLER(array.dictionary()->Accept(&dict_writer));
+
+        document data;
+        data.append(kvp(Schema::INDEX(), index.extract()));
+        data.append(kvp(Schema::DICT(), dict.extract()));
 
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));

@@ -19,10 +19,10 @@ if (NOT DEFINED Arrow_ROOT_DIR)
 endif (NOT DEFINED Arrow_ROOT_DIR)
 
 find_path(Arrow_INCLUDE_DIR arrow/api.h PATHS ${Arrow_ROOT_DIR}/include NO_DEFAULT_PATH)
-find_library(Arrow_LIBRARIES libarrow.a PATHS ${Arrow_ROOT_DIR}/lib64 NO_DEFAULT_PATH)
-find_library(Arrow_LIBRARIES libarrow.a PATHS ${Arrow_ROOT_DIR}/lib NO_DEFAULT_PATH)
 find_library(Arrow_LIBRARIES arrow PATHS ${Arrow_ROOT_DIR}/lib64 NO_DEFAULT_PATH)
 find_library(Arrow_LIBRARIES arrow PATHS ${Arrow_ROOT_DIR}/lib NO_DEFAULT_PATH)
+find_library(Arrow_LIBRARIES libarrow.a PATHS ${Arrow_ROOT_DIR}/lib64 NO_DEFAULT_PATH)
+find_library(Arrow_LIBRARIES libarrow.a PATHS ${Arrow_ROOT_DIR}/lib NO_DEFAULT_PATH)
 
 if (Arrow_INCLUDE_DIR)
     message(STATUS "FOUND Arrow headers: ${Arrow_INCLUDE_DIR}")

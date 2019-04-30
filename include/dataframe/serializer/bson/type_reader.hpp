@@ -17,8 +17,6 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_TYPE_READER_HPP
 #define DATAFRAME_SERIALIZER_BSON_TYPE_READER_HPP
 
-#include <dataframe/serializer/base.hpp>
-#include <dataframe/serializer/bson/compress.hpp>
 #include <dataframe/serializer/bson/schema.hpp>
 
 namespace dataframe {
@@ -34,6 +32,10 @@ inline std::shared_ptr<::arrow::DataType> read_type(
 
     if (type == "null") {
         return ::arrow::null();
+    }
+
+    if (type == "bool") {
+        return ::arrow::boolean();
     }
 
     if (type == "int8") {
@@ -136,15 +138,15 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::time64(::arrow::TimeUnit::NANO);
     }
 
-    if (type == "interval[ym]") {
-        std::make_shared<::arrow::IntervalType>(
-            ::arrow::IntervalType::Unit::YEAR_MONTH);
-    }
+    // if (type == "interval[ym]") {
+    //     std::make_shared<::arrow::IntervalType>(
+    //         ::arrow::IntervalType::Unit::YEAR_MONTH);
+    // }
 
-    if (type == "interval[dt]") {
-        std::make_shared<::arrow::IntervalType>(
-            ::arrow::IntervalType::Unit::DAY_TIME);
-    }
+    // if (type == "interval[dt]") {
+    //     std::make_shared<::arrow::IntervalType>(
+    //         ::arrow::IntervalType::Unit::DAY_TIME);
+    // }
 
     if (type == "utf8") {
         return ::arrow::utf8();
@@ -154,10 +156,24 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::binary();
     }
 
+    if (type == "factor") {
+        return ::arrow::dictionary(nullptr, nullptr, false);
+    }
+
+    if (type == "ordered") {
+        return ::arrow::dictionary(nullptr, nullptr, true);
+    }
+
     auto tp = view[Schema::PARAM()];
 
     if (type == "pod") {
         return ::arrow::fixed_size_binary(tp.get_int32().value);
+    }
+
+    if (type == "decimal") {
+        auto precision = tp[Schema::PRECISION()].get_int32().value;
+        auto scale = tp[Schema::SCALE()].get_int32().value;
+        return ::arrow::decimal(precision, scale);
     }
 
     if (type == "list") {
