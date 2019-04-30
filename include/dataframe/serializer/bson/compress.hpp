@@ -17,15 +17,48 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_COMPRESS_HPP
 #define DATAFRAME_SERIALIZER_BSON_COMPRESS_HPP
 
-#include <dataframe/serializer/bson/schema.hpp>
+#include <arrow/allocator.h>
 #include <arrow/api.h>
+#include <bsoncxx/builder/basic/array.hpp>
+#include <bsoncxx/builder/basic/document.hpp>
+#include <bsoncxx/document/value.hpp>
+#include <bsoncxx/document/view.hpp>
 #include <bsoncxx/types.hpp>
 #include <lz4.h>
 #include <lz4hc.h>
+#include <vector>
 
 namespace dataframe {
 
 namespace bson {
+
+template <typename T>
+class Allocator : public ::arrow::stl_allocator<T>
+{
+  public:
+    template <typename U>
+    void construct(U *p)
+    {
+        construct_dispatch(p,
+            std::integral_constant<bool,
+                (std::is_scalar<U>::value || std::is_pod<U>::value)>());
+    }
+
+  private:
+    template <typename U>
+    void construct_dispatch(U *, std::true_type)
+    {
+    }
+
+    template <typename U>
+    void construct_dispatch(U *p, std::false_type)
+    {
+        ::new (static_cast<void *>(p)) U();
+    }
+};
+
+template <typename T>
+using Vector = std::vector<T, Allocator<T>>;
 
 inline ::bsoncxx::types::b_binary compress(const ::arrow::Buffer &buffer,
     Vector<std::uint8_t> *out, int compression_level)

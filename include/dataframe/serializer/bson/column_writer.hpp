@@ -18,6 +18,7 @@
 #define DATAFRAME_SERIALIZER_BSON_COLUMN_WRITER_HPP
 
 #include <dataframe/serializer/bson/data_writer.hpp>
+#include <dataframe/serializer/bson/type_writer.hpp>
 
 namespace dataframe {
 
@@ -59,7 +60,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     }
 
     DF_DEFINE_VISITOR(Null)
-    // DF_DEFINE_VISITOR(Boolean)
+    DF_DEFINE_VISITOR(Boolean)
     DF_DEFINE_VISITOR(Int8)
     DF_DEFINE_VISITOR(Int16)
     DF_DEFINE_VISITOR(Int32)
@@ -76,15 +77,15 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(Timestamp)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
-    DF_DEFINE_VISITOR(Interval)
-    // DF_DEFINE_VISITOR(Decimal128)
+    // DF_DEFINE_VISITOR(Interval)
     DF_DEFINE_VISITOR(FixedSizeBinary)
+    DF_DEFINE_VISITOR(Decimal128)
     DF_DEFINE_VISITOR(Binary)
     DF_DEFINE_VISITOR(String)
     DF_DEFINE_VISITOR(List)
     DF_DEFINE_VISITOR(Struct)
     // DF_DEFINE_VISITOR(Union)
-    // DF_DEFINE_VISITOR(Dictionary)
+    DF_DEFINE_VISITOR(Dictionary)
 
 #undef DF_DEFINE_VISITOR
 

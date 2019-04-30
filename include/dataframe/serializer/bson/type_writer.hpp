@@ -17,8 +17,6 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_TYPE_WRITER_HPP
 #define DATAFRAME_SERIALIZER_BSON_TYPE_WRITER_HPP
 
-#include <dataframe/serializer/base.hpp>
-#include <dataframe/serializer/bson/compress.hpp>
 #include <dataframe/serializer/bson/schema.hpp>
 
 namespace dataframe {
@@ -91,21 +89,21 @@ class TypeWriter final : public ::arrow::TypeVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::IntervalType &type) final
-    {
-        using ::bsoncxx::builder::basic::kvp;
+    // ::arrow::Status Visit(const ::arrow::IntervalType &type) final
+    // {
+    //     using ::bsoncxx::builder::basic::kvp;
 
-        switch (type.unit()) {
-            case ::arrow::IntervalType::Unit::YEAR_MONTH:
-                builder_.append(kvp(Schema::TYPE(), "interval[ym]"));
-                break;
-            case ::arrow::IntervalType::Unit::DAY_TIME:
-                builder_.append(kvp(Schema::TYPE(), "interval[dt]"));
-                break;
-        }
+    //     switch (type.unit()) {
+    //         case ::arrow::IntervalType::Unit::YEAR_MONTH:
+    //             builder_.append(kvp(Schema::TYPE(), "interval[ym]"));
+    //             break;
+    //         case ::arrow::IntervalType::Unit::DAY_TIME:
+    //             builder_.append(kvp(Schema::TYPE(), "interval[dt]"));
+    //             break;
+    //     }
 
-        return ::arrow::Status::OK();
-    }
+    //     return ::arrow::Status::OK();
+    // }
 
     ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) final
     {
@@ -114,6 +112,23 @@ class TypeWriter final : public ::arrow::TypeVisitor
         builder_.append(kvp(Schema::TYPE(), "pod"));
         builder_.append(kvp(
             Schema::PARAM(), static_cast<std::int32_t>(type.byte_width())));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        builder_.append(kvp(Schema::TYPE(), "decimal"));
+
+        ::bsoncxx::builder::basic::document param;
+        param.append(kvp(
+            Schema::PRECISION(), static_cast<std::int32_t>(type.precision())));
+        param.append(
+            kvp(Schema::SCALE(), static_cast<std::int32_t>(type.scale())));
+
+        builder_.append(kvp(Schema::PARAM(), param.extract()));
 
         return ::arrow::Status::OK();
     }
@@ -152,6 +167,19 @@ class TypeWriter final : public ::arrow::TypeVisitor
             ::bsoncxx::builder::basic::kvp(Schema::TYPE(), "struct"));
         builder_.append(
             ::bsoncxx::builder::basic::kvp(Schema::PARAM(), param.extract()));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        if (type.ordered()) {
+            builder_.append(kvp(Schema::TYPE(), "ordered"));
+        } else {
+            builder_.append(kvp(Schema::TYPE(), "factor"));
+        }
 
         return ::arrow::Status::OK();
     }

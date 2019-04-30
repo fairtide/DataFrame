@@ -29,7 +29,7 @@ inline std::vector<T> generate_int(std::size_t n)
 {
     std::vector<T> ret(n);
     std::mt19937_64 rng;
-    std::uniform_int_distribution<T> dist(0, 127);
+    std::uniform_int_distribution<T> dist;
     for (std::size_t i = 0; i != n; ++i) {
         ret[i] = dist(rng);
     }
@@ -53,6 +53,22 @@ inline std::vector<T> generate_real(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_null(std::size_t n)
 {
     return std::make_shared<::arrow::NullArray>(static_cast<std::int64_t>(n));
+}
+
+inline std::shared_ptr<::arrow::Array> generate_bool(std::size_t n)
+{
+    auto values = generate_real<std::uint8_t>(n);
+
+    ::arrow::BooleanBuilder builder(::arrow::default_memory_pool());
+    DF_ARROW_ERROR_HANDLER(builder.Reserve(static_cast<std::int64_t>(n)));
+    for (std::size_t i = 0; i != n; ++i) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(static_cast<bool>(values[i])));
+    }
+
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+
+    return ret;
 }
 
 inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)
@@ -126,12 +142,15 @@ inline std::shared_ptr<::arrow::Array> generate_time64(std::size_t n)
 // inline std::shared_ptr<::arrow::Array> generate_interval(std::size_t n)
 // {
 //     auto values = generate_int<std::int64_t>(n);
-//     ::arrow::IntervalBuilder builder(
-//         std::make_shared<::arrow::IntervalType>(Unit),
-//         ::arrow::default_memory_pool());
+//     ::arrow::Int64Builder builder(::arrow::default_memory_pool());
 //     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
 //     std::shared_ptr<::arrow::Array> ret;
 //     DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+//     auto data = ret->data()->Copy();
+//     data->type = std::make_shared<::arrow::IntervalType>(Unit);
+//     std::cout << data.get() << std::endl;
+//     ret = ::arrow::MakeArray(data);
+//     std::cout << ret.get() << std::endl;
 //     return ret;
 // }
 
@@ -143,6 +162,21 @@ inline std::shared_ptr<::arrow::Array> generate_pod(std::size_t n)
     auto values = generate_int<char>(7 * n);
     auto p = values.data();
     for (std::size_t i = 0; i != n; ++i, p += 7) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(p));
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
+inline std::shared_ptr<::arrow::Array> generate_decimal128(std::size_t n)
+{
+    ::arrow::Decimal128Builder builder(
+        std::make_shared<::arrow::Decimal128Type>(10, 5),
+        ::arrow::default_memory_pool());
+    auto values = generate_int<char>(16 * n);
+    auto p = values.data();
+    for (std::size_t i = 0; i != n; ++i, p += 16) {
         DF_ARROW_ERROR_HANDLER(builder.Append(p));
     }
     std::shared_ptr<::arrow::Array> ret;
@@ -207,6 +241,20 @@ inline std::shared_ptr<::arrow::Array> generate_nested(std::size_t n)
     return ::dataframe::make_array(data);
 }
 
+inline std::shared_ptr<::arrow::Array> generate_dict(std::size_t n)
+{
+    auto value = generate_int<char>(10);
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::int32_t> size(0, 9);
+    ::arrow::StringDictionaryBuilder builder(::arrow::default_memory_pool());
+    for (std::size_t i = 0; i != n; ++i) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(value.data(), size(rng)));
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
 template <typename Gen>
 inline void DoTest(Gen &&gen)
 {
@@ -219,6 +267,7 @@ inline void DoTest(Gen &&gen)
 
     writer.write(dat.rows(0, 6));
     auto bson_doc = writer.extract();
+
     auto json_str = ::bsoncxx::to_json(
         bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
 
@@ -230,7 +279,15 @@ inline void DoTest(Gen &&gen)
         json_buffer);
     json_doc.Accept(json_writer);
 
-    std::cout << json_buffer.GetString() << std::endl;
+    auto name = bson_doc.view()["test"]
+                    .get_document()
+                    .view()[::dataframe::bson::Schema::TYPE()]
+                    .get_utf8()
+                    .value;
+    std::string fname(name.data(), name.size());
+    std::ofstream out(fname + ".json");
+    out << json_buffer.GetString() << std::endl;
+    out.close();
 
     writer.write(dat);
     auto str = writer.str();
@@ -338,8 +395,12 @@ TEST(SerializerBSON, Time64_NANO)
 
 TEST(SerializerBSON, POD) { DoTest(generate_pod); }
 
+TEST(SerializerBSON, Decimal128) { DoTest(generate_decimal128); }
+
 TEST(SerializerBSON, Bytes) { DoTest(generate_bytes); }
 
 TEST(SerializerBSON, UTF8) { DoTest(generate_utf8); }
 
 TEST(SerializerBSON, Nested) { DoTest(generate_nested); }
+
+TEST(SerializerBSON, Dictionary) { DoTest(generate_dict); }
