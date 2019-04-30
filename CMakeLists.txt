@@ -28,7 +28,7 @@ endif(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 # Basics
 ##############################################################################
 
-project(DataFrame LANGUAGES C CXX VERSION 0.0.5)
+project(DataFrame LANGUAGES C CXX VERSION 0.0.6)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
