@@ -104,23 +104,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
     {                                                                         \
-        using T = typename ::arrow::TypeName##Array::TypeClass::c_type;       \
-                                                                              \
-        auto n = static_cast<std::size_t>(array.length());                    \
-        auto p = array.raw_values();                                          \
-        buffer1_.resize(n * sizeof(T));                                       \
-        auto q = reinterpret_cast<T *>(buffer1_.data());                      \
-                                                                              \
-        if (n > 0) {                                                          \
-            q[0] = p[0];                                                      \
-            for (std::size_t i = 1; i < n; ++i) {                             \
-                q[i] = p[i] - p[i - 1];                                       \
-            }                                                                 \
-        }                                                                     \
+        encode_datetime(array.length(), array.raw_values(), &buffer1_);       \
                                                                               \
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
-            compress(static_cast<std::int64_t>(buffer1_.size()),              \
-                buffer1_.data(), &buffer2_, compression_level_)));            \
+            compress(array.length(), buffer1_.data(), &buffer2_,              \
+                compression_level_)));                                        \
                                                                               \
         make_mask(builder_, array);                                           \
                                                                               \

@@ -103,15 +103,7 @@ class DataReader : public ::arrow::TypeVisitor
         auto buffer =                                                         \
             decompress<T>(view_[Schema::DATA()].get_binary(), pool_);         \
                                                                               \
-        auto n = buffer->size() / static_cast<std::int64_t>(sizeof(T));       \
-        auto p = reinterpret_cast<T *>(                                       \
-            dynamic_cast<::arrow::MutableBuffer &>(*buffer).mutable_data());  \
-                                                                              \
-        for (std::int64_t i = 1; i < n; ++i) {                                \
-            p[i] += p[i - 1];                                                 \
-        }                                                                     \
-                                                                              \
-        data_.length = n;                                                     \
+        data_.length = decode_datetime<T>(buffer);                            \
         data_.buffers.reserve(2);                                             \
         data_.buffers.push_back(make_mask());                                 \
         data_.buffers.push_back(std::move(buffer));                           \
