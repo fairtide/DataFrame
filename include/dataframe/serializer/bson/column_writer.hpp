@@ -76,7 +76,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(Timestamp)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
-    DF_DEFINE_VISITOR(Interval)
+    // DF_DEFINE_VISITOR(Interval)
     DF_DEFINE_VISITOR(FixedSizeBinary)
     DF_DEFINE_VISITOR(Decimal128)
     DF_DEFINE_VISITOR(Binary)

@@ -96,7 +96,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(Double)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
-    DF_DEFINE_VISITOR(Interval)
+    // DF_DEFINE_VISITOR(Interval)
 
 #undef DF_DEFINE_VISITOR
 

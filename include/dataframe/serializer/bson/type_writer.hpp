@@ -91,21 +91,21 @@ class TypeWriter final : public ::arrow::TypeVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::IntervalType &type) final
-    {
-        using ::bsoncxx::builder::basic::kvp;
+    // ::arrow::Status Visit(const ::arrow::IntervalType &type) final
+    // {
+    //     using ::bsoncxx::builder::basic::kvp;
 
-        switch (type.unit()) {
-            case ::arrow::IntervalType::Unit::YEAR_MONTH:
-                builder_.append(kvp(Schema::TYPE(), "interval[ym]"));
-                break;
-            case ::arrow::IntervalType::Unit::DAY_TIME:
-                builder_.append(kvp(Schema::TYPE(), "interval[dt]"));
-                break;
-        }
+    //     switch (type.unit()) {
+    //         case ::arrow::IntervalType::Unit::YEAR_MONTH:
+    //             builder_.append(kvp(Schema::TYPE(), "interval[ym]"));
+    //             break;
+    //         case ::arrow::IntervalType::Unit::DAY_TIME:
+    //             builder_.append(kvp(Schema::TYPE(), "interval[dt]"));
+    //             break;
+    //     }
 
-        return ::arrow::Status::OK();
-    }
+    //     return ::arrow::Status::OK();
+    // }
 
     ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) final
     {

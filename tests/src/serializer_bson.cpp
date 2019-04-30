@@ -142,12 +142,15 @@ inline std::shared_ptr<::arrow::Array> generate_time64(std::size_t n)
 // inline std::shared_ptr<::arrow::Array> generate_interval(std::size_t n)
 // {
 //     auto values = generate_int<std::int64_t>(n);
-//     ::arrow::IntervalBuilder builder(
-//         std::make_shared<::arrow::IntervalType>(Unit),
-//         ::arrow::default_memory_pool());
+//     ::arrow::Int64Builder builder(::arrow::default_memory_pool());
 //     DF_ARROW_ERROR_HANDLER(builder.AppendValues(values));
 //     std::shared_ptr<::arrow::Array> ret;
 //     DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+//     auto data = ret->data()->Copy();
+//     data->type = std::make_shared<::arrow::IntervalType>(Unit);
+//     std::cout << data.get() << std::endl;
+//     ret = ::arrow::MakeArray(data);
+//     std::cout << ret.get() << std::endl;
 //     return ret;
 // }
 

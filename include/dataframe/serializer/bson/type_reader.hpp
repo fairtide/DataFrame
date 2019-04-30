@@ -140,15 +140,15 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::time64(::arrow::TimeUnit::NANO);
     }
 
-    if (type == "interval[ym]") {
-        std::make_shared<::arrow::IntervalType>(
-            ::arrow::IntervalType::Unit::YEAR_MONTH);
-    }
+    // if (type == "interval[ym]") {
+    //     std::make_shared<::arrow::IntervalType>(
+    //         ::arrow::IntervalType::Unit::YEAR_MONTH);
+    // }
 
-    if (type == "interval[dt]") {
-        std::make_shared<::arrow::IntervalType>(
-            ::arrow::IntervalType::Unit::DAY_TIME);
-    }
+    // if (type == "interval[dt]") {
+    //     std::make_shared<::arrow::IntervalType>(
+    //         ::arrow::IntervalType::Unit::DAY_TIME);
+    // }
 
     if (type == "utf8") {
         return ::arrow::utf8();
