@@ -152,6 +152,12 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
+    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) final
+    {
+        return Visit(
+            static_cast<const ::arrow::FixedSizeBinaryArray &>(array));
+    }
+
     ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
     {
         using ::bsoncxx::builder::basic::kvp;

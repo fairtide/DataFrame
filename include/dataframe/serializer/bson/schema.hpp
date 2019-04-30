@@ -41,6 +41,8 @@ struct Schema {
     static view OFFSET() { return "o"; }
     static view LENGTH() { return "l"; }
     static view FIELDS() { return "f"; }
+    static view PRECISION() { return "p"; }
+    static view SCALE() { return "s"; }
 };
 
 template <typename T>

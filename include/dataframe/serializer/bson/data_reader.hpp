@@ -142,6 +142,11 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
+    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final
+    {
+        return Visit(static_cast<const ::arrow::FixedSizeBinaryType &>(type));
+    }
+
     ::arrow::Status Visit(const ::arrow::BinaryType &) final
     {
         auto values = decompress(view_[Schema::DATA()].get_binary(), pool_);

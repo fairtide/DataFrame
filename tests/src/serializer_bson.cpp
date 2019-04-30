@@ -166,6 +166,21 @@ inline std::shared_ptr<::arrow::Array> generate_pod(std::size_t n)
     return ret;
 }
 
+inline std::shared_ptr<::arrow::Array> generate_decimal128(std::size_t n)
+{
+    ::arrow::Decimal128Builder builder(
+        std::make_shared<::arrow::Decimal128Type>(10, 5),
+        ::arrow::default_memory_pool());
+    auto values = generate_int<char>(16 * n);
+    auto p = values.data();
+    for (std::size_t i = 0; i != n; ++i, p += 16) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(p));
+    }
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+    return ret;
+}
+
 inline std::shared_ptr<::arrow::Array> generate_bytes(std::size_t n)
 {
     ::arrow::BinaryBuilder builder(::arrow::default_memory_pool());
@@ -353,6 +368,8 @@ TEST(SerializerBSON, Time64_NANO)
 // }
 
 TEST(SerializerBSON, POD) { DoTest(generate_pod); }
+
+TEST(SerializerBSON, Decimal128) { DoTest(generate_decimal128); }
 
 TEST(SerializerBSON, Bytes) { DoTest(generate_bytes); }
 

@@ -118,6 +118,23 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
+    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        builder_.append(kvp(Schema::TYPE(), "decimal"));
+
+        ::bsoncxx::builder::basic::document param;
+        param.append(kvp(
+            Schema::PRECISION(), static_cast<std::int32_t>(type.precision())));
+        param.append(
+            kvp(Schema::SCALE(), static_cast<std::int32_t>(type.scale())));
+
+        builder_.append(kvp(Schema::PARAM(), param.extract()));
+
+        return ::arrow::Status::OK();
+    }
+
     ::arrow::Status Visit(const ::arrow::ListType &type) final
     {
         ::bsoncxx::builder::basic::document param;
