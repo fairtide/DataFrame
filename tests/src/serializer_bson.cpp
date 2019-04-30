@@ -250,6 +250,7 @@ inline void DoTest(Gen &&gen)
 
     writer.write(dat.rows(0, 6));
     auto bson_doc = writer.extract();
+
     auto json_str = ::bsoncxx::to_json(
         bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
 
@@ -261,7 +262,15 @@ inline void DoTest(Gen &&gen)
         json_buffer);
     json_doc.Accept(json_writer);
 
-    std::cout << json_buffer.GetString() << std::endl;
+    auto name = bson_doc.view()["test"]
+                    .get_document()
+                    .view()[::dataframe::bson::Schema::TYPE()]
+                    .get_utf8()
+                    .value;
+    std::string fname(name.data(), name.size());
+    std::ofstream out(fname + ".json");
+    out << json_buffer.GetString() << std::endl;
+    out.close();
 
     writer.write(dat);
     auto str = writer.str();
