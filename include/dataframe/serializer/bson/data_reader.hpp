@@ -43,6 +43,26 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
+    ::arrow::Status Visit(const ::arrow::BooleanType &) final
+    {
+        auto buffer = decompress(view_[Schema::DATA()].get_binary(), pool_);
+        auto n = buffer->size();
+        auto p = buffer->data();
+
+        ::arrow::BooleanBuilder builder(pool_);
+        DF_ARROW_ERROR_HANDLER(builder.Reserve(n));
+        for (std::int64_t i = 0; i != n; ++i) {
+            DF_ARROW_ERROR_HANDLER(builder.Append(static_cast<bool>(p[i])));
+        }
+
+        std::shared_ptr<::arrow::Array> ret;
+        DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+
+        data_ = *ret->data();
+
+        return ::arrow::Status::OK();
+    }
+
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
     ::arrow::Status Visit(const ::arrow::TypeClass##Type &) final             \
     {                                                                         \

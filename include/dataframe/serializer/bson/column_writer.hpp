@@ -59,7 +59,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
     }
 
     DF_DEFINE_VISITOR(Null)
-    // DF_DEFINE_VISITOR(Boolean)
+    DF_DEFINE_VISITOR(Boolean)
     DF_DEFINE_VISITOR(Int8)
     DF_DEFINE_VISITOR(Int16)
     DF_DEFINE_VISITOR(Int32)

@@ -49,6 +49,25 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
+    ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+    {
+        auto n = array.length();
+        buffer1_.resize(static_cast<std::size_t>(n));
+        for (std::int64_t i = 0; i != n; ++i) {
+            buffer1_[static_cast<std::size_t>(i)] = array.GetView(i);
+        }
+
+        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
+            compress(n, buffer1_.data(), &buffer2_, compression_level_)));
+
+        make_mask(builder_, array);
+
+        TypeWriter type_writer(builder_);
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
+
+        return ::arrow::Status::OK();
+    }
+
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
     {                                                                         \

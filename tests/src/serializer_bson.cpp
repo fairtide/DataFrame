@@ -29,7 +29,7 @@ inline std::vector<T> generate_int(std::size_t n)
 {
     std::vector<T> ret(n);
     std::mt19937_64 rng;
-    std::uniform_int_distribution<T> dist(0, 127);
+    std::uniform_int_distribution<T> dist;
     for (std::size_t i = 0; i != n; ++i) {
         ret[i] = dist(rng);
     }
@@ -53,6 +53,22 @@ inline std::vector<T> generate_real(std::size_t n)
 inline std::shared_ptr<::arrow::Array> generate_null(std::size_t n)
 {
     return std::make_shared<::arrow::NullArray>(static_cast<std::int64_t>(n));
+}
+
+inline std::shared_ptr<::arrow::Array> generate_bool(std::size_t n)
+{
+    auto values = generate_real<std::uint8_t>(n);
+
+    ::arrow::BooleanBuilder builder(::arrow::default_memory_pool());
+    DF_ARROW_ERROR_HANDLER(builder.Reserve(static_cast<std::int64_t>(n)));
+    for (std::size_t i = 0; i != n; ++i) {
+        DF_ARROW_ERROR_HANDLER(builder.Append(static_cast<bool>(values[i])));
+    }
+
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+
+    return ret;
 }
 
 inline std::shared_ptr<::arrow::Array> generate_float16(std::size_t n)

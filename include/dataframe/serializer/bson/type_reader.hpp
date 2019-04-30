@@ -36,6 +36,10 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::null();
     }
 
+    if (type == "bool") {
+        return ::arrow::boolean();
+    }
+
     if (type == "int8") {
         return ::arrow::int8();
     }
