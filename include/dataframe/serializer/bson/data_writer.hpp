@@ -59,7 +59,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         }
 
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
-            compress(n, buffer1_.data(), &buffer2_, compression_level_)));
+            compress(buffer1_, &buffer2_, compression_level_)));
 
         make_mask(builder_, array);
 
@@ -104,23 +104,10 @@ class DataWriter final : public ::arrow::ArrayVisitor
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
     {                                                                         \
-        using T = typename ::arrow::TypeName##Array::TypeClass::c_type;       \
-                                                                              \
-        auto n = static_cast<std::size_t>(array.length());                    \
-        auto p = array.raw_values();                                          \
-        buffer1_.resize(n * sizeof(T));                                       \
-        auto q = reinterpret_cast<T *>(buffer1_.data());                      \
-                                                                              \
-        if (n > 0) {                                                          \
-            q[0] = p[0];                                                      \
-            for (std::size_t i = 1; i < n; ++i) {                             \
-                q[i] = p[i] - p[i - 1];                                       \
-            }                                                                 \
-        }                                                                     \
+        encode_datetime(array.length(), array.raw_values(), &buffer1_);       \
                                                                               \
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
-            compress(static_cast<std::int64_t>(buffer1_.size()),              \
-                buffer1_.data(), &buffer2_, compression_level_)));            \
+            compress(buffer1_, &buffer2_, compression_level_)));              \
                                                                               \
         make_mask(builder_, array);                                           \
                                                                               \
@@ -184,26 +171,10 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
         // offset
 
-        auto length = array.length() + 1;
-        auto offsets = array.raw_value_offsets();
-        auto start = offsets[0];
-
-        static_assert(sizeof(start) == sizeof(std::int32_t));
-
-        if (start != 0) {
-            buffer1_.resize(
-                static_cast<std::size_t>(length) * sizeof(std::int32_t));
-
-            auto tmp = reinterpret_cast<std::int32_t *>(buffer1_.data());
-            for (std::int64_t i = 0; i != length; ++i) {
-                tmp[i] = offsets[i] - start;
-            }
-
-            offsets = tmp;
-        }
+        encode_offsets(array.length(), array.raw_value_offsets(), &buffer1_);
 
         builder_.append(kvp(Schema::OFFSET(),
-            compress(length, offsets, &buffer2_, compression_level_)));
+            compress(buffer1_, &buffer2_, compression_level_)));
 
         return ::arrow::Status::OK();
     }
@@ -241,26 +212,10 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
         // offset
 
-        auto length = array.length() + 1;
-        auto offsets = array.raw_value_offsets();
-        auto start = offsets[0];
-
-        static_assert(sizeof(start) == sizeof(std::int32_t));
-
-        if (start != 0) {
-            buffer1_.resize(
-                static_cast<std::size_t>(length) * sizeof(std::int32_t));
-
-            auto tmp = reinterpret_cast<std::int32_t *>(buffer1_.data());
-            for (std::int64_t i = 0; i != length; ++i) {
-                tmp[i] = offsets[i] - start;
-            }
-
-            offsets = tmp;
-        }
+        encode_offsets(array.length(), array.raw_value_offsets(), &buffer1_);
 
         builder_.append(kvp(Schema::OFFSET(),
-            compress(length, offsets, &buffer2_, compression_level_)));
+            compress(buffer1_, &buffer2_, compression_level_)));
 
         return ::arrow::Status::OK();
     }
@@ -374,8 +329,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
             }
         }
 
-        auto mask = compress(static_cast<std::int64_t>(buffer1_.size()),
-            buffer1_.data(), &buffer2_, compression_level_);
+        auto mask = compress(buffer1_, &buffer2_, compression_level_);
 
         builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(), mask));
     }

@@ -87,6 +87,14 @@ inline ::bsoncxx::types::b_binary compress(const ::arrow::Buffer &buffer,
     return ret;
 }
 
+inline ::bsoncxx::types::b_binary compress(const Vector<std::uint8_t> &buffer,
+    Vector<std::uint8_t> *out, int compression_level)
+{
+    return compress(::arrow::Buffer(buffer.data(),
+                        static_cast<std::int64_t>(buffer.size())),
+        out, compression_level);
+}
+
 template <typename T>
 inline ::bsoncxx::types::b_binary compress(std::int64_t n, const T *data,
     Vector<std::uint8_t> *out, int compression_level)
@@ -134,6 +142,66 @@ inline std::unique_ptr<::arrow::Buffer> decompress(
     }
 
     return buffer;
+}
+
+template <typename T>
+inline void encode_datetime(
+    std::int64_t n, const T *values, Vector<std::uint8_t> *out)
+{
+    if (n == 0) {
+        out->clear();
+        return;
+    }
+
+    out->resize(static_cast<std::size_t>(n) * sizeof(T));
+    auto p = reinterpret_cast<T *>(out->data());
+    p[0] = values[0];
+    for (std::int64_t i = 1; i < n; ++i) {
+        p[i] = values[i] - values[i - 1];
+    }
+}
+
+template <typename T>
+inline std::int64_t decode_datetime(
+    const std::unique_ptr<::arrow::Buffer> &buffer)
+{
+    auto n = buffer->size() / static_cast<std::int64_t>(sizeof(T));
+    auto p = reinterpret_cast<T *>(
+        dynamic_cast<::arrow::MutableBuffer &>(*buffer).mutable_data());
+    for (std::int64_t i = 1; i < n; ++i) {
+        p[i] += p[i - 1];
+    }
+
+    return n;
+}
+
+/// \internal offsets and out will be of length n + 1, n is the array length
+/// After encoding,
+/// out[0] = 0
+/// out[i] = offsets[i] - offsets[i - 1] for i >= 1, the counts of each segment
+inline void encode_offsets(
+    std::int64_t n, const std::int32_t *offsets, Vector<std::uint8_t> *out)
+{
+    out->resize((static_cast<std::size_t>(n) + 1) * sizeof(std::int32_t));
+    auto p = reinterpret_cast<std::int32_t *>(out->data());
+    p[0] = 0;
+    for (std::int64_t i = 1; i <= n; ++i) {
+        p[i] = offsets[i] - offsets[i - 1];
+    }
+}
+
+/// \internal return the array length, the buffer is of n + 1 int32
+inline std::int64_t decode_offsets(
+    const std::unique_ptr<::arrow::Buffer> &counts)
+{
+    auto n = counts->size() / static_cast<std::int64_t>(sizeof(std::int32_t));
+    auto p = reinterpret_cast<std::int32_t *>(
+        dynamic_cast<::arrow::MutableBuffer &>(*counts).mutable_data());
+    for (std::int64_t i = 1; i < n; ++i) {
+        p[i] += p[i - 1];
+    }
+
+    return n - 1;
 }
 
 } // namespace bson
