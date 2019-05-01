@@ -21,6 +21,7 @@
 #include <dataframe/column.hpp>
 #include <dataframe/concatenate.hpp>
 #include <dataframe/data_frame.hpp>
+#include <dataframe/data_view.hpp>
 #include <dataframe/error.hpp>
 #include <dataframe/io.hpp>
 #include <dataframe/join.hpp>

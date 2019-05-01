@@ -73,6 +73,18 @@ class ConstColumnProxy
 
     explicit operator bool() const { return data_ != nullptr; }
 
+    template <typename T, typename Storage>
+    operator ArrayView<T, Storage>() const
+    {
+        return as_view<T, Storage>();
+    }
+
+    template <typename T>
+    operator ListView<T>() const
+    {
+        return as<ListView<T>>();
+    }
+
     /// \brief Cast the column to a given destination type
     template <typename T>
     std::enable_if_t<!is_scalar(static_cast<T *>(nullptr)), T> as() const

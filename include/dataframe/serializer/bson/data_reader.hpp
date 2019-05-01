@@ -185,6 +185,8 @@ class DataReader : public ::arrow::TypeVisitor
     {
         auto data_view = view_[Schema::DATA()].get_document().view();
         data_.length = data_view[Schema::LENGTH()].get_int64().value;
+        data_.buffers.reserve(1);
+        data_.buffers.push_back(make_mask());
 
         auto n = type.num_children();
         auto field_view = data_view[Schema::FIELDS()].get_document().view();

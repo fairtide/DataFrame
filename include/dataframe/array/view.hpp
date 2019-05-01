@@ -63,6 +63,8 @@ class ArrayViewBase
 
     std::size_t size() const { return size_; }
 
+    bool empty() const { return size_ == 0; }
+
     const T *data() const { return data_; }
 
     const T &front() const { return data_[0]; }
