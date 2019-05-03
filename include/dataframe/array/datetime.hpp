@@ -236,7 +236,7 @@ struct CastArrayVisitor<Date64> final : ::arrow::ArrayVisitor {
     {
         return ::arrow::Status::OK();
     }
-};
+}; // namespace internal
 
 template <typename T>
 struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
