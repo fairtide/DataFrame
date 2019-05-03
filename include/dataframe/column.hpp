@@ -332,9 +332,34 @@ class ConstColumnProxy
     bool is_real() const { return static_cast<bool>(dtype() & Real); }
     bool is_binary() const { return static_cast<bool>(dtype() & Binary); }
 
+    std::size_t memory_usage() const
+    {
+        return data_ == nullptr ? 0 : memory_usage(*data_->data());
+    }
+
   protected:
     std::string name_;
     std::shared_ptr<::arrow::Array> data_;
+
+  private:
+    static std::size_t memory_usage(const ::arrow::ArrayData &data)
+    {
+        std::size_t ret = 0;
+
+        for (auto &buf : data.buffers) {
+            if (buf != nullptr) {
+                ret += static_cast<std::size_t>(buf->size());
+            }
+        }
+
+        for (auto &child : data.child_data) {
+            if (child != nullptr) {
+                ret += memory_usage(*child);
+            }
+        }
+
+        return ret;
+    }
 };
 
 inline bool operator==(

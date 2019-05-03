@@ -121,6 +121,17 @@ class DataFrame
             static_cast<std::size_t>(table_->num_columns());
     }
 
+    std::size_t memory_usage() const
+    {
+        std::size_t ret = 0;
+        auto n = ncol();
+        for (std::size_t i = 0; i != n; ++i) {
+            ret += operator[](i).memory_usage();
+        }
+
+        return ret;
+    }
+
     void clear() { table_.reset(); }
 
     bool empty() const { return nrow() * ncol() == 0; }
