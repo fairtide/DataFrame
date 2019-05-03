@@ -168,6 +168,8 @@ class DataView
 
     std::size_t size() const { return data_.nrow(); }
 
+    const ::dataframe::DataFrame &data() const { return data_; }
+
     reference front() const { return proxy_[0]; }
 
     reference back() const { return proxy_[size() - 1]; }
@@ -183,9 +185,9 @@ class DataView
         return data_[i];
     }
 
-    iterator begin() { return iterator(this, 0); }
+    iterator begin() const { return iterator(this, 0); }
 
-    iterator end() { return iterator(this, size()); }
+    iterator end() const { return iterator(this, size()); }
 
   private:
     const ::dataframe::DataFrame data_;
