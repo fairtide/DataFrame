@@ -17,74 +17,102 @@
 #ifndef DATAFRAME_ARRAY_VIEW_HPP
 #define DATAFRAME_ARRAY_VIEW_HPP
 
-#include <dataframe/array/mask.hpp>
-#include <dataframe/error.hpp>
-#include <array>
-#include <vector>
+#include <dataframe/array/cast.hpp>
+#include <dataframe/array/traits.hpp>
+#include <iterator>
 
 namespace dataframe {
 
 /// \brief Simple class that wrap the size and pointer of a raw array
 template <typename T>
-class ArrayViewBase
+class ArrayView
 {
+    static_assert(std::is_arithmetic_v<T>);
+
   public:
-    ArrayViewBase()
+    using value_type = T;
+
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    using reference = const T &;
+    using const_reference = reference;
+
+    using pointer = const T *;
+    using const_pointer = pointer;
+
+    using iterator = pointer;
+    using const_iterator = const_pointer;
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    ArrayView() noexcept
         : size_(0)
         , data_(nullptr)
+        , array_(nullptr)
     {
     }
 
-    ArrayViewBase(std::size_t size, const T *data, ArrayMask mask = {})
-        : size_(size)
-        , data_(data)
-        , mask_(std::move(mask))
+    ArrayView(const std::shared_ptr<::arrow::Array> &array)
+        : array_(cast_array<T>(array))
+        , size_(static_cast<std::size_t>(array_->length()))
+        , data_(dynamic_cast<const ArrayType<T> &>(*array_).raw_values())
     {
     }
 
-    template <typename Alloc>
-    explicit ArrayViewBase(
-        const std::vector<T, Alloc> &values, ArrayMask mask = {})
-        : size_(values.size())
-        , data_(values.data())
-        , mask_(std::move(mask))
+    ArrayView(const ArrayView &) = default;
+    ArrayView(ArrayView &&) noexcept = default;
+
+    ArrayView &operator=(const ArrayView &) = default;
+    ArrayView &operator=(ArrayView &&) noexcept = default;
+
+    const_reference at(size_type pos) const
     {
-    }
-
-    template <std::size_t N>
-    explicit ArrayViewBase(const std::array<T, N> &values, ArrayMask mask = {})
-        : size_(values.size())
-        , data_(values.data())
-        , mask_(std::move(mask))
-    {
-    }
-
-    const ArrayMask &mask() const { return mask_; }
-
-    std::size_t size() const { return size_; }
-
-    bool empty() const { return size_ == 0; }
-
-    const T *data() const { return data_; }
-
-    const T &front() const { return data_[0]; }
-
-    const T &back() const { return data_[size_ - 1]; }
-
-    const T &operator[](std::size_t i) const { return data_[i]; }
-
-    const T &at(std::size_t i) const
-    {
-        if (i >= size_) {
-            throw std::out_of_range("ArrayView::at");
+        if (pos >= size_) {
+            throw std::out_of_range("dataframe::ArrayView::at");
         }
 
-        return data_[i];
+        return data_[pos];
     }
 
-    const T *begin() { return data_; }
+    const_reference operator[](std::size_t pos) const noexcept
+    {
+        return data_[pos];
+    }
 
-    const T *end() { return data_ + size_; }
+    const_reference front() const noexcept { return data_[0]; }
+
+    const_reference back() const noexcept { return data_[size_ - 1]; }
+
+    std::shared_ptr<::arrow::Array> array() const { return array_; }
+
+    const_pointer data() const noexcept { return data_; }
+
+    // Iterators
+
+    const_iterator begin() const noexcept { return data_; }
+    const_iterator end() const noexcept { return data_ + size_; }
+
+    const_iterator cbegin() const noexcept { begin(); }
+    const_iterator cend() const noexcept { end(); }
+
+    const_reverse_iterator rbegin() const noexcept { return {end()}; }
+    const_reverse_iterator rend() const noexcept { return {begin()}; }
+
+    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+    const_reverse_iterator crend() const noexcept { return rend(); }
+
+    // Capacity
+
+    bool empty() const noexcept { return size_ == 0; }
+
+    size_type size() const noexcept { return size_; }
+
+    size_type max_size() const noexcept
+    {
+        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
 
     /// \brief Set fields of sequence pointeed by first via callback
     template <typename OutputIter, typename SetField>
@@ -95,127 +123,16 @@ class ArrayViewBase
         }
     }
 
-  protected:
-    void reset(std::size_t size, const T *data)
-    {
-        size_ = size;
-        data_ = data;
-    }
-
   private:
+    std::shared_ptr<::arrow::Array> array_;
     std::size_t size_;
     const T *data_;
-    ArrayMask mask_;
 };
-
-struct NullStorage;
-
-template <typename T, typename Storage = NullStorage>
-class ArrayView;
 
 template <typename T>
-class ArrayView<T, NullStorage> : public ArrayViewBase<T>
+inline ArrayView<T> make_view(std::shared_ptr<::arrow::Array> array)
 {
-  public:
-    using ArrayViewBase<T>::ArrayViewBase;
-};
-
-template <typename T, typename Storage>
-class ArrayView : public ArrayViewBase<T>
-{
-  public:
-    using ArrayViewBase<T>::ArrayViewBase;
-
-    ArrayView(const ArrayView<T, NullStorage> &view)
-        : ArrayViewBase<T>(view)
-    {
-    }
-
-    explicit ArrayView(std::unique_ptr<Storage> ptr)
-        : ptr_(std::move(ptr))
-    {
-        this->reset(ptr_->size(), ptr_->data());
-    }
-
-    explicit ArrayView(Storage &&data)
-        : ptr_(std::make_unique<Storage>(std::move(data)))
-    {
-        this->reset(ptr_->size(), ptr_->data());
-    }
-
-    explicit operator bool() const { return ptr_ != nullptr; }
-
-    const std::unique_ptr<Storage> &ptr() const
-    {
-        if (ptr_ == nullptr) {
-            throw DataFrameException("Attempt to access non-owning view");
-        }
-
-        return ptr_;
-    }
-
-    std::unique_ptr<Storage> &ptr()
-    {
-        if (ptr_ == nullptr) {
-            throw DataFrameException("Attempt to access non-owning view");
-        }
-
-        return ptr_;
-    }
-
-  private:
-    std::unique_ptr<Storage> ptr_;
-};
-
-template <typename T, typename Storage>
-inline bool operator==(
-    const ArrayView<T, Storage> &v1, const ArrayView<T, Storage> &v2)
-{
-    if (v1.size() != v2.size()) {
-        return false;
-    }
-
-    auto n = v1.size();
-    auto p1 = v1.data();
-    auto p2 = v2.data();
-
-    if (p1 == nullptr && p2 == nullptr) {
-        return true;
-    }
-
-    if (p1 == nullptr || p2 == nullptr) {
-        return false;
-    }
-
-    const auto &m1 = v1.mask();
-    const auto &m2 = v2.mask();
-
-    for (std::size_t i = 0; i != n; ++i) {
-        if (m1[i] && !m2[i]) {
-            return false;
-        }
-
-        if (!m1[i] && m2[i]) {
-            return false;
-        }
-
-        if (!m1[i] && !m2[i]) {
-            continue;
-        }
-
-        if (p1[i] != p2[i]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-template <typename T, typename Storage>
-inline bool operator!=(
-    const ArrayView<T, Storage> &v1, const ArrayView<T, Storage> &v2)
-{
-    return !(v1 == v2);
+    return ArrayView<T>(std::move(array));
 }
 
 } // namespace dataframe
