@@ -82,11 +82,11 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::float64();
     }
 
-    if (type == "date32") {
+    if (type == "date[day]") {
         return ::arrow::date32();
     }
 
-    if (type == "date64") {
+    if (type == "date[ms]") {
         return ::arrow::date64();
     }
 

@@ -27,7 +27,8 @@ namespace dataframe {
 template <typename T>
 class ArrayView
 {
-    static_assert(std::is_arithmetic_v<T>);
+    static_assert(
+        sizeof(T) == sizeof(typename ArrayType<T>::TypeClass::c_type));
 
   public:
     using value_type = T;
@@ -57,7 +58,16 @@ class ArrayView
     ArrayView(const std::shared_ptr<::arrow::Array> &array)
         : array_(cast_array<T>(array))
         , size_(static_cast<std::size_t>(array_->length()))
-        , data_(dynamic_cast<const ArrayType<T> &>(*array_).raw_values())
+        , data_(reinterpret_cast<const T *>(
+              dynamic_cast<const ArrayType<T> &>(*array_).raw_values()))
+    {
+    }
+
+    ArrayView(std::shared_ptr<ArrayType<T>> array)
+        : array_(std::move(array))
+        , size_(static_cast<std::size_t>(array_->length()))
+        , data_(reinterpret_cast<const T *>(
+              dynamic_cast<const ArrayType<T> &>(*array_).raw_values()))
     {
     }
 
@@ -129,8 +139,8 @@ class ArrayView
     const T *data_;
 };
 
-template <typename T>
-inline ArrayView<T> make_view(std::shared_ptr<::arrow::Array> array)
+template <typename T, typename Array>
+inline ArrayView<T> make_view(std::shared_ptr<Array> array)
 {
     return ArrayView<T>(std::move(array));
 }

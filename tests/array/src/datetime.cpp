@@ -15,13 +15,23 @@
 // ============================================================================
 
 #include <dataframe/array/datetime.hpp>
-#include <dataframe/array/view.hpp>
 
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
-    std::uint8_t, std::int8_t, std::uint16_t, std::int16_t, std::uint32_t,
-    std::int32_t, std::uint64_t, std::int64_t, float, double)
+TEMPLATE_TEST_CASE("Make view of datetime array/slice", "[make_view]",
+    ::dataframe::Date32, ::dataframe::Date64,
+    ::dataframe::Timestamp<::arrow::TimeUnit::SECOND>,
+    ::dataframe::Timestamp<::arrow::TimeUnit::MILLI>,
+    ::dataframe::Timestamp<::arrow::TimeUnit::MICRO>,
+    ::dataframe::Timestamp<::arrow::TimeUnit::NANO>,
+    ::dataframe::Time32<::arrow::TimeUnit::SECOND>,
+    ::dataframe::Time32<::arrow::TimeUnit::MILLI>,
+    ::dataframe::Time32<::arrow::TimeUnit::MICRO>,
+    ::dataframe::Time32<::arrow::TimeUnit::NANO>,
+    ::dataframe::Time64<::arrow::TimeUnit::SECOND>,
+    ::dataframe::Time64<::arrow::TimeUnit::MILLI>,
+    ::dataframe::Time64<::arrow::TimeUnit::MICRO>,
+    ::dataframe::Time64<::arrow::TimeUnit::NANO>)
 {
     using T = TestType;
     using traits = ::dataframe::TypeTraits<T>;

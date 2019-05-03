@@ -30,12 +30,13 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
 #define DF_DEFINE_VISITOR(Arrow)                                              \
-    ::arrow::Status Visit(const ::arrow::Arrow##Array &array)                 \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
     {                                                                         \
         using U = typename ::arrow::Arrow##Array::TypeClass::c_type;          \
                                                                               \
         if constexpr (std::is_same_v<T, U>) {                                 \
             result = ::arrow::MakeArray(array.data()->Copy());                \
+            return ::arrow::Status::OK(); \
         } else {                                                              \
             auto builder = TypeTraits<T>::builder();                          \
                                                                               \

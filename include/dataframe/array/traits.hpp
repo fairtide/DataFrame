@@ -38,8 +38,8 @@ struct TypeTraits;
                 ::arrow::default_memory_pool());                              \
         }                                                                     \
                                                                               \
+        using ctype = T;                                                      \
         using array_type = ::arrow::Arrow##Array;                             \
-        using builder_type = ::arrow::Arrow##Builder;                         \
     };
 
 DF_DEFINE_TYPE_TRAITS(void, Null)
