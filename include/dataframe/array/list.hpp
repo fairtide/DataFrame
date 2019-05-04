@@ -21,35 +21,361 @@
 
 namespace dataframe {
 
-template <typename DataView>
+#include <dataframe/array/cast.hpp>
+#include <dataframe/array/proxy.hpp>
+#include <dataframe/array/traits.hpp>
+#include <dataframe/array/view.hpp>
+
+template <typename T>
 struct ListView {
-    ArrayView<std::int32_t> offsets;
-    DataView values;
+  public:
+    using value_type = typename ArrayView<T>::value_type;
+
+    using size_type = typename ArrayView<T>::size_type;
+    using difference_type = typename ArrayView<T>::difference_type;
+
+    using reference = typename ArrayView<T>::reference;
+    using const_reference = typename ArrayView<T>::const_reference;
+
+    using pointer = typename ArrayView<T>::pointer;
+    using const_pointer = typename ArrayView<T>::const_pointer;
+
+    using iterator = typename ArrayView<T>::iterator;
+    using const_iterator = typename ArrayView<T>::const_iterator;
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    ListView(size_type size, iterator iter)
+        : size_(size)
+        , iter_(iter)
+    {
+    }
+
+    ListView(const ListView &) = default;
+    ListView(ListView &&) noexcept = default;
+
+    ListView &operator=(const ListView &) = default;
+    ListView &operator=(ListView &&) noexcept = default;
+
+    const_reference operator[](size_type pos) const noexcept
+    {
+        return iter_[pos];
+    }
+
+    const_reference at(size_type pos) const
+    {
+        if (pos >= size_) {
+            throw std::out_of_range("dataframe::ArrayView::at");
+        }
+
+        return operator[](pos);
+    }
+
+    const_reference front() const noexcept { return operator[](0); }
+
+    const_reference back() const noexcept { return operator[](size_ - 1); }
+
+    // Iterators
+
+    const_iterator begin() const noexcept { return iter_; }
+    const_iterator end() const noexcept { return iter_ + size_; }
+
+    const_iterator cbegin() const noexcept { begin(); }
+    const_iterator cend() const noexcept { end(); }
+
+    const_reverse_iterator rbegin() const noexcept { return {end()}; }
+    const_reverse_iterator rend() const noexcept { return {begin()}; }
+
+    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+    const_reverse_iterator crend() const noexcept { return rend(); }
+
+    // Capacity
+
+    bool empty() const noexcept { return size_ == 0; }
+
+    size_type size() const noexcept { return size_; }
+
+    size_type max_size() const noexcept
+    {
+        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
+
+    /// \brief Set fields of sequence pointeed by first via callback
+    template <typename OutputIter, typename SetField>
+    void set(OutputIter first, SetField &&set_field) const
+    {
+        for (size_type i = 0; i != size_; ++i) {
+            set_field(operator[](i), first++);
+        }
+    }
+
+  private:
+    size_type size_;
+    iterator iter_;
 };
 
-template <typename DataView>
-inline std::shared_ptr<::arrow::Array> make_array(
-    const ListView<DataView> &view)
+template <typename T>
+class ArrayView<ListView<T>>
 {
-    std::shared_ptr<::arrow::Array> ret;
-    DF_ARROW_ERROR_HANDLER(
-        ::arrow::ListArray::FromArrays(*make_array(view.offsets),
-            *make_array(view.values), ::arrow::default_memory_pool(), &ret));
+  public:
+    class iterator
+    {
+      public:
+        using value_type = ListView<T>;
+        using size_type = std::size_t;
+        using difference_type = std::ptrdiff_t;
+        using pointer = const value_type *;
+        using reference = value_type;
+        using iterator_category = std::random_access_iterator_tag;
 
-    return ret;
-}
+        iterator() noexcept
+            : ptr_(nullptr)
+            , pos_(0)
+        {
+        }
 
-template <typename DataView>
-inline void cast_array(const ::arrow::Array &array, ListView<DataView> *out)
-{
-    auto &list_array = dynamic_cast<const ::arrow::ListArray &>(array);
+        iterator(const iterator &) noexcept = default;
+        iterator(iterator &&) noexcept = default;
 
-    out->offsets = ArrayView<std::int32_t>(
-        static_cast<std::size_t>(list_array.length() + 1),
-        list_array.raw_value_offsets());
+        iterator &operator=(const iterator &) noexcept = default;
+        iterator &operator=(iterator &&) noexcept = default;
 
-    cast_array(*list_array.values(), &out->values);
-}
+        reference operator*() const noexcept
+        {
+            return ptr_->operator[](static_cast<size_type>(pos_));
+        }
+
+        iterator &operator++() noexcept
+        {
+            ++pos_;
+
+            return *this;
+        }
+
+        iterator operator++(int) noexcept
+        {
+            auto ret = *this;
+            ++(*this);
+
+            return ret;
+        }
+
+        iterator &operator--() noexcept
+        {
+            --pos_;
+
+            return *this;
+        }
+
+        iterator operator--(int) noexcept
+        {
+            auto ret = *this;
+            --(*this);
+
+            return ret;
+        }
+
+        iterator &operator+=(difference_type n) noexcept
+        {
+            pos_ += n;
+
+            return *this;
+        }
+
+        iterator &operator-=(difference_type n) noexcept
+        {
+            return *this += -n;
+        }
+
+        iterator operator+(difference_type n) const noexcept
+        {
+            auto ret = *this;
+            ret += n;
+
+            return ret;
+        }
+
+        iterator operator-(difference_type n) const noexcept
+        {
+            auto ret = *this;
+            ret -= n;
+
+            return ret;
+        }
+
+        friend iterator operator+(
+            difference_type n, const iterator &iter) noexcept
+        {
+            return iter + n;
+        }
+
+        friend difference_type operator-(
+            const iterator &x, const iterator &y) noexcept
+        {
+            return x.pos_ - y.pos_;
+        }
+
+        reference operator[](difference_type n) const noexcept
+        {
+            return *(*this + n);
+        }
+
+        friend bool operator==(const iterator &x, const iterator &y) noexcept
+        {
+            return x.pos_ == y.pos_ && x.ptr_ == y.ptr_;
+        }
+
+        friend bool operator!=(const iterator &x, const iterator &y) noexcept
+        {
+            return !(x == y);
+        }
+
+        friend bool operator<(const iterator &x, const iterator &y) noexcept
+        {
+            return x.pos_ < y.pos_ && x.ptr_ == y.ptr_;
+        }
+
+        friend bool operator>(const iterator &x, const iterator &y) noexcept
+        {
+            return y < x;
+        }
+
+        friend bool operator<=(const iterator &x, const iterator &y) noexcept
+        {
+            return !(y < x);
+        }
+
+        friend bool operator>=(const iterator &x, const iterator &y) noexcept
+        {
+            return !(x < y);
+        }
+
+      private:
+        friend ArrayView;
+
+        iterator(const ArrayView *ptr, size_type pos)
+            : ptr_(ptr)
+            , pos_(static_cast<std::ptrdiff_t>(pos))
+        {
+        }
+
+        const ArrayView *ptr_;
+        difference_type pos_;
+    };
+
+    using value_type = ListView<T>;
+
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    using reference = value_type;
+    using const_reference = reference;
+
+    using pointer = iterator;
+    using const_pointer = pointer;
+
+    using const_iterator = iterator;
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    ArrayView() noexcept
+        : size_(0)
+        , offsets_(nullptr)
+    {
+    }
+
+    ArrayView(const std::shared_ptr<::arrow::Array> &array)
+        : size_(static_cast<size_type>(array->length()))
+        , offsets_(nullptr)
+    {
+        set_data(array);
+    }
+
+    ArrayView(const ArrayView &) = default;
+    ArrayView(ArrayView &&) noexcept = default;
+
+    ArrayView &operator=(const ArrayView &) = default;
+    ArrayView &operator=(ArrayView &&) noexcept = default;
+
+    const_reference operator[](size_type pos) const noexcept
+    {
+        return get_value(pos);
+    }
+
+    const_reference at(size_type pos) const
+    {
+        if (pos >= size_) {
+            throw std::out_of_range("dataframe::ArrayView::at");
+        }
+
+        return operator[](pos);
+    }
+
+    const_reference front() const noexcept { return operator[](0); }
+
+    const_reference back() const noexcept { return operator[](size_ - 1); }
+
+    std::shared_ptr<::arrow::Array> data() const noexcept { return data_; }
+
+    // Iterators
+
+    const_iterator begin() const noexcept { return iterator(this, 0); }
+    const_iterator end() const noexcept { return iterator(this, size_); }
+
+    const_iterator cbegin() const noexcept { begin(); }
+    const_iterator cend() const noexcept { end(); }
+
+    const_reverse_iterator rbegin() const noexcept { return {end()}; }
+    const_reverse_iterator rend() const noexcept { return {begin()}; }
+
+    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+    const_reverse_iterator crend() const noexcept { return rend(); }
+
+    // Capacity
+
+    bool empty() const noexcept { return size_ == 0; }
+
+    size_type size() const noexcept { return size_; }
+
+    size_type max_size() const noexcept
+    {
+        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
+
+    /// \brief Set fields of sequence pointeed by first via callback
+    template <typename OutputIter, typename SetField>
+    void set(OutputIter first, SetField &&set_field) const
+    {
+        for (size_type i = 0; i != size_; ++i) {
+            set_field(operator[](i), first++);
+        }
+    }
+
+  private:
+    void set_data(const std::shared_ptr<::arrow::Array> &data) {}
+
+    void set_data()
+    {
+        auto &array = dynamic_cast<const ::arrow::ListArray &>(*data_);
+        view_ = make_view<T>(array.values());
+        offsets_ = array.raw_value_offsets();
+    }
+
+    ListView<T> get_value(size_type pos) const
+    {
+        auto start = offsets_[pos];
+
+        return ListView<T>(offsets_[pos + 1] - start, view_.begin() + start);
+    }
+
+  private:
+    size_type size_;
+    ArrayView<T> view_;
+    const std::int32_t *offsets_;
+    std::shared_ptr<::arrow::Array> data_;
+};
 
 } // namespace dataframe
 

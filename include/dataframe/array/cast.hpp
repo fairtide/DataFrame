@@ -28,9 +28,11 @@ namespace internal {
 template <typename T>
 struct CastArrayVisitor final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    bool nocast;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data, bool nc)
         : result(std::move(data))
+        , nocast(nc)
     {
     }
 
@@ -42,6 +44,10 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
         if constexpr (std::is_same_v<T, U>) {                                 \
             return ::arrow::Status::OK();                                     \
         } else {                                                              \
+            if (nocast) {                                                     \
+                return ::arrow::Status::Invalid("Type mismatch");             \
+            }                                                                 \
+                                                                              \
             auto builder = TypeTraits<T>::builder();                          \
                                                                               \
             if (array.null_count() == 0) {                                    \
@@ -82,9 +88,9 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
 
 template <typename T>
 inline std::shared_ptr<::arrow::Array> cast_array(
-    const std::shared_ptr<::arrow::Array> &array)
+    const std::shared_ptr<::arrow::Array> &array, bool nocast = false)
 {
-    internal::CastArrayVisitor<T> visitor(array);
+    internal::CastArrayVisitor<T> visitor(array, nocast);
     DF_ARROW_ERROR_HANDLER(array->Accept(&visitor));
 
     return visitor.result;

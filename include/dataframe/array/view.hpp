@@ -48,29 +48,13 @@ class ArrayView
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = reverse_iterator;
 
-    ArrayView() noexcept
-        : size_(0)
-        , iter_(nullptr)
-        , casted_(false)
-    {
-    }
+    ArrayView() noexcept = default;
 
-    ArrayView(const std::shared_ptr<::arrow::Array> &array)
-        : data_(cast_array<T>(array))
-        , size_(static_cast<size_type>(data_->length()))
-        , iter_(reinterpret_cast<const T *>(
-              dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
-        , casted_(array != data_)
+    explicit ArrayView(
+        const std::shared_ptr<::arrow::Array> &array, bool nocast = false)
+        : data_(cast_array<T>(array, nocast))
     {
-    }
-
-    ArrayView(std::shared_ptr<ArrayType<T>> array)
-        : data_(std::move(array))
-        , size_(static_cast<size_type>(data_->length()))
-        , iter_(reinterpret_cast<const T *>(
-              dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
-        , casted_(array != data_)
-    {
+        set_data();
     }
 
     ArrayView(const ArrayView &) = default;
@@ -98,8 +82,6 @@ class ArrayView
     const_reference back() const noexcept { return operator[](size_ - 1); }
 
     std::shared_ptr<::arrow::Array> data() const noexcept { return data_; }
-
-    bool casted() const noexcept { return casted_; }
 
     // Iterators
 
@@ -136,16 +118,24 @@ class ArrayView
     }
 
   private:
+    void set_data()
+    {
+        auto &array = dynamic_cast<const ArrayType<T> &>(*data_);
+        size_ = static_cast<std::size_t>(array.length());
+        iter_ = reinterpret_cast<const T *>(array.raw_values());
+    }
+
+  private:
     std::shared_ptr<::arrow::Array> data_;
-    size_type size_;
-    const T *iter_;
-    bool casted_;
+    size_type size_ = 0;
+    const T *iter_ = nullptr;
 };
 
 template <typename T, typename Array>
-inline ArrayView<T> make_view(std::shared_ptr<Array> array)
+inline ArrayView<T> make_view(
+    const std::shared_ptr<Array> &array, bool nocast = false)
 {
-    return ArrayView<T>(std::move(array));
+    return ArrayView<T>(array, nocast);
 }
 
 } // namespace dataframe

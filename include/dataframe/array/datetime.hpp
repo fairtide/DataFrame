@@ -212,7 +212,7 @@ template <>
 struct CastArrayVisitor<Date32> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data, bool)
         : result(std::move(data))
     {
     }
@@ -227,7 +227,7 @@ template <>
 struct CastArrayVisitor<Date64> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data, bool)
         : result(std::move(data))
     {
     }
@@ -241,9 +241,11 @@ struct CastArrayVisitor<Date64> final : ::arrow::ArrayVisitor {
 template <typename T>
 struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    bool nocast;
 
-    CastTimeArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastTimeArrayVisitor(std::shared_ptr<::arrow::Array> data, bool nc)
         : result(std::move(data))
+        , nocast(nc)
     {
     }
 
@@ -255,6 +257,10 @@ struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
 
         if (type.unit() == T::unit) {
             return ::arrow::Status::OK();
+        }
+
+        if (nocast) {
+            return ::arrow::Status::Invalid("Time unit mismatch");
         }
 
         auto n = array.length();

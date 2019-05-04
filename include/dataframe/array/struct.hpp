@@ -42,6 +42,22 @@ struct TypeTraits<Struct<Types...>> {
     using array_type = ::arrow::StructArray;
 };
 
+namespace internal {
+
+template <typename... Types>
+struct CastArrayVisitor final : ::arrow::ArrayVisitor {
+    std::shared_ptr<::arrow::Array> result;
+
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
+    {
+    }
+
+    ::arrow::Status Visit(const ::array::StructArray &array) final {}
+};
+
+} // namespace internal
+
 template <typename... Types>
 class ArrayView<Struct<Types...>>
 {
@@ -56,11 +72,7 @@ class ArrayView<Struct<Types...>>
         using reference = value_type;
         using iterator_category = std::random_access_iterator_tag;
 
-        iterator() noexcept
-            : ptr_(nullptr)
-            , pos_(0)
-        {
-        }
+        iterator() noexcept = default;
 
         iterator(const iterator &) noexcept = default;
         iterator(iterator &&) noexcept = default;
@@ -187,8 +199,8 @@ class ArrayView<Struct<Types...>>
         {
         }
 
-        const ArrayView *ptr_;
-        difference_type pos_;
+        const ArrayView *ptr_ = nullptr;
+        difference_type pos_ = 0;
     };
 
     using value_type = Struct<Types...>;
@@ -207,17 +219,12 @@ class ArrayView<Struct<Types...>>
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    ArrayView() noexcept
-        : size_(0)
-        , casted_(false)
-    {
-    }
+    ArrayView() noexcept = default;
 
     ArrayView(const std::shared_ptr<::arrow::Array> &array)
-        : size_(static_cast<size_type>(array->length()))
-        , casted_(false)
+        : data_(cast_array<T>(array))
     {
-        set_data(array);
+        set_data();
     }
 
     ArrayView(const ArrayView &) = default;
@@ -245,8 +252,6 @@ class ArrayView<Struct<Types...>>
     const_reference back() const noexcept { return operator[](size_ - 1); }
 
     std::shared_ptr<::arrow::Array> data() const noexcept { return data_; }
-
-    bool casted() const noexcept { return casted_; }
 
     // Iterators
 
@@ -298,17 +303,8 @@ class ArrayView<Struct<Types...>>
 
         for (std::size_t i = 0; i != nfields; ++i) {
             if (children_[i] != array.field(static_cast<int>(i))) {
-                casted_ = true;
                 break;
             }
-        }
-
-        if (!casted_) {
-            for (std::size_t i = 0; i != nfields; ++i) {
-                fields_[i] = type.child(static_cast<int>(i));
-            }
-            data_ = data;
-            return;
         }
 
         for (std::size_t i = 0; i != nfields; ++i) {
@@ -387,12 +383,11 @@ class ArrayView<Struct<Types...>>
     }
 
   private:
-    size_type size_;
+    std::shared_ptr<::arrow::Array> data_ = nullptr;
+    size_type size_ = 0;
     std::tuple<ArrayView<Types>...> views_;
     std::array<std::shared_ptr<::arrow::Array>, nfields> children_;
     std::array<std::shared_ptr<::arrow::Field>, nfields> fields_;
-    std::shared_ptr<::arrow::Array> data_;
-    bool casted_;
 };
 
 } // namespace dataframe

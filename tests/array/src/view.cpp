@@ -43,17 +43,24 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
         values.emplace_back(y);
     }
 
-    SECTION("View of array")
-    {
+    auto make_array = [&](bool nullable) {
         auto builder = traits::builder();
-        DF_ARROW_ERROR_HANDLER(builder->AppendValues(rawval));
+        if (nullable) {
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(rawval, valids));
+        } else {
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(rawval));
+        }
 
         std::shared_ptr<::arrow::Array> array;
         DF_ARROW_ERROR_HANDLER(builder->Finish(&array));
 
-        auto view = ::dataframe::make_view<T>(array);
+        return array;
+    };
 
-        CHECK(!view.casted());
+    SECTION("View of array")
+    {
+        auto array = make_array(false);
+        auto view = ::dataframe::make_view<T>(array, true);
 
         CHECK(view.size() == n);
 
@@ -65,16 +72,9 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
     SECTION("View of slice")
     {
-        auto builder = traits::builder();
-        DF_ARROW_ERROR_HANDLER(builder->AppendValues(rawval));
-
-        std::shared_ptr<::arrow::Array> array;
-        DF_ARROW_ERROR_HANDLER(builder->Finish(&array));
+        auto array = make_array(false);
         array = array->Slice(static_cast<std::int64_t>(m));
-
-        auto view = ::dataframe::make_view<T>(array);
-
-        CHECK(!view.casted());
+        auto view = ::dataframe::make_view<T>(array, true);
 
         CHECK(view.size() == n - static_cast<std::size_t>(m));
 
@@ -86,15 +86,8 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
     SECTION("View of nullable array")
     {
-        auto builder = traits::builder();
-        DF_ARROW_ERROR_HANDLER(builder->AppendValues(rawval, valids));
-
-        std::shared_ptr<::arrow::Array> array;
-        DF_ARROW_ERROR_HANDLER(builder->Finish(&array));
-
-        auto view = ::dataframe::make_view<T>(array);
-
-        CHECK(!view.casted());
+        auto array = make_array(true);
+        auto view = ::dataframe::make_view<T>(array, true);
 
         CHECK(view.size() == n);
 
@@ -108,16 +101,9 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
     SECTION("View of nullable slice")
     {
-        auto builder = traits::builder();
-        DF_ARROW_ERROR_HANDLER(builder->AppendValues(rawval, valids));
-
-        std::shared_ptr<::arrow::Array> array;
-        DF_ARROW_ERROR_HANDLER(builder->Finish(&array));
+        auto array = make_array(true);
         array = array->Slice(static_cast<std::int64_t>(m));
-
-        auto view = ::dataframe::make_view<T>(array);
-
-        CHECK(!view.casted());
+        auto view = ::dataframe::make_view<T>(array, true);
 
         CHECK(view.size() == n - static_cast<std::size_t>(m));
 

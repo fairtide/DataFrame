@@ -17,5 +17,5 @@
 project(DataFrame-tests-array CXX)
 
 add_dataframe_test(datetime)
-add_dataframe_test(struct)
+# add_dataframe_test(struct)
 add_dataframe_test(view)

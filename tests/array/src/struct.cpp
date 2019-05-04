@@ -45,8 +45,7 @@ TEST_CASE("Make view of struct array/slice", "[make_view]")
         values.emplace_back(y, z);
     }
 
-    SECTION("View of array")
-    {
+    auto make_array = [&](bool) {
         auto builder1 = traits1::builder();
         auto builder2 = traits2::builder();
 
@@ -71,12 +70,14 @@ TEST_CASE("Make view of struct array/slice", "[make_view]")
         children.push_back(array1);
         children.push_back(array2);
 
-        auto array = std::make_shared<::arrow::StructArray>(
+        return std::make_shared<::arrow::StructArray>(
             type, static_cast<std::int64_t>(n), children);
+    };
 
+    SECTION("View of array")
+    {
+        auto array = make_array();
         auto view = ::dataframe::make_view<T>(array);
-
-        CHECK(!view.casted());
 
         CHECK(view.size() == n);
 
