@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
         CHECK(view.size() == n);
 
-        CHECK(view.array()->null_count() == 0);
+        CHECK(view.data()->null_count() == 0);
 
         CHECK(std::equal(
             view.begin(), view.end(), values.begin(), values.end()));
@@ -74,7 +74,7 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
         CHECK(view.size() == n - static_cast<std::size_t>(m));
 
-        CHECK(view.array()->null_count() == 0);
+        CHECK(view.data()->null_count() == 0);
 
         CHECK(std::equal(
             view.begin(), view.end(), values.begin() + m, values.end()));
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
         CHECK(view.size() == n);
 
-        CHECK(view.array()->null_count() ==
+        CHECK(view.data()->null_count() ==
             array->length() -
                 std::accumulate(valids.begin(), valids.end(), INT64_C(0)));
 
@@ -113,7 +113,7 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
         CHECK(view.size() == n - static_cast<std::size_t>(m));
 
-        CHECK(view.array()->null_count() ==
+        CHECK(view.data()->null_count() ==
             array->length() -
                 std::accumulate(valids.begin() + m, valids.end(), INT64_C(0)));
 
