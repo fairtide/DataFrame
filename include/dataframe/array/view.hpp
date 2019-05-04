@@ -17,7 +17,6 @@
 #ifndef DATAFRAME_ARRAY_VIEW_HPP
 #define DATAFRAME_ARRAY_VIEW_HPP
 
-#include <dataframe/array/cast.hpp>
 #include <dataframe/array/traits.hpp>
 #include <iterator>
 
@@ -50,9 +49,8 @@ class ArrayView
 
     ArrayView() noexcept = default;
 
-    explicit ArrayView(
-        const std::shared_ptr<::arrow::Array> &array, bool nocast = false)
-        : data_(cast_array<T>(array, nocast))
+    explicit ArrayView(std::shared_ptr<::arrow::Array> data)
+        : data_(std::move(data))
     {
         set_data();
     }
@@ -108,15 +106,6 @@ class ArrayView
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
     }
 
-    /// \brief Set fields of sequence pointeed by first via callback
-    template <typename OutputIter, typename SetField>
-    void set(OutputIter first, SetField &&set_field) const
-    {
-        for (size_type i = 0; i != size_; ++i) {
-            set_field(operator[](i), first++);
-        }
-    }
-
   private:
     void set_data()
     {
@@ -131,11 +120,10 @@ class ArrayView
     const T *iter_ = nullptr;
 };
 
-template <typename T, typename Array>
-inline ArrayView<T> make_view(
-    const std::shared_ptr<Array> &array, bool nocast = false)
+template <typename T>
+inline ArrayView<T> make_view(std::shared_ptr<::arrow::Array> data)
 {
-    return ArrayView<T>(array, nocast);
+    return ArrayView<T>(std::move(data));
 }
 
 } // namespace dataframe

@@ -101,15 +101,6 @@ struct ListView {
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
     }
 
-    /// \brief Set fields of sequence pointeed by first via callback
-    template <typename OutputIter, typename SetField>
-    void set(OutputIter first, SetField &&set_field) const
-    {
-        for (size_type i = 0; i != size_; ++i) {
-            set_field(operator[](i), first++);
-        }
-    }
-
   private:
     size_type size_;
     iterator iter_;
@@ -286,11 +277,10 @@ class ArrayView<ListView<T>>
     {
     }
 
-    ArrayView(const std::shared_ptr<::arrow::Array> &array)
-        : size_(static_cast<size_type>(array->length()))
-        , offsets_(nullptr)
+    ArrayView(std::shared_ptr<::arrow::Array> data)
+        : data_(std::move(data))
     {
-        set_data(array);
+        set_data();
     }
 
     ArrayView(const ArrayView &) = default;
@@ -344,15 +334,6 @@ class ArrayView<ListView<T>>
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
     }
 
-    /// \brief Set fields of sequence pointeed by first via callback
-    template <typename OutputIter, typename SetField>
-    void set(OutputIter first, SetField &&set_field) const
-    {
-        for (size_type i = 0; i != size_; ++i) {
-            set_field(operator[](i), first++);
-        }
-    }
-
   private:
     void set_data(const std::shared_ptr<::arrow::Array> &data) {}
 
@@ -371,10 +352,10 @@ class ArrayView<ListView<T>>
     }
 
   private:
+    std::shared_ptr<::arrow::Array> data_;
     size_type size_;
     ArrayView<T> view_;
     const std::int32_t *offsets_;
-    std::shared_ptr<::arrow::Array> data_;
 };
 
 } // namespace dataframe

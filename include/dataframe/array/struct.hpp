@@ -26,37 +26,10 @@ namespace dataframe {
 template <typename... Types>
 using Struct = std::tuple<Types...>;
 
-template <typename>
-struct is_struct : public std::false_type {
-};
-
-template <typename... Types>
-struct is_struct<Struct<Types...>> : public std::true_type {
-};
-
-template <typename T>
-inline constexpr bool is_struct_v = is_struct<T>::vlaue;
-
 template <typename... Types>
 struct TypeTraits<Struct<Types...>> {
     using array_type = ::arrow::StructArray;
 };
-
-namespace internal {
-
-template <typename... Types>
-struct CastArrayVisitor final : ::arrow::ArrayVisitor {
-    std::shared_ptr<::arrow::Array> result;
-
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
-        : result(std::move(data))
-    {
-    }
-
-    ::arrow::Status Visit(const ::array::StructArray &array) final {}
-};
-
-} // namespace internal
 
 template <typename... Types>
 class ArrayView<Struct<Types...>>
@@ -221,8 +194,8 @@ class ArrayView<Struct<Types...>>
 
     ArrayView() noexcept = default;
 
-    ArrayView(const std::shared_ptr<::arrow::Array> &array)
-        : data_(cast_array<T>(array))
+    ArrayView(std::shared_ptr<::arrow::Array> data)
+        : data_(std::move(data))
     {
         set_data();
     }
@@ -278,86 +251,38 @@ class ArrayView<Struct<Types...>>
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
     }
 
-    /// \brief Set fields of sequence pointeed by first via callback
-    template <typename OutputIter, typename SetField>
-    void set(OutputIter first, SetField &&set_field) const
-    {
-        for (size_type i = 0; i != size_; ++i) {
-            set_field(operator[](i), first++);
-        }
-    }
-
   private:
     static constexpr std::size_t nfields = sizeof...(Types);
 
-    void set_data(const std::shared_ptr<::arrow::Array> &data)
+    void set_data()
     {
-        auto &array = dynamic_cast<const ::arrow::StructArray &>(*data);
+        auto &array = dynamic_cast<const ::arrow::StructArray &>(*data_);
         auto &type = dynamic_cast<const ::arrow::StructType &>(*array.type());
 
         if (nfields != array.type()->num_children()) {
             throw DataFrameException("Structure of wrong size");
         }
 
-        set_view<0>(array, std::integral_constant<bool, 0 < nfields>());
-
-        for (std::size_t i = 0; i != nfields; ++i) {
-            if (children_[i] != array.field(static_cast<int>(i))) {
-                break;
-            }
-        }
-
-        for (std::size_t i = 0; i != nfields; ++i) {
-            fields_[i] = ::arrow::field(
-                type.child(static_cast<int>(i))->name(), children_[i]->type());
-        }
-
-        std::vector<std::shared_ptr<::arrow::Field>> fields(
-            fields_.begin(), fields_.end());
-
-        std::vector<std::shared_ptr<::arrow::Array>> children(
-            children_.begin(), children_.end());
-
-        auto cast_type = ::arrow::struct_(std::move(fields));
-
-        auto length = array.length();
-
-        auto null_count = array.null_count();
-
-        std::shared_ptr<::arrow::Buffer> nulls;
-
-        if (null_count != 0) {
-            auto nbyte = ::arrow::BitUtil::BytesForBits(length);
-
-            DF_ARROW_ERROR_HANDLER(::arrow::AllocateBuffer(
-                ::arrow::default_memory_pool(), nbyte, &nulls));
-
-            auto bits =
-                dynamic_cast<::arrow::MutableBuffer &>(*nulls).mutable_data();
-
-            for (std::int64_t i = 0; i != length; ++i) {
-                ::arrow::BitUtil::SetBitTo(bits, i, array.IsValid(i));
-            }
-        }
-
-        data_ = std::make_shared<::arrow::StructArray>(std::move(cast_type),
-            array.length(), std::move(children), std::move(nulls), null_count);
+        size_ = static_cast<std::size_t>(data_->length());
+        set_data<0>(array, type, std::integral_constant<bool, 0 < nfields>());
     }
 
     template <int i>
-    void set_view(const ::arrow::StructArray &array, std::true_type)
+    void set_data(const ::arrow::StructArray &array,
+        const ::arrow::StructType &type, std::true_type)
     {
         std::get<i>(views_) =
             make_view<std::tuple_element_t<i, value_type>>(array.field(i));
 
-        std::get<i>(children_) = std::get<i>(views_).data();
+        std::get<i>(names_) = std::string_view(type.child(i)->name());
 
-        set_view<i + 1>(
-            array, std::integral_constant<bool, i + 1 < nfields>());
+        set_data<i + 1>(
+            array, type, std::integral_constant<bool, i + 1 < nfields>());
     }
 
     template <int>
-    void set_view(const ::arrow::StructArray &, std::false_type)
+    void set_data(const ::arrow::StructArray &, const ::arrow::StructType &,
+        std::false_type)
     {
     }
 
@@ -383,11 +308,10 @@ class ArrayView<Struct<Types...>>
     }
 
   private:
-    std::shared_ptr<::arrow::Array> data_ = nullptr;
+    std::shared_ptr<::arrow::Array> data_;
     size_type size_ = 0;
     std::tuple<ArrayView<Types>...> views_;
-    std::array<std::shared_ptr<::arrow::Array>, nfields> children_;
-    std::array<std::shared_ptr<::arrow::Field>, nfields> fields_;
+    std::array<std::string_view, nfields> names_;
 };
 
 } // namespace dataframe
