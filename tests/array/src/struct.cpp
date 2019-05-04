@@ -45,7 +45,7 @@ TEST_CASE("Make view of struct array/slice", "[make_view]")
         values.emplace_back(y, z);
     }
 
-    auto make_array = [&](bool) {
+    auto make_array = [&](bool nullable) {
         auto builder1 = traits1::builder();
         auto builder2 = traits2::builder();
 
@@ -70,8 +70,25 @@ TEST_CASE("Make view of struct array/slice", "[make_view]")
         children.push_back(array1);
         children.push_back(array2);
 
-        return std::make_shared<::arrow::StructArray>(
-            type, static_cast<std::int64_t>(n), children);
+        std::unique_ptr<::arrow::Buffer> nulls;
+        DF_ARROW_ERROR_HANDLER(
+            ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
+                ::arrow::BitUtil::BytesForBits(static_cast<std::int64_t>(n)),
+                &nulls));
+
+        auto bits =
+            dynamic_cast<::arrow::MutableBuffer &>(*nulls).mutable_data();
+
+        for (std::size_t i = 0; i != n; ++i) {
+            ::arrow::BitUtil::SetBitTo(
+                bits, static_cast<std::int64_t>(i), valids[i]);
+        }
+
+        return nullable ?
+            std::make_shared<::arrow::StructArray>(type,
+                static_cast<std::int64_t>(n), children, std::move(nulls)) :
+            std::make_shared<::arrow::StructArray>(
+                type, static_cast<std::int64_t>(n), children);
     };
 
     SECTION("View of array")

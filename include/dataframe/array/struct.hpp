@@ -259,11 +259,12 @@ class ArrayView<Struct<Types...>>
         auto &array = dynamic_cast<const ::arrow::StructArray &>(*data_);
         auto &type = dynamic_cast<const ::arrow::StructType &>(*array.type());
 
-        if (nfields != array.type()->num_children()) {
+        size_ = static_cast<size_type>(data_->length());
+
+        if (nfields != type.num_children()) {
             throw DataFrameException("Structure of wrong size");
         }
 
-        size_ = static_cast<std::size_t>(data_->length());
         set_data<0>(array, type, std::integral_constant<bool, 0 < nfields>());
     }
 

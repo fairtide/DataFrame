@@ -17,14 +17,11 @@
 #ifndef DATAFRAME_ARRAY_LIST_HPP
 #define DATAFRAME_ARRAY_LIST_HPP
 
-#include <dataframe/array/make_array.hpp>
-
-namespace dataframe {
-
 #include <dataframe/array/cast.hpp>
-#include <dataframe/array/proxy.hpp>
 #include <dataframe/array/traits.hpp>
 #include <dataframe/array/view.hpp>
+
+namespace dataframe {
 
 template <typename T>
 struct ListView {
@@ -271,11 +268,7 @@ class ArrayView<ListView<T>>
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    ArrayView() noexcept
-        : size_(0)
-        , offsets_(nullptr)
-    {
-    }
+    ArrayView() noexcept = default;
 
     ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))
@@ -335,11 +328,10 @@ class ArrayView<ListView<T>>
     }
 
   private:
-    void set_data(const std::shared_ptr<::arrow::Array> &data) {}
-
     void set_data()
     {
         auto &array = dynamic_cast<const ::arrow::ListArray &>(*data_);
+        size_ = static_cast<size_type>(array.length());
         view_ = make_view<T>(array.values());
         offsets_ = array.raw_value_offsets();
     }
@@ -348,7 +340,8 @@ class ArrayView<ListView<T>>
     {
         auto start = offsets_[pos];
 
-        return ListView<T>(offsets_[pos + 1] - start, view_.begin() + start);
+        return ListView<T>(static_cast<size_type>(offsets_[pos + 1] - start),
+            view_.begin() + static_cast<difference_type>(start));
     }
 
   private:
