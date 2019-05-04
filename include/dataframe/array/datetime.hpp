@@ -212,9 +212,13 @@ template <>
 struct CastArrayVisitor<Date32> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
     {
-        result = ::arrow::MakeArray(array.data()->Copy());
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date32Array &) final
+    {
         return ::arrow::Status::OK();
     }
 };
@@ -223,9 +227,13 @@ template <>
 struct CastArrayVisitor<Date64> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
     {
-        result = ::arrow::MakeArray(array.data()->Copy());
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date64Array &) final
+    {
         return ::arrow::Status::OK();
     }
 };
@@ -234,6 +242,11 @@ template <typename T>
 struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
+    CastTimeArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
+    {
+    }
+
     ::arrow::Status Visit(const ArrayType<T> &array) final
     {
         using U = typename T::value_type;
@@ -241,7 +254,6 @@ struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
         auto &type = static_cast<typename T::arrow_type &>(*array.type());
 
         if (type.unit() == T::unit) {
-            result = ::arrow::MakeArray(array.data()->Copy());
             return ::arrow::Status::OK();
         }
 
@@ -295,16 +307,19 @@ struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
 template <::arrow::TimeUnit::type Unit>
 struct CastArrayVisitor<Timestamp<Unit>> final
     : public CastTimeArrayVisitor<Timestamp<Unit>> {
+    using CastTimeArrayVisitor<Timestamp<Unit>>::CastTimeArrayVisitor;
 };
 
 template <::arrow::TimeUnit::type Unit>
 struct CastArrayVisitor<Time32<Unit>> final
     : public CastTimeArrayVisitor<Time32<Unit>> {
+    using CastTimeArrayVisitor<Time32<Unit>>::CastTimeArrayVisitor;
 };
 
 template <::arrow::TimeUnit::type Unit>
 struct CastArrayVisitor<Time64<Unit>> final
     : public CastTimeArrayVisitor<Time64<Unit>> {
+    using CastTimeArrayVisitor<Time64<Unit>>::CastTimeArrayVisitor;
 };
 
 } // namespace internal

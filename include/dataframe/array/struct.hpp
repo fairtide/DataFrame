@@ -45,8 +45,6 @@ struct TypeTraits<Struct<Types...>> {
 template <typename... Types>
 class ArrayView<Struct<Types...>>
 {
-    static constexpr std::size_t nfields = sizeof...(Types);
-
   public:
     class iterator
     {
@@ -209,15 +207,17 @@ class ArrayView<Struct<Types...>>
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    ArrayView()
+    ArrayView() noexcept
         : size_(0)
+        , casted_(false)
     {
     }
 
     ArrayView(const std::shared_ptr<::arrow::Array> &array)
         : size_(static_cast<size_type>(array->length()))
+        , casted_(false)
     {
-        set_data(dynamic_cast<const ::arrow::StructArray &>(*array));
+        set_data(array);
     }
 
     ArrayView(const ArrayView &) = default;
@@ -244,7 +244,9 @@ class ArrayView<Struct<Types...>>
 
     const_reference back() const noexcept { return operator[](size_ - 1); }
 
-    std::shared_ptr<::arrow::Array> data() const { return array_; }
+    std::shared_ptr<::arrow::Array> data() const noexcept { return data_; }
+
+    bool casted() const noexcept { return casted_; }
 
     // Iterators
 
@@ -281,15 +283,38 @@ class ArrayView<Struct<Types...>>
     }
 
   private:
-    void set_data(const ::arrow::StructArray &array)
+    static constexpr std::size_t nfields = sizeof...(Types);
+
+    void set_data(const std::shared_ptr<::arrow::Array> &data)
     {
+        auto &array = dynamic_cast<const ::arrow::StructArray &>(*data);
+        auto &type = dynamic_cast<const ::arrow::StructType &>(*array.type());
+
         if (nfields != array.type()->num_children()) {
             throw DataFrameException("Structure of wrong size");
         }
 
-        set_data<0>(array,
-            static_cast<const ::arrow::StructType &>(*array.type()),
-            std::integral_constant<bool, 0 < nfields>());
+        set_view<0>(array, std::integral_constant<bool, 0 < nfields>());
+
+        for (std::size_t i = 0; i != nfields; ++i) {
+            if (children_[i] != array.field(static_cast<int>(i))) {
+                casted_ = true;
+                break;
+            }
+        }
+
+        if (!casted_) {
+            for (std::size_t i = 0; i != nfields; ++i) {
+                fields_[i] = type.child(static_cast<int>(i));
+            }
+            data_ = data;
+            return;
+        }
+
+        for (std::size_t i = 0; i != nfields; ++i) {
+            fields_[i] = ::arrow::field(
+                type.child(static_cast<int>(i))->name(), children_[i]->type());
+        }
 
         std::vector<std::shared_ptr<::arrow::Field>> fields(
             fields_.begin(), fields_.end());
@@ -297,7 +322,7 @@ class ArrayView<Struct<Types...>>
         std::vector<std::shared_ptr<::arrow::Array>> children(
             children_.begin(), children_.end());
 
-        auto type = ::arrow::struct_(std::move(fields));
+        auto cast_type = ::arrow::struct_(std::move(fields));
 
         auto length = array.length();
 
@@ -319,29 +344,24 @@ class ArrayView<Struct<Types...>>
             }
         }
 
-        array_ = std::make_shared<::arrow::StructArray>(std::move(type),
+        data_ = std::make_shared<::arrow::StructArray>(std::move(cast_type),
             array.length(), std::move(children), std::move(nulls), null_count);
     }
 
     template <int i>
-    void set_data(const ::arrow::StructArray &array,
-        const ::arrow::StructType &type, std::true_type)
+    void set_view(const ::arrow::StructArray &array, std::true_type)
     {
         std::get<i>(views_) =
-            ArrayView<std::tuple_element_t<i, value_type>>(array.field(i));
+            make_view<std::tuple_element_t<i, value_type>>(array.field(i));
 
         std::get<i>(children_) = std::get<i>(views_).data();
 
-        std::get<i>(fields_) = ::arrow::field(
-            array.type()->child(i)->name(), std::get<i>(children_)->type());
-
-        set_data<i + 1>(
-            array, type, std::integral_constant<bool, i + 1 < nfields>());
+        set_view<i + 1>(
+            array, std::integral_constant<bool, i + 1 < nfields>());
     }
 
     template <int>
-    void set_data(const ::arrow::StructArray &, const ::arrow::StructType &,
-        std::false_type)
+    void set_view(const ::arrow::StructArray &, std::false_type)
     {
     }
 
@@ -371,7 +391,8 @@ class ArrayView<Struct<Types...>>
     std::tuple<ArrayView<Types>...> views_;
     std::array<std::shared_ptr<::arrow::Array>, nfields> children_;
     std::array<std::shared_ptr<::arrow::Field>, nfields> fields_;
-    std::shared_ptr<::arrow::Array> array_;
+    std::shared_ptr<::arrow::Array> data_;
+    bool casted_;
 };
 
 } // namespace dataframe

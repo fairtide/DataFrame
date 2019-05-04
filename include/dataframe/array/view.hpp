@@ -49,25 +49,27 @@ class ArrayView
     using const_reverse_iterator = reverse_iterator;
 
     ArrayView() noexcept
-        : array_(nullptr)
-        , size_(0)
-        , data_(nullptr)
+        : size_(0)
+        , iter_(nullptr)
+        , casted_(false)
     {
     }
 
     ArrayView(const std::shared_ptr<::arrow::Array> &array)
-        : array_(cast_array<T>(array))
-        , size_(static_cast<size_type>(array_->length()))
-        , data_(reinterpret_cast<const T *>(
-              dynamic_cast<const ArrayType<T> &>(*array_).raw_values()))
+        : data_(cast_array<T>(array))
+        , size_(static_cast<size_type>(data_->length()))
+        , iter_(reinterpret_cast<const T *>(
+              dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
+        , casted_(array != data_)
     {
     }
 
     ArrayView(std::shared_ptr<ArrayType<T>> array)
-        : array_(std::move(array))
-        , size_(static_cast<size_type>(array_->length()))
-        , data_(reinterpret_cast<const T *>(
-              dynamic_cast<const ArrayType<T> &>(*array_).raw_values()))
+        : data_(std::move(array))
+        , size_(static_cast<size_type>(data_->length()))
+        , iter_(reinterpret_cast<const T *>(
+              dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
+        , casted_(array != data_)
     {
     }
 
@@ -79,7 +81,7 @@ class ArrayView
 
     const_reference operator[](size_type pos) const noexcept
     {
-        return data_[pos];
+        return iter_[pos];
     }
 
     const_reference at(size_type pos) const
@@ -95,12 +97,14 @@ class ArrayView
 
     const_reference back() const noexcept { return operator[](size_ - 1); }
 
-    std::shared_ptr<::arrow::Array> data() const { return array_; }
+    std::shared_ptr<::arrow::Array> data() const noexcept { return data_; }
+
+    bool casted() const noexcept { return casted_; }
 
     // Iterators
 
-    const_iterator begin() const noexcept { return data_; }
-    const_iterator end() const noexcept { return data_ + size_; }
+    const_iterator begin() const noexcept { return iter_; }
+    const_iterator end() const noexcept { return iter_ + size_; }
 
     const_iterator cbegin() const noexcept { begin(); }
     const_iterator cend() const noexcept { end(); }
@@ -132,9 +136,10 @@ class ArrayView
     }
 
   private:
-    std::shared_ptr<::arrow::Array> array_;
+    std::shared_ptr<::arrow::Array> data_;
     size_type size_;
-    const T *data_;
+    const T *iter_;
+    bool casted_;
 };
 
 template <typename T, typename Array>

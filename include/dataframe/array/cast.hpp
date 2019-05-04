@@ -29,14 +29,18 @@ template <typename T>
 struct CastArrayVisitor final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
+    {
+    }
+
 #define DF_DEFINE_VISITOR(Arrow)                                              \
     ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
     {                                                                         \
         using U = typename ::arrow::Arrow##Array::TypeClass::c_type;          \
                                                                               \
         if constexpr (std::is_same_v<T, U>) {                                 \
-            result = ::arrow::MakeArray(array.data()->Copy());                \
-            return ::arrow::Status::OK(); \
+            return ::arrow::Status::OK();                                     \
         } else {                                                              \
             auto builder = TypeTraits<T>::builder();                          \
                                                                               \
@@ -80,7 +84,7 @@ template <typename T>
 inline std::shared_ptr<::arrow::Array> cast_array(
     const std::shared_ptr<::arrow::Array> &array)
 {
-    internal::CastArrayVisitor<T> visitor;
+    internal::CastArrayVisitor<T> visitor(array);
     DF_ARROW_ERROR_HANDLER(array->Accept(&visitor));
 
     return visitor.result;

@@ -53,6 +53,8 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
         auto view = ::dataframe::make_view<T>(array);
 
+        CHECK(!view.casted());
+
         CHECK(view.size() == n);
 
         CHECK(view.data()->null_count() == 0);
@@ -72,6 +74,8 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
 
         auto view = ::dataframe::make_view<T>(array);
 
+        CHECK(!view.casted());
+
         CHECK(view.size() == n - static_cast<std::size_t>(m));
 
         CHECK(view.data()->null_count() == 0);
@@ -89,6 +93,8 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
         DF_ARROW_ERROR_HANDLER(builder->Finish(&array));
 
         auto view = ::dataframe::make_view<T>(array);
+
+        CHECK(!view.casted());
 
         CHECK(view.size() == n);
 
@@ -110,6 +116,8 @@ TEMPLATE_TEST_CASE("Make view of primitive array/slice", "[make_view]",
         array = array->Slice(static_cast<std::int64_t>(m));
 
         auto view = ::dataframe::make_view<T>(array);
+
+        CHECK(!view.casted());
 
         CHECK(view.size() == n - static_cast<std::size_t>(m));
 

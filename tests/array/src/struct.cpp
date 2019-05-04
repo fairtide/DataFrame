@@ -76,6 +76,8 @@ TEST_CASE("Make view of struct array/slice", "[make_view]")
 
         auto view = ::dataframe::make_view<T>(array);
 
+        CHECK(!view.casted());
+
         CHECK(view.size() == n);
 
         CHECK(view.data()->null_count() == 0);
