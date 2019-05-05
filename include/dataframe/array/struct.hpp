@@ -46,10 +46,8 @@ class ArrayView<Struct<Types...>>
         using iterator_category = std::random_access_iterator_tag;
 
         iterator() noexcept = default;
-
         iterator(const iterator &) noexcept = default;
         iterator(iterator &&) noexcept = default;
-
         iterator &operator=(const iterator &) noexcept = default;
         iterator &operator=(iterator &&) noexcept = default;
 
@@ -208,7 +206,7 @@ class ArrayView<Struct<Types...>>
 
     const_reference operator[](size_type pos) const noexcept
     {
-        return get_value(pos);
+        return get_view(pos);
     }
 
     const_reference at(size_type pos) const
@@ -231,11 +229,18 @@ class ArrayView<Struct<Types...>>
     const_iterator begin() const noexcept { return iterator(this, 0); }
     const_iterator end() const noexcept { return iterator(this, size_); }
 
-    const_iterator cbegin() const noexcept { begin(); }
-    const_iterator cend() const noexcept { end(); }
+    const_iterator cbegin() const noexcept { return begin(); }
+    const_iterator cend() const noexcept { return end(); }
 
-    const_reverse_iterator rbegin() const noexcept { return {end()}; }
-    const_reverse_iterator rend() const noexcept { return {begin()}; }
+    const_reverse_iterator rbegin() const noexcept
+    {
+        return const_reverse_iterator{end()};
+    }
+
+    const_reverse_iterator rend() const noexcept
+    {
+        return const_reverse_iterator{begin()};
+    }
 
     const_reverse_iterator crbegin() const noexcept { return rbegin(); }
     const_reverse_iterator crend() const noexcept { return rend(); }
@@ -287,24 +292,24 @@ class ArrayView<Struct<Types...>>
     {
     }
 
-    value_type get_value(size_type pos) const
+    value_type get_view(size_type pos) const
     {
         value_type ret;
-        get_value<0>(ret, pos, std::integral_constant<bool, 0 < nfields>());
+        get_view<0>(ret, pos, std::integral_constant<bool, 0 < nfields>());
 
         return ret;
     }
 
     template <int i>
-    void get_value(value_type &ret, size_type pos, std::true_type) const
+    void get_view(value_type &ret, size_type pos, std::true_type) const
     {
         std::get<i>(ret) = std::get<i>(views_)[pos];
-        get_value<i + 1>(
+        get_view<i + 1>(
             ret, pos, std::integral_constant<bool, i + 1 < nfields>());
     }
 
     template <int>
-    void get_value(value_type &, size_type, std::false_type) const
+    void get_view(value_type &, size_type, std::false_type) const
     {
     }
 

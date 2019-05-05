@@ -14,103 +14,101 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_LIST_HPP
-#define DATAFRAME_ARRAY_LIST_HPP
-
 #include <dataframe/array/cast.hpp>
 #include <dataframe/array/traits.hpp>
 #include <dataframe/array/view.hpp>
 
 namespace dataframe {
 
-template <typename T>
-struct ListView {
-  public:
-    using value_type = typename ArrayView<T>::value_type;
+namespace internal {
 
-    using size_type = typename ArrayView<T>::size_type;
-    using difference_type = typename ArrayView<T>::difference_type;
+struct DictionaryIndexVisitor final : public ::arrow::ArrayVisitor {
+    std::int64_t result;
+    std::int64_t pos;
 
-    using reference = typename ArrayView<T>::reference;
-    using const_reference = typename ArrayView<T>::const_reference;
-
-    using pointer = typename ArrayView<T>::pointer;
-    using const_pointer = typename ArrayView<T>::const_pointer;
-
-    using iterator = typename ArrayView<T>::iterator;
-    using const_iterator = typename ArrayView<T>::const_iterator;
-
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-    ListView(size_type size, iterator iter)
-        : size_(size)
-        , iter_(iter)
+    DictionaryIndexVisitor(std::int64_t p)
+        : pos(p)
     {
     }
 
-    ListView(const ListView &) = default;
-    ListView(ListView &&) noexcept = default;
-
-    ListView &operator=(const ListView &) = default;
-    ListView &operator=(ListView &&) noexcept = default;
-
-    const_reference operator[](size_type pos) const noexcept
+    ::arrow::Status Visit(const ::arrow::Int8Array &array) final
     {
-        return iter_[pos];
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
     }
 
-    const_reference at(size_type pos) const
+    ::arrow::Status Visit(const ::arrow::Int16Array &array) final
     {
-        if (pos >= size_) {
-            throw std::out_of_range("dataframe::ArrayView::at");
-        }
-
-        return operator[](pos);
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
     }
 
-    const_reference front() const noexcept { return operator[](0); }
-
-    const_reference back() const noexcept { return operator[](size_ - 1); }
-
-    // Iterators
-
-    const_iterator begin() const noexcept { return iter_; }
-    const_iterator end() const noexcept { return iter_ + size_; }
-
-    const_iterator cbegin() const noexcept { begin(); }
-    const_iterator cend() const noexcept { end(); }
-
-    const_reverse_iterator rbegin() const noexcept { return {end()}; }
-    const_reverse_iterator rend() const noexcept { return {begin()}; }
-
-    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-    const_reverse_iterator crend() const noexcept { return rend(); }
-
-    // Capacity
-
-    bool empty() const noexcept { return size_ == 0; }
-
-    size_type size() const noexcept { return size_; }
-
-    size_type max_size() const noexcept
+    ::arrow::Status Visit(const ::arrow::Int32Array &array) final
     {
-        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
     }
 
-  private:
-    size_type size_;
-    iterator iter_;
+    ::arrow::Status Visit(const ::arrow::Int64Array &array) final
+    {
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
+    }
 };
 
-template <typename T>
-class ArrayView<ListView<T>>
+struct StringViewVisitor final : public ::arrow::ArrayVisitor {
+    std::string_view result;
+    std::int64_t pos;
+
+    StringViewVisitor(std::int64_t p)
+        : pos(p)
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
+    {
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::StringArray &array) final
+    {
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) final
+    {
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) final
+    {
+        result = array.GetView(pos);
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    {
+        DictionaryIndexVisitor index_visitor(pos);
+        ARROW_RETURN_NOT_OK(array.indices()->Accept(&index_visitor));
+        pos = index_visitor.result;
+
+        return array.dictionary()->Accept(this);
+    }
+};
+
+} // namespace internal
+
+template <>
+class ArrayView<std::string_view>
 {
   public:
     class iterator
     {
       public:
-        using value_type = ListView<T>;
+        using value_type = std::string_view;
         using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
         using pointer = const value_type *;
@@ -246,7 +244,7 @@ class ArrayView<ListView<T>>
         difference_type pos_;
     };
 
-    using value_type = ListView<T>;
+    using value_type = std::string_view;
 
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -267,10 +265,6 @@ class ArrayView<ListView<T>>
     ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))
         , size_(static_cast<size_type>(data_->length()))
-        , view_(make_view<T>(
-              dynamic_cast<const ::arrow::ListArray &>(*data_).values()))
-        , offsets_(dynamic_cast<const ::arrow::ListArray &>(*data_)
-                       .raw_value_offsets())
     {
     }
 
@@ -282,10 +276,7 @@ class ArrayView<ListView<T>>
 
     const_reference operator[](size_type pos) const noexcept
     {
-        auto start = offsets_[pos];
-
-        return ListView<T>(static_cast<size_type>(offsets_[pos + 1] - start),
-            view_.begin() + static_cast<difference_type>(start));
+        return get_view(pos);
     }
 
     const_reference at(size_type pos) const
@@ -336,12 +327,17 @@ class ArrayView<ListView<T>>
     }
 
   private:
+    std::string_view get_view(size_type pos) const
+    {
+        internal::StringViewVisitor visitor(static_cast<std::int64_t>(pos));
+        DF_ARROW_ERROR_HANDLER(data_->Accept(&visitor));
+
+        return visitor.result;
+    }
+
+  private:
     std::shared_ptr<::arrow::Array> data_;
     size_type size_;
-    ArrayView<T> view_;
-    const std::int32_t *offsets_;
-};
+}; // namespace template<>classArrayView<std::string_view>
 
 } // namespace dataframe
-
-#endif // DATAFRAME_ARRAY_LIST_HPP

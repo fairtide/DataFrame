@@ -51,8 +51,10 @@ class ArrayView
 
     explicit ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))
+        , size_(static_cast<size_type>(data_->length()))
+        , iter_(reinterpret_cast<const T *>(
+              dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
     {
-        set_data();
     }
 
     ArrayView(const ArrayView &) = default;
@@ -86,11 +88,18 @@ class ArrayView
     const_iterator begin() const noexcept { return iter_; }
     const_iterator end() const noexcept { return iter_ + size_; }
 
-    const_iterator cbegin() const noexcept { begin(); }
-    const_iterator cend() const noexcept { end(); }
+    const_iterator cbegin() const noexcept { return begin(); }
+    const_iterator cend() const noexcept { return end(); }
 
-    const_reverse_iterator rbegin() const noexcept { return {end()}; }
-    const_reverse_iterator rend() const noexcept { return {begin()}; }
+    const_reverse_iterator rbegin() const noexcept
+    {
+        return const_reverse_iterator{end()};
+    }
+
+    const_reverse_iterator rend() const noexcept
+    {
+        return const_reverse_iterator{begin()};
+    }
 
     const_reverse_iterator crbegin() const noexcept { return rbegin(); }
     const_reverse_iterator crend() const noexcept { return rend(); }
@@ -104,14 +113,6 @@ class ArrayView
     size_type max_size() const noexcept
     {
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
-    }
-
-  private:
-    void set_data()
-    {
-        auto &array = dynamic_cast<const ArrayType<T> &>(*data_);
-        size_ = static_cast<std::size_t>(array.length());
-        iter_ = reinterpret_cast<const T *>(array.raw_values());
     }
 
   private:
