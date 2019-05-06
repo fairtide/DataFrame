@@ -53,8 +53,8 @@ class TypeWriter final : public ::arrow::TypeVisitor
     DF_DEFINE_VISITOR(HalfFloat, "float16")
     DF_DEFINE_VISITOR(Float, "float32")
     DF_DEFINE_VISITOR(Double, "float64")
-    DF_DEFINE_VISITOR(Date32, "date32")
-    DF_DEFINE_VISITOR(Date64, "date64")
+    DF_DEFINE_VISITOR(Date32, "date[d]")
+    DF_DEFINE_VISITOR(Date64, "date[ms]")
     DF_DEFINE_VISITOR(Binary, "bytes")
     DF_DEFINE_VISITOR(String, "utf8")
 
