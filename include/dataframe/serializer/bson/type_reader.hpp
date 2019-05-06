@@ -82,7 +82,7 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::float64();
     }
 
-    if (type == "date") {
+    if (type == "date[d]") {
         return ::arrow::date32();
     }
 
@@ -102,7 +102,7 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::timestamp(::arrow::TimeUnit::MICRO);
     }
 
-    if (type == "timestamp") {
+    if (type == "timestamp[ns]") {
         return ::arrow::timestamp(::arrow::TimeUnit::NANO);
     }
 
