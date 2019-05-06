@@ -53,34 +53,12 @@ class TypeWriter final : public ::arrow::TypeVisitor
     DF_DEFINE_VISITOR(HalfFloat, "float16")
     DF_DEFINE_VISITOR(Float, "float32")
     DF_DEFINE_VISITOR(Double, "float64")
-    DF_DEFINE_VISITOR(Date32, "date")
+    DF_DEFINE_VISITOR(Date32, "date[d]")
     DF_DEFINE_VISITOR(Date64, "date[ms]")
     DF_DEFINE_VISITOR(Binary, "bytes")
     DF_DEFINE_VISITOR(String, "utf8")
 
 #undef DF_DEFINE_VISITOR
-
-    ::arrow::Status Visit(const ::arrow::TimestampType &type) final
-    {
-        using ::bsoncxx::builder::basic::kvp;
-
-        switch (type.unit()) {
-            case ::arrow::TimeUnit::SECOND:
-                builder_.append(kvp(Schema::TYPE(), "timestamp[s]"));
-                break;
-            case ::arrow::TimeUnit::MILLI:
-                builder_.append(kvp(Schema::TYPE(), "timestamp[ms]"));
-                break;
-            case ::arrow::TimeUnit::MICRO:
-                builder_.append(kvp(Schema::TYPE(), "timestamp[us]"));
-                break;
-            case ::arrow::TimeUnit::NANO:
-                builder_.append(kvp(Schema::TYPE(), "timestamp"));
-                break;
-        }
-
-        return ::arrow::Status::OK();
-    }
 
 #define DF_DEFINE_VISITOR(TypeName, prefix)                                   \
     ::arrow::Status Visit(const ::arrow::TypeName##Type &type) final          \
@@ -105,6 +83,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();                                         \
     }
 
+    DF_DEFINE_VISITOR(Timestamp, "timestamp")
     DF_DEFINE_VISITOR(Time32, "time32")
     DF_DEFINE_VISITOR(Time64, "time64")
 
