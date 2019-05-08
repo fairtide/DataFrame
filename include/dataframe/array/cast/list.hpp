@@ -21,11 +21,8 @@
 
 namespace dataframe {
 
-template <typename>
-class ListView;
-
-template <typename T>
-struct CastArrayVisitor<ListView<T>> final : ::arrow::ArrayVisitor {
+template <typename T, typename Iter>
+struct CastArrayVisitor<ListView<T, Iter>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
@@ -35,10 +32,11 @@ struct CastArrayVisitor<ListView<T>> final : ::arrow::ArrayVisitor {
 
     ::arrow::Status Visit(const ::arrow::ListArray &array) final
     {
-        auto data = array.data()->Copy();
-        data->child_data.at(0) = cast_array<T>(data.child_data.at(0));
-        dta->type = ::arrow::list_(data.child_data.at(0)->type());
-        result = ::arrow::MakeArray(std::move(data));
+        if (is_type<T>(array.value_type())) {
+            return ::arrow::Status::OK();
+        }
+
+        // TODO
 
         return ::arrow::Status::OK();
     }

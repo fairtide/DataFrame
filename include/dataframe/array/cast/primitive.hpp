@@ -80,10 +80,14 @@ template <typename T>
 inline std::shared_ptr<::arrow::Array> cast_array(
     std::shared_ptr<::arrow::Array> data)
 {
+    if (is_type<T>(data)) {
+        return std::move(data);
+    }
+
     CastArrayVisitor<T> visitor(std::move(data));
     DF_ARROW_ERROR_HANDLER(visitor.result->Accept(&visitor));
 
-    return visitor.result;
+    return std::move(visitor.result);
 }
 
 } // namespace dataframe
