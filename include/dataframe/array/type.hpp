@@ -25,6 +25,24 @@ namespace dataframe {
 template <typename T>
 struct TypeTraits;
 
+template <typename T>
+using CType = typename TypeTraits<T>::ctype;
+
+template <typename T>
+using ArrayType = typename TypeTraits<T>::array_type;
+
+template <typename T, typename... Args>
+auto make_data_type(Args &&... args)
+{
+    return TypeTraits<T>::data_type(std::forward<Args>(args)...);
+}
+
+template <typename T, typename... Args>
+auto make_builder(Args &&... args)
+{
+    return TypeTraits<T>::builder(std::forward<Args>(args)...);
+}
+
 #define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
     template <>                                                               \
     struct TypeTraits<T> {                                                    \
@@ -57,12 +75,6 @@ DF_DEFINE_TYPE_TRAITS(float, Float)
 DF_DEFINE_TYPE_TRAITS(double, Double)
 
 #undef DF_DEFINE_TYPE_TRAITS
-
-template <typename T>
-using ArrayType = typename TypeTraits<T>::array_type;
-
-template <typename T>
-using BuilderType = typename TypeTraits<T>::builder_type;
 
 // datetime types
 
@@ -266,6 +278,30 @@ struct TypeTraits<Time64<Unit>> {
     using ctype = typename Time64<Unit>::value_type;
     using array_type = ::arrow::Time64Array;
 };
+
+// String
+
+#define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
+    template <>                                                               \
+    struct TypeTraits<T> {                                                    \
+        static std::shared_ptr<::arrow::Arrow##Type> data_type()              \
+        {                                                                     \
+            return std::make_shared<::arrow::Arrow##Type>();                  \
+        }                                                                     \
+                                                                              \
+        static std::unique_ptr<::arrow::Arrow##Builder> builder()             \
+        {                                                                     \
+            return std::make_unique<::arrow::Arrow##Builder>(                 \
+                ::arrow::default_memory_pool());                              \
+        }                                                                     \
+                                                                              \
+        using array_type = ::arrow::Arrow##Array;                             \
+    };
+
+DF_DEFINE_TYPE_TRAITS(std::string, String)
+DF_DEFINE_TYPE_TRAITS(std::string_view, String)
+
+#undef DF_DEFINE_TYPE_TRAITS
 
 } // namespace dataframe
 

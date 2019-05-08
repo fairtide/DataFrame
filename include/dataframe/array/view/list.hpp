@@ -307,10 +307,8 @@ class ArrayView<ListView<T>>
 
     const_reference operator[](size_type pos) const noexcept
     {
-        auto start = offsets_[pos];
-
-        return ListView<T>(static_cast<size_type>(offsets_[pos + 1] - start),
-            view_.begin() + static_cast<difference_type>(start));
+        return ListView<T>(
+            view_.begin() + offsets_[pos], view_.begin() + offsets_[pos + 1]);
     }
 
     const_reference at(size_type pos) const

@@ -19,6 +19,7 @@
 
 #include <dataframe/array/view/list.hpp>
 #include <dataframe/array/view/primitive.hpp>
+#include <dataframe/array/view/string.hpp>
 #include <dataframe/array/view/struct.hpp>
 
 #endif // DATAFRAME_ARRAY_VIEW_HPP

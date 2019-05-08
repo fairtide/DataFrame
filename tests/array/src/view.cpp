@@ -87,19 +87,16 @@ struct TestData : TestDataBase<T> {
     TestData(std::size_t n = 0, bool nullable = false)
         : TestDataBase<T>(n, nullable)
     {
-        using traits = TypeTraits<T>;
-        using U = typename traits::ctype;
-
         std::mt19937_64 rng;
         std::uniform_int_distribution<> rval;
-        std::vector<U> rawval;
+        std::vector<CType<T>> rawval;
 
         for (std::size_t i = 0; i != n; ++i) {
-            rawval.push_back(static_cast<U>(rval(rng)));
+            rawval.push_back(static_cast<CType<T>>(rval(rng)));
             this->values.emplace_back(rawval.back());
         }
 
-        auto builder = traits::builder();
+        auto builder = make_builder<T>();
 
         if (nullable) {
             DF_ARROW_ERROR_HANDLER(
@@ -205,6 +202,47 @@ struct TestData<StructView<Args...>>
     std::tuple<TestData<Args>...> data;
 };
 
+template <>
+struct TestData<std::string_view> : TestDataBase<std::string> {
+    TestData(std::size_t n = 0, bool nullable = false)
+        : TestDataBase<std::string>(n, nullable)
+    {
+        ::arrow::StringBuilder builder(::arrow::default_memory_pool());
+        std::mt19937_64 rng;
+        std::uniform_int_distribution<char> rchar;
+        std::uniform_int_distribution<std::size_t> rsize(0, 100);
+        std::vector<char> buf;
+
+        auto setbuf = [&]() {
+            buf.resize(rsize(rng));
+            for (auto &c : buf) {
+                c = rchar(rng);
+            }
+        };
+
+        if (nullable) {
+            for (std::size_t i = 0; i != n; ++i) {
+                if (valids[i]) {
+                    setbuf();
+                    values.emplace_back(buf.data(), buf.size());
+                    DF_ARROW_ERROR_HANDLER(builder.Append(values.back()));
+                } else {
+                    values.emplace_back();
+                    DF_ARROW_ERROR_HANDLER(builder.AppendNull());
+                }
+            }
+        } else {
+            for (std::size_t i = 0; i != n; ++i) {
+                setbuf();
+                values.emplace_back(buf.data(), buf.size());
+                DF_ARROW_ERROR_HANDLER(builder.Append(values.back()));
+            }
+        }
+
+        DF_ARROW_ERROR_HANDLER(builder.Finish(&array));
+    }
+};
+
 TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view]", std::uint8_t,
     std::int8_t, std::uint16_t, std::int16_t, std::uint32_t, std::int32_t,
     std::uint64_t, std::int64_t, float, double, Datestamp<DateUnit::Day>,
@@ -214,8 +252,9 @@ TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view]", std::uint8_t,
     Time32<TimeUnit::Millisecond>, Time32<TimeUnit::Microsecond>,
     Time32<TimeUnit::Nanosecond>, Time64<TimeUnit::Second>,
     Time64<TimeUnit::Millisecond>, Time64<TimeUnit::Microsecond>,
-    Time64<TimeUnit::Nanosecond>, ListView<int>, (StructView<int, double>),
-    (ListView<StructView<int, double>>), (StructView<ListView<int>, double>) )
+    Time64<TimeUnit::Nanosecond>, std::string_view, ListView<int>,
+    (StructView<int, double>), (ListView<StructView<int, double>>),
+    (StructView<ListView<int>, double>) )
 {
     using T = TestType;
 
