@@ -17,7 +17,6 @@
 #ifndef DATAFRAME_ARRAY_VIEW_STRING_HPP
 #define DATAFRAME_ARRAY_VIEW_STRING_HPP
 
-#include <dataframe/array/type.hpp>
 #include <dataframe/array/view/primitive.hpp>
 
 namespace dataframe {

@@ -14,13 +14,13 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_CAST_HPP
-#define DATAFRAME_ARRAY_CAST_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_HPP
+#define DATAFRAME_ARRAY_MAKE_HPP
 
-#include <dataframe/array/cast/datetime.hpp>
-#include <dataframe/array/cast/list.hpp>
-#include <dataframe/array/cast/primitive.hpp>
-#include <dataframe/array/cast/string.hpp>
-#include <dataframe/array/cast/struct.hpp>
+#include <dataframe/array/make/datetime.hpp>
+#include <dataframe/array/make/list.hpp>
+#include <dataframe/array/make/primitive.hpp>
+#include <dataframe/array/make/string.hpp>
+#include <dataframe/array/make/struct.hpp>
 
-#endif // DATAFRAME_ARRAY_CAST_HPP
+#endif // DATAFRAME_ARRAY_MAKE_HPP

@@ -17,291 +17,252 @@
 #ifndef DATAFRAME_ARRAY_TYPE_HPP
 #define DATAFRAME_ARRAY_TYPE_HPP
 
-#include <dataframe/error.hpp>
-#include <arrow/api.h>
+#include <dataframe/array/type/datetime.hpp>
+#include <dataframe/array/type/list.hpp>
+#include <dataframe/array/type/primitive.hpp>
+#include <dataframe/array/type/string.hpp>
+#include <dataframe/array/type/struct.hpp>
 
 namespace dataframe {
 
-template <typename T>
-struct TypeTraits;
+namespace internal {
 
-template <typename T>
-using CType = typename TypeTraits<T>::ctype;
+template <typename>
+struct IsTypeVisitor;
 
-template <typename T>
-using ArrayType = typename TypeTraits<T>::array_type;
-
-template <typename T, typename... Args>
-auto make_data_type(Args &&... args)
-{
-    return TypeTraits<T>::data_type(std::forward<Args>(args)...);
 }
 
-template <typename T, typename... Args>
-auto make_builder(Args &&... args)
+template <typename T>
+inline bool is_type(const ::arrow::DataType &type)
 {
-    return TypeTraits<T>::builder(std::forward<Args>(args)...);
+    internal::IsTypeVisitor<T> visitor;
+    DF_ARROW_ERROR_HANDLER(type.Accept(&visitor));
+
+    return visitor.result;
 }
 
-#define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
-    template <>                                                               \
-    struct TypeTraits<T> {                                                    \
-        static std::shared_ptr<::arrow::Arrow##Type> data_type()              \
-        {                                                                     \
-            return std::make_shared<::arrow::Arrow##Type>();                  \
-        }                                                                     \
+template <typename T>
+inline bool is_type(const std::shared_ptr<::arrow::DataType> &type)
+{
+    return is_type<T>(*type);
+}
+
+template <typename T>
+inline bool is_type(const ::arrow::Array &array)
+{
+    return is_type<T>(array.type());
+}
+
+template <typename T>
+inline bool is_type(const std::shared_ptr<::arrow::Array> &array)
+{
+    return is_type<T>(*array);
+}
+
+namespace internal {
+
+template <typename...>
+struct IsStrucType;
+
+template <typename... Types>
+struct IsStrucType<std::tuple<Types...>> {
+    static constexpr std::size_t nfields = sizeof...(Types);
+
+    static bool value(const ::arrow::StructType &type)
+    {
+        if (type.num_children() != nfields) {
+            return false;
+        }
+
+        return value<0>(type, std::integral_constant<bool, 0 < nfields>());
+    }
+
+    template <std::size_t N>
+    static bool value(const ::arrow::StructType &type, std::true_type)
+    {
+        using T = std::tuple_element_t<N, std::tuple<Types...>>;
+
+        if (!is_type<T>(*type.child(N)->type())) {
+            return false;
+        }
+
+        return value<N + 1>(
+            type, std::integral_constant<bool, N + 1 < nfields>());
+    }
+
+    template <std::size_t>
+    static bool value(const ::arrow::StructType &, std::false_type)
+    {
+        return true;
+    }
+};
+
+template <typename T>
+struct IsTypeVisitor final : ::arrow::TypeVisitor {
+    bool result = false;
+
+    ::arrow::Status Visit(const ::arrow::NullType &) final
+    {
+        result = std::is_same_v<T, void>;
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::BooleanType &) final
+    {
+        result = std::is_same_v<T, bool>;
+
+        return ::arrow::Status::OK();
+    }
+
+#define DF_DEFINE_VISITOR(Arrow)                                              \
+    ::arrow::Status Visit(const ::arrow::Arrow##Type &) final                 \
+    {                                                                         \
+        using U = typename ::arrow::Arrow##Type::c_type;                      \
                                                                               \
-        static std::unique_ptr<::arrow::Arrow##Builder> builder()             \
-        {                                                                     \
-            return std::make_unique<::arrow::Arrow##Builder>(                 \
-                ::arrow::default_memory_pool());                              \
-        }                                                                     \
+        result = std::is_same_v<T, U>;                                        \
                                                                               \
-        using ctype = T;                                                      \
-        using array_type = ::arrow::Arrow##Array;                             \
-    };
-
-DF_DEFINE_TYPE_TRAITS(void, Null)
-DF_DEFINE_TYPE_TRAITS(bool, Boolean)
-DF_DEFINE_TYPE_TRAITS(std::int8_t, Int8)
-DF_DEFINE_TYPE_TRAITS(std::int16_t, Int16)
-DF_DEFINE_TYPE_TRAITS(std::int32_t, Int32)
-DF_DEFINE_TYPE_TRAITS(std::int64_t, Int64)
-DF_DEFINE_TYPE_TRAITS(std::uint8_t, UInt8)
-DF_DEFINE_TYPE_TRAITS(std::uint16_t, UInt16)
-DF_DEFINE_TYPE_TRAITS(std::uint32_t, UInt32)
-DF_DEFINE_TYPE_TRAITS(std::uint64_t, UInt64)
-DF_DEFINE_TYPE_TRAITS(float, Float)
-DF_DEFINE_TYPE_TRAITS(double, Double)
-
-#undef DF_DEFINE_TYPE_TRAITS
-
-// datetime types
-
-enum class DateUnit { Day, Millisecond };
-
-enum class TimeUnit {
-    Second = ::arrow::TimeUnit::SECOND,
-    Millisecond = ::arrow::TimeUnit::MILLI,
-    Microsecond = ::arrow::TimeUnit::MICRO,
-    Nanosecond = ::arrow::TimeUnit::NANO
-};
-
-inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
-{
-    switch (unit) {
-        case TimeUnit::Second:
-            return 1'000'000'000;
-        case TimeUnit::Millisecond:
-            return 1'000'000;
-        case TimeUnit::Microsecond:
-            return 1'000;
-        case TimeUnit::Nanosecond:
-            return 1;
+        return ::arrow::Status::OK();                                         \
     }
-    return 1;
-}
 
-template <typename ArowType>
-struct TimeType {
-    using arrow_type = ArowType;
-    using value_type = typename ArowType::c_type;
+    DF_DEFINE_VISITOR(Int8)
+    DF_DEFINE_VISITOR(Int16)
+    DF_DEFINE_VISITOR(Int32)
+    DF_DEFINE_VISITOR(Int64)
+    DF_DEFINE_VISITOR(UInt8)
+    DF_DEFINE_VISITOR(UInt16)
+    DF_DEFINE_VISITOR(UInt32)
+    DF_DEFINE_VISITOR(UInt64)
+    DF_DEFINE_VISITOR(Float)
+    DF_DEFINE_VISITOR(Double)
 
-    value_type value;
+#undef DF_DEFINE_VISITOR
 
-    TimeType() noexcept = default;
-    TimeType(const TimeType &) noexcept = default;
-    TimeType(TimeType &&) noexcept = default;
-    TimeType &operator=(const TimeType &) noexcept = default;
-    TimeType &operator=(TimeType &&) noexcept = default;
+    // ::arrow::Status Visit(const ::arrow::HalfFloatType &type) final {}
 
-    explicit TimeType(value_type v)
-        : value(v)
+    ::arrow::Status Visit(const ::arrow::StringType &) final
     {
+        result = std::is_same_v<T, std::string_view>;
+
+        return ::arrow::Status::OK();
     }
 
-    explicit operator value_type() const noexcept { return value; }
-};
-
-template <typename T>
-inline bool operator==(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
-{
-    return v1.value == v2.value;
-}
-
-template <typename T>
-inline bool operator!=(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
-{
-    return v1.value != v2.value;
-}
-
-template <typename T>
-inline bool operator<(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
-{
-    return v1.value < v2.value;
-}
-
-template <typename T>
-inline bool operator>(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
-{
-    return v1.value > v2.value;
-}
-
-template <typename T>
-inline bool operator<=(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
-{
-    return v1.value <= v2.value;
-}
-
-template <typename T>
-inline bool operator>=(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
-{
-    return v1.value >= v2.value;
-}
-
-template <DateUnit>
-struct Datestamp;
-
-template <>
-struct Datestamp<DateUnit::Day> : public TimeType<::arrow::Date32Type> {
-    using TimeType<::arrow::Date32Type>::TimeType;
-};
-
-template <>
-struct Datestamp<DateUnit::Millisecond>
-    : public TimeType<::arrow::Date64Type> {
-    using TimeType<::arrow::Date64Type>::TimeType;
-};
-
-template <TimeUnit Unit>
-struct Timestamp : public TimeType<::arrow::TimestampType> {
-    static constexpr TimeUnit unit = Unit;
-    using TimeType<::arrow::TimestampType>::TimeType;
-};
-
-template <TimeUnit Unit>
-struct Time32 : public TimeType<::arrow::Time32Type> {
-    static constexpr TimeUnit unit = Unit;
-    using TimeType<::arrow::Time32Type>::TimeType;
-};
-
-template <TimeUnit Unit>
-struct Time64 : public TimeType<::arrow::Time64Type> {
-    static constexpr TimeUnit unit = Unit;
-    using TimeType<::arrow::Time64Type>::TimeType;
-};
-
-template <>
-struct TypeTraits<Datestamp<DateUnit::Day>> {
-    static std::shared_ptr<::arrow::Date32Type> data_type()
+    ::arrow::Status Visit(const ::arrow::BinaryType &) final
     {
-        return std::make_shared<::arrow::Date32Type>();
+        result = std::is_same_v<T, std::string_view>;
+
+        return ::arrow::Status::OK();
     }
 
-    static auto builder()
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &) final
     {
-        return std::make_unique<::arrow::Date32Builder>(
-            ::arrow::default_memory_pool());
+        result = std::is_same_v<T, std::string_view>;
+
+        return ::arrow::Status::OK();
     }
 
-    using ctype = Datestamp<DateUnit::Day>::value_type;
-    using array_type = ::arrow::Date32Array;
+    ::arrow::Status Visit(const ::arrow::Date32Type &) final
+    {
+        result = std::is_same_v<T, Datestamp<DateUnit::Day>>;
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date64Type &) final
+    {
+        result = std::is_same_v<T, Datestamp<DateUnit::Millisecond>>;
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time32Type &type) final
+    {
+        switch (type.unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                result = std::is_same_v<T, Time32<TimeUnit::Second>>;
+                break;
+            case ::arrow::TimeUnit::MILLI:
+                result = std::is_same_v<T, Time32<TimeUnit::Millisecond>>;
+                break;
+            case ::arrow::TimeUnit::MICRO:
+                result = std::is_same_v<T, Time32<TimeUnit::Microsecond>>;
+                break;
+            case ::arrow::TimeUnit::NANO:
+                result = std::is_same_v<T, Time32<TimeUnit::Nanosecond>>;
+                break;
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time64Type &type) final
+    {
+        switch (type.unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                result = std::is_same_v<T, Time64<TimeUnit::Second>>;
+                break;
+            case ::arrow::TimeUnit::MILLI:
+                result = std::is_same_v<T, Time64<TimeUnit::Millisecond>>;
+                break;
+            case ::arrow::TimeUnit::MICRO:
+                result = std::is_same_v<T, Time64<TimeUnit::Microsecond>>;
+                break;
+            case ::arrow::TimeUnit::NANO:
+                result = std::is_same_v<T, Time64<TimeUnit::Nanosecond>>;
+                break;
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::TimestampType &type) final
+    {
+        switch (type.unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                result = std::is_same_v<T, Timestamp<TimeUnit::Second>>;
+                break;
+            case ::arrow::TimeUnit::MILLI:
+                result = std::is_same_v<T, Timestamp<TimeUnit::Millisecond>>;
+                break;
+            case ::arrow::TimeUnit::MICRO:
+                result = std::is_same_v<T, Timestamp<TimeUnit::Microsecond>>;
+                break;
+            case ::arrow::TimeUnit::NANO:
+                result = std::is_same_v<T, Timestamp<TimeUnit::Nanosecond>>;
+                break;
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+    // ::arrow::Status Visit(const ::arrow::IntervalType &type) final {}
+
+    ::arrow::Status Visit(const ::arrow::ListType &type) final
+    {
+        if constexpr (std::is_base_of_v<ListBase, T>) {
+            result = is_type<typename T::value_type>(*type.value_type());
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::StructType &type) final
+    {
+        if constexpr (std::is_base_of_v<StructBase, T>) {
+            result = IsStrucType<typename T::value_type>::value(type);
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+    // ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final {}
+
+    // ::arrow::Status Visit(const ::arrow::UnionType &type) final {}
+
+    // ::arrow::Status Visit(const ::arrow::DictionaryType &type) final {}
 };
 
-template <>
-struct TypeTraits<Datestamp<DateUnit::Millisecond>> {
-    static std::shared_ptr<::arrow::Date64Type> data_type()
-    {
-        return std::make_shared<::arrow::Date64Type>();
-    }
-
-    static auto builder()
-    {
-        return std::make_unique<::arrow::Date64Builder>(
-            ::arrow::default_memory_pool());
-    }
-
-    using ctype = Datestamp<DateUnit::Millisecond>::value_type;
-    using array_type = ::arrow::Date64Array;
-};
-
-template <TimeUnit Unit>
-struct TypeTraits<Timestamp<Unit>> {
-    static std::shared_ptr<::arrow::TimestampType> data_type()
-    {
-        return std::make_shared<::arrow::TimestampType>(
-            static_cast<::arrow::TimeUnit::type>(Unit));
-    }
-
-    static std::unique_ptr<::arrow::TimestampBuilder> builder()
-    {
-        return std::make_unique<::arrow::TimestampBuilder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename Timestamp<Unit>::value_type;
-    using array_type = ::arrow::TimestampArray;
-};
-
-template <TimeUnit Unit>
-struct TypeTraits<Time32<Unit>> {
-    static std::shared_ptr<::arrow::Time32Type> data_type()
-    {
-        return std::make_shared<::arrow::Time32Type>(
-            static_cast<::arrow::TimeUnit::type>(Unit));
-    }
-
-    static std::unique_ptr<::arrow::Time32Builder> builder()
-    {
-        return std::make_unique<::arrow::Time32Builder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename Time32<Unit>::value_type;
-    using array_type = ::arrow::Time32Array;
-};
-
-template <TimeUnit Unit>
-struct TypeTraits<Time64<Unit>> {
-    static std::shared_ptr<::arrow::Time64Type> data_type()
-    {
-        return std::make_shared<::arrow::Time64Type>(
-            static_cast<::arrow::TimeUnit::type>(Unit));
-    }
-
-    static std::unique_ptr<::arrow::Time64Builder> builder()
-    {
-        return std::make_unique<::arrow::Time64Builder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename Time64<Unit>::value_type;
-    using array_type = ::arrow::Time64Array;
-};
-
-// String
-
-#define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
-    template <>                                                               \
-    struct TypeTraits<T> {                                                    \
-        static std::shared_ptr<::arrow::Arrow##Type> data_type()              \
-        {                                                                     \
-            return std::make_shared<::arrow::Arrow##Type>();                  \
-        }                                                                     \
-                                                                              \
-        static std::unique_ptr<::arrow::Arrow##Builder> builder()             \
-        {                                                                     \
-            return std::make_unique<::arrow::Arrow##Builder>(                 \
-                ::arrow::default_memory_pool());                              \
-        }                                                                     \
-                                                                              \
-        using array_type = ::arrow::Arrow##Array;                             \
-    };
-
-DF_DEFINE_TYPE_TRAITS(std::string, String)
-DF_DEFINE_TYPE_TRAITS(std::string_view, String)
-
-#undef DF_DEFINE_TYPE_TRAITS
+} // namespace internal
 
 } // namespace dataframe
 

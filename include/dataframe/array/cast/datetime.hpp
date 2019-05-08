@@ -17,13 +17,9 @@
 #ifndef DATAFRAME_ARRAY_DATETIME_HPP
 #define DATAFRAME_ARRAY_DATETIME_HPP
 
-#include <dataframe/array/cast.hpp>
-#include <dataframe/array/type.hpp>
-#include <dataframe/array/view.hpp>
+#include <dataframe/array/cast/primitive.hpp>
 
 namespace dataframe {
-
-namespace internal {
 
 template <>
 struct CastArrayVisitor<Date32> final : ::arrow::ArrayVisitor {
@@ -138,8 +134,6 @@ struct CastArrayVisitor<Time64<Unit>> final
     : public CastTimeArrayVisitor<Time64<Unit>> {
     using CastTimeArrayVisitor<Time64<Unit>>::CastTimeArrayVisitor;
 };
-
-} // namespace internal
 
 } // namespace dataframe
 

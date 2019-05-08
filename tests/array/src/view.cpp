@@ -243,18 +243,18 @@ struct TestData<std::string_view> : TestDataBase<std::string> {
     }
 };
 
-TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view]", std::uint8_t,
-    std::int8_t, std::uint16_t, std::int16_t, std::uint32_t, std::int32_t,
-    std::uint64_t, std::int64_t, float, double, Datestamp<DateUnit::Day>,
-    Datestamp<DateUnit::Millisecond>, Timestamp<TimeUnit::Second>,
-    Timestamp<TimeUnit::Millisecond>, Timestamp<TimeUnit::Microsecond>,
-    Timestamp<TimeUnit::Nanosecond>, Time32<TimeUnit::Second>,
-    Time32<TimeUnit::Millisecond>, Time32<TimeUnit::Microsecond>,
-    Time32<TimeUnit::Nanosecond>, Time64<TimeUnit::Second>,
-    Time64<TimeUnit::Millisecond>, Time64<TimeUnit::Microsecond>,
-    Time64<TimeUnit::Nanosecond>, std::string_view, ListView<int>,
-    (StructView<int, double>), (ListView<StructView<int, double>>),
-    (StructView<ListView<int>, double>) )
+TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
+    std::uint8_t, std::int8_t, std::uint16_t, std::int16_t, std::uint32_t,
+    std::int32_t, std::uint64_t, std::int64_t, float, double,
+    Datestamp<DateUnit::Day>, Datestamp<DateUnit::Millisecond>,
+    Timestamp<TimeUnit::Second>, Timestamp<TimeUnit::Millisecond>,
+    Timestamp<TimeUnit::Microsecond>, Timestamp<TimeUnit::Nanosecond>,
+    Time32<TimeUnit::Second>, Time32<TimeUnit::Millisecond>,
+    Time32<TimeUnit::Microsecond>, Time32<TimeUnit::Nanosecond>,
+    Time64<TimeUnit::Second>, Time64<TimeUnit::Millisecond>,
+    Time64<TimeUnit::Microsecond>, Time64<TimeUnit::Nanosecond>,
+    std::string_view, ListView<int>, (StructView<int, double>),
+    (ListView<StructView<int, double>>), (StructView<ListView<int>, double>) )
 {
     using T = TestType;
 

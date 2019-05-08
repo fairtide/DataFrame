@@ -17,30 +17,30 @@
 #ifndef DATAFRAME_ARRAY_VIEW_LIST_HPP
 #define DATAFRAME_ARRAY_VIEW_LIST_HPP
 
-#include <dataframe/array/type.hpp>
 #include <dataframe/array/view/primitive.hpp>
 
 namespace dataframe {
 
 template <typename T>
-struct ListView {
+class ListView : public ListBase
+{
   public:
-    using value_type = typename ArrayView<T>::value_type;
+    using value_type = T;
 
-    using size_type = typename ArrayView<T>::size_type;
-    using difference_type = typename ArrayView<T>::difference_type;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
 
     using reference = typename ArrayView<T>::reference;
-    using const_reference = typename ArrayView<T>::const_reference;
+    using const_reference = reference;
 
-    using pointer = typename ArrayView<T>::pointer;
-    using const_pointer = typename ArrayView<T>::const_pointer;
+    using pointer = const value_type *;
+    using const_pointer = pointer;
 
     using iterator = typename ArrayView<T>::iterator;
-    using const_iterator = typename ArrayView<T>::const_iterator;
+    using const_iterator = iterator;
 
     using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using const_reverse_iterator = reverse_iterator;
 
     ListView() noexcept = default;
 

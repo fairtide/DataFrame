@@ -18,7 +18,6 @@
 #define DATAFRAME_ARRAY_VIEW_PRIMITIVE_HPP
 
 #include <dataframe/array/type.hpp>
-#include <iterator>
 
 namespace dataframe {
 

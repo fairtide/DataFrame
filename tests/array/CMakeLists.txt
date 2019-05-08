@@ -17,3 +17,4 @@
 project(DataFrame-tests-array CXX)
 
 add_dataframe_test(view)
+add_dataframe_test(type)

@@ -17,14 +17,12 @@
 #ifndef DATAFRAME_ARRAY_VIEW_STRUCT_HPP
 #define DATAFRAME_ARRAY_VIEW_STRUCT_HPP
 
-#include <dataframe/array/type.hpp>
 #include <dataframe/array/view/primitive.hpp>
-#include <tuple>
 
 namespace dataframe {
 
 template <typename... Types>
-class StructView
+class StructView : public StructBase
 {
   public:
     using value_type = std::tuple<Types...>;
@@ -68,11 +66,6 @@ class StructView
 
     std::size_t pos_;
     const std::tuple<ArrayView<Types>...> &views_;
-};
-
-template <typename... Types>
-struct TypeTraits<StructView<Types...>> {
-    using array_type = ::arrow::StructArray;
 };
 
 template <typename... Types>
