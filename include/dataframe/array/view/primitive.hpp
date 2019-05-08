@@ -37,7 +37,7 @@ class ArrayView
     using reference = const T &;
     using const_reference = reference;
 
-    using pointer = const T *;
+    using pointer = const value_type *;
     using const_pointer = pointer;
 
     using iterator = pointer;
