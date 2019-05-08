@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_ARRAY_CAST_HPP
 #define DATAFRAME_ARRAY_CAST_HPP
 
-#include <dataframe/array/traits.hpp>
+#include <dataframe/array/type.hpp>
 #include <dataframe/error.hpp>
 #include <iterator>
 

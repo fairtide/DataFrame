@@ -16,4 +16,4 @@
 
 project(DataFrame-tests-array CXX)
 
-add_subdirectory(view)
+add_dataframe_test(view)

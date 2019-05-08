@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_ARRAY_VIEW_PRIMITIVE_HPP
 #define DATAFRAME_ARRAY_VIEW_PRIMITIVE_HPP
 
-#include <dataframe/array/traits.hpp>
+#include <dataframe/array/type.hpp>
 #include <iterator>
 
 namespace dataframe {
@@ -120,6 +120,18 @@ class ArrayView
     size_type size_ = 0;
     const T *iter_ = nullptr;
 };
+
+template <typename T>
+inline bool operator==(const ArrayView<T> &v1, const ArrayView<T> &v2)
+{
+    return std::equal(v1.begin(), v1.end(), v2.begin(), v2.end());
+}
+
+template <typename T>
+inline bool operator!=(const ArrayView<T> &v1, const ArrayView<T> &v2)
+{
+    return !(v1 == v2);
+}
 
 template <typename T>
 inline ArrayView<T> make_view(std::shared_ptr<::arrow::Array> data)

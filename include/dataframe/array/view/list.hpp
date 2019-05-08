@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_ARRAY_VIEW_LIST_HPP
 #define DATAFRAME_ARRAY_VIEW_LIST_HPP
 
-#include <dataframe/array/traits.hpp>
+#include <dataframe/array/type.hpp>
 #include <dataframe/array/view/primitive.hpp>
 
 namespace dataframe {
@@ -45,6 +45,12 @@ struct ListView {
     ListView(size_type size, iterator iter)
         : size_(size)
         , iter_(iter)
+    {
+    }
+
+    ListView(iterator begin, iterator end)
+        : size_(static_cast<size_type>(std::distance(begin, end)))
+        , iter_(begin)
     {
     }
 
@@ -97,10 +103,24 @@ struct ListView {
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
     }
 
+    // comparession
+
   private:
     size_type size_;
     iterator iter_;
 };
+
+template <typename T>
+bool operator==(const ListView<T> &v1, const ListView<T> &v2)
+{
+    return std::equal(v1.begin(), v1.end(), v2.begin(), v2.end());
+}
+
+template <typename T>
+bool operator!=(const ListView<T> &v1, const ListView<T> &v2)
+{
+    return !(v1 == v2);
+}
 
 template <typename T>
 class ArrayView<ListView<T>>

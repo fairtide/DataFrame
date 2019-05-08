@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_TRAITS_HPP
-#define DATAFRAME_ARRAY_TRAITS_HPP
+#ifndef DATAFRAME_ARRAY_TYPE_HPP
+#define DATAFRAME_ARRAY_TYPE_HPP
 
 #include <dataframe/error.hpp>
 #include <arrow/api.h>
@@ -66,16 +66,25 @@ using BuilderType = typename TypeTraits<T>::builder_type;
 
 // datetime types
 
-inline constexpr std::int64_t time_unit_nanos(::arrow::TimeUnit::type unit)
+enum class DateUnit { Day, Millisecond };
+
+enum class TimeUnit {
+    Second = ::arrow::TimeUnit::SECOND,
+    Millisecond = ::arrow::TimeUnit::MILLI,
+    Microsecond = ::arrow::TimeUnit::MICRO,
+    Nanosecond = ::arrow::TimeUnit::NANO
+};
+
+inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
 {
     switch (unit) {
-        case ::arrow::TimeUnit::SECOND:
+        case TimeUnit::Second:
             return 1'000'000'000;
-        case ::arrow::TimeUnit::MILLI:
+        case TimeUnit::Millisecond:
             return 1'000'000;
-        case ::arrow::TimeUnit::MICRO:
+        case TimeUnit::Microsecond:
             return 1'000;
-        case ::arrow::TimeUnit::NANO:
+        case TimeUnit::Nanosecond:
             return 1;
     }
     return 1;
@@ -138,71 +147,78 @@ inline bool operator>=(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
     return v1.value >= v2.value;
 }
 
-struct Date32 : public TimeType<::arrow::Date32Type> {
+template <DateUnit>
+struct Datestamp;
+
+template <>
+struct Datestamp<DateUnit::Day> : public TimeType<::arrow::Date32Type> {
     using TimeType<::arrow::Date32Type>::TimeType;
 };
 
-struct Date64 : public TimeType<::arrow::Date64Type> {
+template <>
+struct Datestamp<DateUnit::Millisecond>
+    : public TimeType<::arrow::Date64Type> {
     using TimeType<::arrow::Date64Type>::TimeType;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct Timestamp : public TimeType<::arrow::TimestampType> {
-    static constexpr ::arrow::TimeUnit::type unit = Unit;
+    static constexpr TimeUnit unit = Unit;
     using TimeType<::arrow::TimestampType>::TimeType;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct Time32 : public TimeType<::arrow::Time32Type> {
-    static constexpr ::arrow::TimeUnit::type unit = Unit;
+    static constexpr TimeUnit unit = Unit;
     using TimeType<::arrow::Time32Type>::TimeType;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct Time64 : public TimeType<::arrow::Time64Type> {
-    static constexpr ::arrow::TimeUnit::type unit = Unit;
+    static constexpr TimeUnit unit = Unit;
     using TimeType<::arrow::Time64Type>::TimeType;
 };
 
 template <>
-struct TypeTraits<Date32> {
+struct TypeTraits<Datestamp<DateUnit::Day>> {
     static std::shared_ptr<::arrow::Date32Type> data_type()
     {
         return std::make_shared<::arrow::Date32Type>();
     }
 
-    static std::unique_ptr<::arrow::Date32Builder> builder()
+    static auto builder()
     {
         return std::make_unique<::arrow::Date32Builder>(
             ::arrow::default_memory_pool());
     }
 
-    using ctype = Date32::value_type;
+    using ctype = Datestamp<DateUnit::Day>::value_type;
     using array_type = ::arrow::Date32Array;
 };
 
 template <>
-struct TypeTraits<Date64> {
+struct TypeTraits<Datestamp<DateUnit::Millisecond>> {
     static std::shared_ptr<::arrow::Date64Type> data_type()
     {
         return std::make_shared<::arrow::Date64Type>();
     }
 
-    static std::unique_ptr<::arrow::Date64Builder> builder()
+    static auto builder()
     {
         return std::make_unique<::arrow::Date64Builder>(
             ::arrow::default_memory_pool());
     }
 
-    using ctype = Date64::value_type;
+    using ctype = Datestamp<DateUnit::Millisecond>::value_type;
     using array_type = ::arrow::Date64Array;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct TypeTraits<Timestamp<Unit>> {
     static std::shared_ptr<::arrow::TimestampType> data_type()
     {
-        return std::make_shared<::arrow::TimestampType>(Unit);
+        return std::make_shared<::arrow::TimestampType>(
+            static_cast<::arrow::TimeUnit::type>(Unit));
     }
 
     static std::unique_ptr<::arrow::TimestampBuilder> builder()
@@ -215,11 +231,12 @@ struct TypeTraits<Timestamp<Unit>> {
     using array_type = ::arrow::TimestampArray;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct TypeTraits<Time32<Unit>> {
     static std::shared_ptr<::arrow::Time32Type> data_type()
     {
-        return std::make_shared<::arrow::Time32Type>(Unit);
+        return std::make_shared<::arrow::Time32Type>(
+            static_cast<::arrow::TimeUnit::type>(Unit));
     }
 
     static std::unique_ptr<::arrow::Time32Builder> builder()
@@ -232,11 +249,12 @@ struct TypeTraits<Time32<Unit>> {
     using array_type = ::arrow::Time32Array;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct TypeTraits<Time64<Unit>> {
     static std::shared_ptr<::arrow::Time64Type> data_type()
     {
-        return std::make_shared<::arrow::Time64Type>(Unit);
+        return std::make_shared<::arrow::Time64Type>(
+            static_cast<::arrow::TimeUnit::type>(Unit));
     }
 
     static std::unique_ptr<::arrow::Time64Builder> builder()
@@ -251,4 +269,4 @@ struct TypeTraits<Time64<Unit>> {
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_TRAITS_HPP
+#endif // DATAFRAME_ARRAY_TYPE_HPP
