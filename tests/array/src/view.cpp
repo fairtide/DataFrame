@@ -20,21 +20,22 @@
 
 namespace dataframe {
 
-template <typename T>
-inline bool operator==(const ListView<T> &view, const std::vector<T> &value)
+template <typename T1, typename T2>
+inline bool operator==(const ListView<T1> &view, const std::vector<T2> &value)
 {
     return std::equal(view.begin(), view.end(), value.begin(), value.end());
 }
 
-template <typename... Types>
-inline bool operator==(
-    const StructView<Types...> &view, const std::tuple<Types...> &value)
+template <typename S, typename... Types>
+inline bool operator==(const S &view, const std::tuple<Types...> &value)
 {
     return view.get() == value;
 }
 
 template <typename T>
 struct TestDataBase {
+    using value_type = T;
+
     TestDataBase(std::size_t n, bool nullable)
         : length(static_cast<std::int64_t>(n))
     {
@@ -112,9 +113,11 @@ struct TestData : TestDataBase<T> {
 };
 
 template <typename T>
-struct TestData<ListView<T>> : TestDataBase<std::vector<T>> {
+struct TestData<ListView<T>>
+    : TestDataBase<std::vector<typename TestData<T>::value_type>> {
     TestData(std::size_t n = 0, bool nullable = false)
-        : TestDataBase<std::vector<T>>(n, nullable)
+        : TestDataBase<std::vector<typename TestData<T>::value_type>>(
+              n, nullable)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<std::int32_t> rval(0, 100);
@@ -150,11 +153,13 @@ struct TestData<ListView<T>> : TestDataBase<std::vector<T>> {
 };
 
 template <typename... Args>
-struct TestData<StructView<Args...>> : TestDataBase<std::tuple<Args...>> {
+struct TestData<StructView<Args...>>
+    : TestDataBase<std::tuple<typename TestData<Args>::value_type...>> {
     static constexpr std::size_t nfields = sizeof...(Args);
 
     TestData(std::size_t n = 0, bool nullable = false)
-        : TestDataBase<std::tuple<Args...>>(n, nullable)
+        : TestDataBase<std::tuple<typename TestData<Args>::value_type...>>(
+              n, nullable)
     {
         std::vector<std::shared_ptr<::arrow::Field>> fields;
         std::vector<std::shared_ptr<::arrow::Array>> children;
@@ -209,7 +214,8 @@ TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view]", std::uint8_t,
     Time32<TimeUnit::Millisecond>, Time32<TimeUnit::Microsecond>,
     Time32<TimeUnit::Nanosecond>, Time64<TimeUnit::Second>,
     Time64<TimeUnit::Millisecond>, Time64<TimeUnit::Microsecond>,
-    Time64<TimeUnit::Nanosecond>, ListView<int>, (StructView<int, double>) )
+    Time64<TimeUnit::Nanosecond>, ListView<int>, (StructView<int, double>),
+    (ListView<StructView<int, double>>), (StructView<ListView<int>, double>) )
 {
     using T = TestType;
 

@@ -42,13 +42,15 @@ struct ListView {
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    ListView(size_type size, iterator iter)
+    ListView() noexcept = default;
+
+    ListView(size_type size, iterator iter) noexcept
         : size_(size)
         , iter_(iter)
     {
     }
 
-    ListView(iterator begin, iterator end)
+    ListView(iterator begin, iterator end) noexcept
         : size_(static_cast<size_type>(std::distance(begin, end)))
         , iter_(begin)
     {
@@ -81,7 +83,11 @@ struct ListView {
     // Iterators
 
     const_iterator begin() const noexcept { return iter_; }
-    const_iterator end() const noexcept { return iter_ + size_; }
+
+    const_iterator end() const noexcept
+    {
+        return iter_ + static_cast<difference_type>(size_);
+    }
 
     const_iterator cbegin() const noexcept { begin(); }
     const_iterator cend() const noexcept { end(); }
@@ -106,7 +112,7 @@ struct ListView {
     // comparession
 
   private:
-    size_type size_;
+    size_type size_ = 0;
     iterator iter_;
 };
 

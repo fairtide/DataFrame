@@ -86,7 +86,11 @@ class ArrayView
     // Iterators
 
     const_iterator begin() const noexcept { return iter_; }
-    const_iterator end() const noexcept { return iter_ + size_; }
+
+    const_iterator end() const noexcept
+    {
+        return iter_ + static_cast<difference_type>(size_);
+    }
 
     const_iterator cbegin() const noexcept { return begin(); }
     const_iterator cend() const noexcept { return end(); }
