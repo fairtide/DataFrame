@@ -14,7 +14,7 @@
 // limitations under the License.
 // ============================================================================
 
-#include <dataframe/array/struct.hpp>
+#include <dataframe/array/view/struct.hpp>
 
 #include <catch2/catch.hpp>
 

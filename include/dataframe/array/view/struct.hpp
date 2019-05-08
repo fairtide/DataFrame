@@ -14,12 +14,11 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_STRUCT_HPP
-#define DATAFRAME_ARRAY_STRUCT_HPP
+#ifndef DATAFRAME_ARRAY_VIEW_STRUCT_HPP
+#define DATAFRAME_ARRAY_VIEW_STRUCT_HPP
 
-#include <dataframe/array/cast.hpp>
 #include <dataframe/array/traits.hpp>
-#include <dataframe/array/view.hpp>
+#include <dataframe/array/view/primitive.hpp>
 
 namespace dataframe {
 
@@ -322,4 +321,4 @@ class ArrayView<Struct<Types...>>
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_STRUCT_HPP
+#endif // DATAFRAME_ARRAY_VIEW_STRUCT_HPP

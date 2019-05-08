@@ -14,6 +14,8 @@
 # limitations under the License.
 # ============================================================================
 
-project(DataFrame-tests-array CXX)
+project(DataFrame-tests-array-view CXX)
 
-add_subdirectory(view)
+add_dataframe_test(primitive)
+add_dataframe_test(list)
+add_dataframe_test(struct)

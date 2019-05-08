@@ -14,12 +14,11 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_LIST_HPP
-#define DATAFRAME_ARRAY_LIST_HPP
+#ifndef DATAFRAME_ARRAY_VIEW_LIST_HPP
+#define DATAFRAME_ARRAY_VIEW_LIST_HPP
 
-#include <dataframe/array/cast.hpp>
 #include <dataframe/array/traits.hpp>
-#include <dataframe/array/view.hpp>
+#include <dataframe/array/view/primitive.hpp>
 
 namespace dataframe {
 
@@ -344,4 +343,4 @@ class ArrayView<ListView<T>>
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_LIST_HPP
+#endif // DATAFRAME_ARRAY_VIEW_LIST_HPP

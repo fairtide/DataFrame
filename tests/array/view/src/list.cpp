@@ -14,7 +14,7 @@
 // limitations under the License.
 // ============================================================================
 
-#include <dataframe/array/list.hpp>
+#include <dataframe/array/view/list.hpp>
 
 #include <catch2/catch.hpp>
 
