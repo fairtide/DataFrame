@@ -72,11 +72,18 @@ template <typename... Types>
 class ArrayView<StructView<Types...>>
 {
   public:
+    using value_type = StructView<Types...>;
+
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    using reference = value_type;
+    using const_reference = reference;
+
     class iterator
     {
       public:
         using value_type = StructView<Types...>;
-        using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
         using pointer = const value_type *;
         using reference = value_type;
@@ -210,14 +217,6 @@ class ArrayView<StructView<Types...>>
         const ArrayView *ptr_ = nullptr;
         difference_type pos_ = 0;
     };
-
-    using value_type = StructView<Types...>;
-
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-
-    using reference = value_type;
-    using const_reference = reference;
 
     using pointer = iterator;
     using const_pointer = pointer;

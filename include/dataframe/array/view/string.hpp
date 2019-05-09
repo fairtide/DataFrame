@@ -25,11 +25,18 @@ template <>
 class ArrayView<std::string_view>
 {
   public:
+    using value_type = std::string_view;
+
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    using reference = value_type;
+    using const_reference = reference;
+
     class iterator
     {
       public:
         using value_type = std::string_view;
-        using size_type = std::size_t;
         using difference_type = std::ptrdiff_t;
         using pointer = const value_type *;
         using reference = value_type;
@@ -163,14 +170,6 @@ class ArrayView<std::string_view>
         const ArrayView *ptr_;
         difference_type pos_;
     };
-
-    using value_type = std::string_view;
-
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-
-    using reference = value_type;
-    using const_reference = reference;
 
     using pointer = iterator;
     using const_pointer = pointer;

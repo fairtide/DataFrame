@@ -18,9 +18,13 @@
 #define DATAFRAME_ARRAY_MAKE_HPP
 
 #include <dataframe/array/make/datetime.hpp>
-#include <dataframe/array/make/list.hpp>
+// #include <dataframe/array/make/list.hpp>
 #include <dataframe/array/make/primitive.hpp>
-#include <dataframe/array/make/string.hpp>
-#include <dataframe/array/make/struct.hpp>
+// #include <dataframe/array/make/string.hpp>
+// #include <dataframe/array/make/struct.hpp>
+
+namespace dataframe {
+
+} // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_MAKE_HPP
