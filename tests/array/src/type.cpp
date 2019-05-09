@@ -55,21 +55,13 @@
         DEFINE_TEST_SECTION(                                                  \
             T, ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>)     \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time32<::dataframe::TimeUnit::Second>)            \
+            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>)         \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time32<::dataframe::TimeUnit::Millisecond>)       \
+            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>)    \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time32<::dataframe::TimeUnit::Microsecond>)       \
+            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>)    \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time32<::dataframe::TimeUnit::Nanosecond>)        \
-        DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time64<::dataframe::TimeUnit::Second>)            \
-        DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time64<::dataframe::TimeUnit::Millisecond>)       \
-        DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time64<::dataframe::TimeUnit::Microsecond>)       \
-        DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>)        \
+            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)     \
         DEFINE_TEST_SECTION(T, std::string)                                   \
         DEFINE_TEST_SECTION(T, ::dataframe::List<int>)                        \
         DEFINE_TEST_SECTION(T, ::dataframe::Struct<int>)                      \
@@ -94,14 +86,10 @@ DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Second>)
 DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>)
 DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>)
 DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>)
-DEFINE_TEST_CASE(::dataframe::Time32<::dataframe::TimeUnit::Second>)
-DEFINE_TEST_CASE(::dataframe::Time32<::dataframe::TimeUnit::Millisecond>)
-DEFINE_TEST_CASE(::dataframe::Time32<::dataframe::TimeUnit::Microsecond>)
-DEFINE_TEST_CASE(::dataframe::Time32<::dataframe::TimeUnit::Nanosecond>)
-DEFINE_TEST_CASE(::dataframe::Time64<::dataframe::TimeUnit::Second>)
-DEFINE_TEST_CASE(::dataframe::Time64<::dataframe::TimeUnit::Millisecond>)
-DEFINE_TEST_CASE(::dataframe::Time64<::dataframe::TimeUnit::Microsecond>)
-DEFINE_TEST_CASE(::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>)
+DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>)
+DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>)
+DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>)
+DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)
 DEFINE_TEST_CASE(std::string)
 DEFINE_TEST_CASE(::dataframe::List<int>)
 DEFINE_TEST_CASE(::dataframe::Struct<int>)

@@ -179,16 +179,14 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
     {
         switch (type.unit()) {
             case ::arrow::TimeUnit::SECOND:
-                result = std::is_same_v<T, Time32<TimeUnit::Second>>;
+                result = std::is_same_v<T, TimeOfDay<TimeUnit::Second>>;
                 break;
             case ::arrow::TimeUnit::MILLI:
-                result = std::is_same_v<T, Time32<TimeUnit::Millisecond>>;
+                result = std::is_same_v<T, TimeOfDay<TimeUnit::Millisecond>>;
                 break;
             case ::arrow::TimeUnit::MICRO:
-                result = std::is_same_v<T, Time32<TimeUnit::Microsecond>>;
                 break;
             case ::arrow::TimeUnit::NANO:
-                result = std::is_same_v<T, Time32<TimeUnit::Nanosecond>>;
                 break;
         }
 
@@ -199,16 +197,14 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
     {
         switch (type.unit()) {
             case ::arrow::TimeUnit::SECOND:
-                result = std::is_same_v<T, Time64<TimeUnit::Second>>;
                 break;
             case ::arrow::TimeUnit::MILLI:
-                result = std::is_same_v<T, Time64<TimeUnit::Millisecond>>;
                 break;
             case ::arrow::TimeUnit::MICRO:
-                result = std::is_same_v<T, Time64<TimeUnit::Microsecond>>;
+                result = std::is_same_v<T, TimeOfDay<TimeUnit::Microsecond>>;
                 break;
             case ::arrow::TimeUnit::NANO:
-                result = std::is_same_v<T, Time64<TimeUnit::Nanosecond>>;
+                result = std::is_same_v<T, TimeOfDay<TimeUnit::Nanosecond>>;
                 break;
         }
 

@@ -14,15 +14,9 @@
 // limitations under the License.
 // ============================================================================
 
-#include <dataframe/serializer/bson.hpp>
+#include <dataframe/serializer/feather.hpp>
 
 #include "generate_data.hpp"
-
-#include <bsoncxx/json.hpp>
-#include <iostream>
-#include <rapidjson/document.h>
-#include <rapidjson/prettywriter.h>
-#include <rapidjson/stringbuffer.h>
 
 #include <catch2/catch.hpp>
 
@@ -30,18 +24,12 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
     std::uint32_t, std::uint64_t,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
-    ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
     ::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>,
-    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>, std::string,
-    ::dataframe::List<double>, ::dataframe::Struct<double>,
-    ::dataframe::List<::dataframe::Struct<double>>,
-    ::dataframe::Struct<::dataframe::List<double>>)
+    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>, std::string)
 {
     // TODO void, bool, Dict, Decimal, FixedBinary
 
@@ -49,27 +37,8 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     std::size_t n = 1000;
     dat["test"].emplace<TestType>(generate_data<TestType>(n));
 
-    ::dataframe::BSONWriter writer;
-    ::dataframe::BSONReader reader;
-
-    writer.write(dat.rows(0, 6));
-    auto bson_doc = writer.extract();
-
-    auto json_str = ::bsoncxx::to_json(
-        bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
-
-    ::rapidjson::Document json_doc;
-    json_doc.Parse(json_str.c_str());
-
-    ::rapidjson::StringBuffer json_buffer;
-    ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
-        json_buffer);
-    json_doc.Accept(json_writer);
-
-    auto name = dat["test"].data()->type()->ToString();
-    std::ofstream out(name + ".json");
-    out << json_buffer.GetString() << std::endl;
-    out.close();
+    ::dataframe::FeatherWriter writer;
+    ::dataframe::FeatherReader reader;
 
     writer.write(dat);
     auto str = writer.str();

@@ -27,14 +27,10 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
     ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::Time32<::dataframe::TimeUnit::Second>,
-    ::dataframe::Time32<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Time32<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time32<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::Time64<::dataframe::TimeUnit::Second>,
-    ::dataframe::Time64<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Time64<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>)
+    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>,
+    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>,
+    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>,
+    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)
 {
     using T = TestType;
 
