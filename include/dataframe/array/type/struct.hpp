@@ -126,13 +126,6 @@ struct TypeTraits<Struct<Types...>> {
     }
 };
 
-template <typename... Types>
-class StructView;
-
-template <typename... Types>
-struct TypeTraits<StructView<Types...>> : TypeTraits<Struct<Types...>> {
-};
-
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_TYPE_STRUCT_HPP

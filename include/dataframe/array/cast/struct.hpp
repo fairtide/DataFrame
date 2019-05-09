@@ -21,11 +21,8 @@
 
 namespace dataframe {
 
-template <typename...>
-class StructView;
-
 template <typename... Types>
-struct CastArrayVisitor<StructView<Types...>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Struct<Types...>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
