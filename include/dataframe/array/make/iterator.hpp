@@ -48,14 +48,9 @@ class FieldIterator
 {
   public:
     using reference = Ref;
-
     using value_type = std::remove_reference_t<reference>;
-
-    using difference_type =
-        typename std::iterator_traits<Iter>::difference_type;
-
+    using difference_type = std::ptrdiff_t;
     using pointer = value_type *;
-
     using iterator_category =
         typename std::iterator_traits<Iter>::iterator_category;
 

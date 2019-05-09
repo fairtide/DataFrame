@@ -53,8 +53,7 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
 
     SECTION("Make array")
     {
-        auto array_ptr =
-            ::dataframe::make_array<T>(values.begin(), values.end());
+        auto array_ptr = ::dataframe::make_array<T>(values);
 
         auto &array =
             dynamic_cast<const ::dataframe::ArrayType<T> &>(*array_ptr);
@@ -121,8 +120,7 @@ TEST_CASE("Make String array", "[make_array]")
         values.emplace_back(buf.data(), buf.size());
     }
 
-    auto array_ptr =
-        ::dataframe::make_array<std::string>(values.begin(), values.end());
+    auto array_ptr = ::dataframe::make_array<std::string>(values);
 
     auto &array = dynamic_cast<const ::arrow::StringArray &>(*array_ptr);
 
@@ -155,8 +153,7 @@ TEST_CASE("Make Struct array", "[make_array]")
     }
 
     auto array_ptr =
-        ::dataframe::make_array<::dataframe::Struct<double, double>>(
-            values.begin(), values.end());
+        ::dataframe::make_array<::dataframe::Struct<double, double>>(values);
 
     auto &array = dynamic_cast<const ::arrow::StructArray &>(*array_ptr);
 
@@ -189,6 +186,40 @@ TEST_CASE("Make Struct array", "[make_array]")
         [](auto &&v1, auto &&v2) { return v1.int_entry.value == v2; }));
 }
 
-TEST_CASE("Make List array", "[make_array]") {}
+TEST_CASE("Make List array", "[make_array]")
+{
+    std::size_t n = 1000;
+
+    std::mt19937_64 rng;
+    std::uniform_int_distribution<> rval;
+    std::uniform_int_distribution<std::size_t> rsize(0, 100);
+    std::vector<std::vector<int>> values(n);
+
+    for (auto &v : values) {
+        v.resize(rsize(rng));
+        for (auto &u : v) {
+            u = rval(rng);
+        }
+    }
+
+    auto array_ptr =
+        ::dataframe::make_array<::dataframe::List<std::int32_t>>(values);
+
+    auto &array = dynamic_cast<const ::arrow::ListArray &>(*array_ptr);
+
+    auto &array_values =
+        dynamic_cast<const ::arrow::Int32Array &>(*array.values());
+
+    bool pass = true;
+    for (std::size_t i = 0; i != n; ++i) {
+        auto &v = values[i];
+        auto j = static_cast<std::int64_t>(i);
+        auto begin = array_values.raw_values() + array.value_offset(j);
+        auto end = begin + array.value_length(j);
+        pass = std::equal(begin, end, v.begin(), v.end());
+    }
+
+    CHECK(pass);
+}
 
 TEST_CASE("Make List<Struct> array", "[make_array]") {}
