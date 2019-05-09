@@ -32,6 +32,8 @@ inline bool operator==(const S &view, const std::tuple<Types...> &value)
     return view.get() == value;
 }
 
+} // namespace dataframe
+
 template <typename T>
 struct TestDataBase {
     using value_type = T;
@@ -58,7 +60,7 @@ struct TestDataBase {
     }
 
     template <typename U>
-    void check(const ArrayView<U> &view, std::int64_t offset = 0)
+    void check(const ::dataframe::ArrayView<U> &view, std::int64_t offset = 0)
     {
         CHECK(static_cast<std::int64_t>(view.size()) == length - offset);
 
@@ -89,14 +91,14 @@ struct TestData : TestDataBase<T> {
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<> rval;
-        std::vector<CType<T>> rawval;
+        std::vector<::dataframe::CType<T>> rawval;
 
         for (std::size_t i = 0; i != n; ++i) {
-            rawval.push_back(static_cast<CType<T>>(rval(rng)));
+            rawval.push_back(static_cast<::dataframe::CType<T>>(rval(rng)));
             this->values.emplace_back(rawval.back());
         }
 
-        auto builder = make_builder<T>();
+        auto builder = ::dataframe::make_builder<T>();
 
         if (nullable) {
             DF_ARROW_ERROR_HANDLER(
@@ -110,7 +112,7 @@ struct TestData : TestDataBase<T> {
 };
 
 template <typename T>
-struct TestData<ListView<T>>
+struct TestData<::dataframe::ListView<T>>
     : TestDataBase<std::vector<typename TestData<T>::value_type>> {
     TestData(std::size_t n = 0, bool nullable = false)
         : TestDataBase<std::vector<typename TestData<T>::value_type>>(
@@ -150,7 +152,7 @@ struct TestData<ListView<T>>
 };
 
 template <typename... Args>
-struct TestData<StructView<Args...>>
+struct TestData<::dataframe::StructView<Args...>>
     : TestDataBase<std::tuple<typename TestData<Args>::value_type...>> {
     static constexpr std::size_t nfields = sizeof...(Args);
 
@@ -246,15 +248,23 @@ struct TestData<std::string_view> : TestDataBase<std::string> {
 TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
     std::uint8_t, std::int8_t, std::uint16_t, std::int16_t, std::uint32_t,
     std::int32_t, std::uint64_t, std::int64_t, float, double,
-    Datestamp<DateUnit::Day>, Datestamp<DateUnit::Millisecond>,
-    Timestamp<TimeUnit::Second>, Timestamp<TimeUnit::Millisecond>,
-    Timestamp<TimeUnit::Microsecond>, Timestamp<TimeUnit::Nanosecond>,
-    Time32<TimeUnit::Second>, Time32<TimeUnit::Millisecond>,
-    Time32<TimeUnit::Microsecond>, Time32<TimeUnit::Nanosecond>,
-    Time64<TimeUnit::Second>, Time64<TimeUnit::Millisecond>,
-    Time64<TimeUnit::Microsecond>, Time64<TimeUnit::Nanosecond>,
-    std::string_view, ListView<int>, (StructView<int, double>),
-    (ListView<StructView<int, double>>), (StructView<ListView<int>, double>) )
+    ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
+    ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
+    ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
+    ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
+    ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
+    ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
+    ::dataframe::Time32<::dataframe::TimeUnit::Second>,
+    ::dataframe::Time32<::dataframe::TimeUnit::Millisecond>,
+    ::dataframe::Time32<::dataframe::TimeUnit::Microsecond>,
+    ::dataframe::Time32<::dataframe::TimeUnit::Nanosecond>,
+    ::dataframe::Time64<::dataframe::TimeUnit::Second>,
+    ::dataframe::Time64<::dataframe::TimeUnit::Millisecond>,
+    ::dataframe::Time64<::dataframe::TimeUnit::Microsecond>,
+    ::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>, std::string_view,
+    ::dataframe::ListView<int>, (::dataframe::StructView<int, double>),
+    (::dataframe::ListView<::dataframe::StructView<int, double>>),
+    (::dataframe::StructView<::dataframe::ListView<int>, double>) )
 {
     using T = TestType;
 
@@ -289,5 +299,3 @@ TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
         data.check(view, m);
     }
 }
-
-} // namespace dataframe

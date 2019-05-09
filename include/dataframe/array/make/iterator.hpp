@@ -20,6 +20,27 @@
 #include <iterator>
 #include <type_traits>
 
+#define DF_DEFINE_STRUCT_FIELD(T, I, name, getter)                                   \
+    template <typename Iter>                                                  \
+    auto field_name(Iter, std::integral_constant<std::size_t, I>,             \
+        std::enable_if_t<std::is_same_v<T,                                    \
+            typename std::iterator_traits<Iter>::value_type>> * = nullptr)    \
+    {                                                                         \
+        return name;                                                          \
+    }                                                                         \
+                                                                              \
+    template <typename Iter>                                                  \
+    auto field_iterator(Iter iter, std::integral_constant<std::size_t, I>,    \
+        std::enable_if_t<std::is_same_v<T,                                    \
+            typename std::iterator_traits<Iter>::value_type>> * = nullptr)    \
+    {                                                                         \
+        using ::dataframe::field_iterator;                                    \
+        return field_iterator(iter, getter);                                  \
+    }
+
+template <typename Iter, std::size_t N>
+auto field_name(Iter, std::integral_constant<std::size_t, N>);
+
 namespace dataframe {
 
 template <typename Derived, typename Iter, typename Ref>
@@ -211,6 +232,27 @@ auto field_iterator(Iter iter, Member &&member,
     };
 
     return iterator(iter, std::forward<Member>(member));
+}
+
+template <typename Iter, typename Getter>
+auto field_iterator(Iter iter, Getter &&getter,
+    std::enable_if_t<!std::is_member_pointer_v<Getter>> * = nullptr)
+{
+    using Ref = decltype(getter(*iter));
+
+    struct iterator : FieldIterator<iterator, Iter, Ref> {
+        iterator(Iter iter, Getter v)
+            : FieldIterator<iterator, Iter, Ref>(iter)
+            , get(std::move(v))
+        {
+        }
+
+        Getter get;
+
+        Ref dereference(Iter iter) const { return get(*iter); }
+    };
+
+    return iterator(iter, std::forward<Getter>(getter));
 }
 
 } // namespace dataframe
