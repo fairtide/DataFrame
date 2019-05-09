@@ -14,12 +14,6 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_HPP
-#define DATAFRAME_ARRAY_HPP
+#include <dataframe/table/data_frame.hpp>
 
-#include <dataframe/array/cast.hpp>
-#include <dataframe/array/make.hpp>
-#include <dataframe/array/type.hpp>
-#include <dataframe/array/view.hpp>
-
-#endif // DATAFRAME_ARRAY_HPP
+#include <catch2/catch.hpp>

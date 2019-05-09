@@ -33,12 +33,8 @@ function(add_dataframe_test testname)
 endfunction(add_dataframe_test src)
 
 add_subdirectory(array)
-
-# add_dataframe_test(dataframe)
-# add_dataframe_test(concatenate)
-# add_dataframe_test(serializer)
-# add_dataframe_test(sort)
-# add_dataframe_test(join)
+add_subdirectory(table)
+add_subdirectory(serializer)
 
 # add_dataframe_test(serializer_bson
 #     ${BSONCXX_LINK_LIBRARIES}
