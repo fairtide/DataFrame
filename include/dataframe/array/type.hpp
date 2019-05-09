@@ -80,7 +80,7 @@ struct IsStrucType<std::tuple<Types...>> {
     template <std::size_t N>
     static bool value(const ::arrow::StructType &type, std::true_type)
     {
-        using T = std::tuple_element_t<N, std::tuple<Types...>>;
+        using T = FieldType<N, Types...>;
 
         if (!is_type<T>(*type.child(N)->type())) {
             return false;

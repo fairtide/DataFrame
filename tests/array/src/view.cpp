@@ -20,8 +20,8 @@
 
 namespace dataframe {
 
-template <typename T1, typename T2>
-inline bool operator==(const ListView<T1> &view, const std::vector<T2> &value)
+template <typename L, typename T2>
+inline bool operator==(const L &view, const std::vector<T2> &value)
 {
     return std::equal(view.begin(), view.end(), value.begin(), value.end());
 }
@@ -112,7 +112,7 @@ struct TestData : TestDataBase<T> {
 };
 
 template <typename T>
-struct TestData<::dataframe::ListView<T>>
+struct TestData<::dataframe::List<T>>
     : TestDataBase<std::vector<typename TestData<T>::value_type>> {
     TestData(std::size_t n = 0, bool nullable = false)
         : TestDataBase<std::vector<typename TestData<T>::value_type>>(
@@ -152,7 +152,7 @@ struct TestData<::dataframe::ListView<T>>
 };
 
 template <typename... Args>
-struct TestData<::dataframe::StructView<Args...>>
+struct TestData<::dataframe::Struct<Args...>>
     : TestDataBase<std::tuple<typename TestData<Args>::value_type...>> {
     static constexpr std::size_t nfields = sizeof...(Args);
 
@@ -262,9 +262,9 @@ TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
     ::dataframe::Time64<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time64<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>, std::string_view,
-    ::dataframe::ListView<int>, (::dataframe::StructView<int, double>),
-    (::dataframe::ListView<::dataframe::StructView<int, double>>),
-    (::dataframe::StructView<::dataframe::ListView<int>, double>) )
+    ::dataframe::List<int>, (::dataframe::Struct<int, double>),
+    (::dataframe::List<::dataframe::Struct<int, double>>),
+    (::dataframe::Struct<::dataframe::List<int>, double>) )
 {
     using T = TestType;
 

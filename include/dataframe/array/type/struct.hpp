@@ -30,6 +30,9 @@ struct Struct final : StructBase {
     using value_type = std::tuple<Types...>;
 };
 
+template <std::size_t N, typename... Types>
+using FieldType = std::tuple_element_t<N, std::tuple<Types...>>;
+
 template <typename... Types>
 struct TypeTraits<Struct<Types...>> {
     static std::shared_ptr<::arrow::StructType> data_type()
@@ -79,7 +82,7 @@ struct TypeTraits<Struct<Types...>> {
     static void set_field(
         std::vector<std::shared_ptr<::arrow::Field>> &fields, std::true_type)
     {
-        using T = std::tuple_element_t<N, std::tuple<Types...>>;
+        using T = FieldType<N, Types...>;
 
         fields.push_back(::arrow::field(std::string(), make_data_type<T>()));
 
@@ -91,7 +94,7 @@ struct TypeTraits<Struct<Types...>> {
     static void set_field(std::vector<std::shared_ptr<::arrow::Field>> &fields,
         std::true_type, Name1 &&name1, Names &&... names)
     {
-        using T = std::tuple_element_t<N, std::tuple<Types...>>;
+        using T = FieldType<N, Types...>;
 
         fields.push_back(
             ::arrow::field(std::forward<Name1>(name1), make_data_type<T>()));
@@ -118,9 +121,7 @@ struct TypeTraits<Struct<Types...>> {
         std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &builders,
         std::true_type)
     {
-        builders.emplace_back(
-            make_builder<std::tuple_element_t<N, std::tuple<Types...>>>());
-
+        builders.emplace_back(make_builder<FieldType<N, Types...>>());
         set_builder<N + 1>(
             builders, std::integral_constant<bool, N + 1 < nfields>());
     }

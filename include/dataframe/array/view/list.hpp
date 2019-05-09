@@ -22,104 +22,103 @@
 namespace dataframe {
 
 template <typename T>
-class ListView final : public ListBase
+class ArrayView<List<T>>
 {
   public:
-    using value_type = typename ArrayView<T>::value_type;
-
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-
-    using reference = typename ArrayView<T>::reference;
-    using const_reference = typename ArrayView<T>::const_reference;
-
-    using pointer = typename ArrayView<T>::pointer;
-    using const_pointer = typename ArrayView<T>::const_pointer;
-
-    using iterator = typename ArrayView<T>::iterator;
-    using const_iterator = typename ArrayView<T>::const_iterator;
-
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = reverse_iterator;
-
-    ListView() noexcept = default;
-
-    ListView(size_type size, iterator iter) noexcept
-        : size_(size)
-        , iter_(iter)
+    class view
     {
-    }
+      public:
+        using value_type = typename ArrayView<T>::value_type;
 
-    ListView(iterator begin, iterator end) noexcept
-        : size_(static_cast<size_type>(std::distance(begin, end)))
-        , iter_(begin)
-    {
-    }
+        using size_type = std::size_t;
+        using difference_type = std::ptrdiff_t;
 
-    ListView(const ListView &) = default;
-    ListView(ListView &&) noexcept = default;
+        using reference = typename ArrayView<T>::reference;
+        using const_reference = typename ArrayView<T>::const_reference;
 
-    ListView &operator=(const ListView &) = default;
-    ListView &operator=(ListView &&) noexcept = default;
+        using pointer = typename ArrayView<T>::pointer;
+        using const_pointer = typename ArrayView<T>::const_pointer;
 
-    const_reference operator[](size_type pos) const noexcept
-    {
-        return iter_[pos];
-    }
+        using iterator = typename ArrayView<T>::iterator;
+        using const_iterator = typename ArrayView<T>::const_iterator;
 
-    const_reference at(size_type pos) const
-    {
-        if (pos >= size_) {
-            throw std::out_of_range("dataframe::ListView::at");
+        using reverse_iterator = std::reverse_iterator<iterator>;
+        using const_reverse_iterator = reverse_iterator;
+
+        view() noexcept = default;
+
+        view(size_type size, iterator iter) noexcept
+            : size_(size)
+            , iter_(iter)
+        {
         }
 
-        return operator[](pos);
-    }
+        view(iterator begin, iterator end) noexcept
+            : size_(static_cast<size_type>(std::distance(begin, end)))
+            , iter_(begin)
+        {
+        }
 
-    const_reference front() const noexcept { return operator[](0); }
+        view(const view &) = default;
+        view(view &&) noexcept = default;
 
-    const_reference back() const noexcept { return operator[](size_ - 1); }
+        view &operator=(const view &) = default;
+        view &operator=(view &&) noexcept = default;
 
-    // Iterators
+        const_reference operator[](size_type pos) const noexcept
+        {
+            return iter_[pos];
+        }
 
-    const_iterator begin() const noexcept { return iter_; }
+        const_reference at(size_type pos) const
+        {
+            if (pos >= size_) {
+                throw std::out_of_range(
+                    "dataframe::ArrayView<List>::view::at");
+            }
 
-    const_iterator end() const noexcept
-    {
-        return iter_ + static_cast<difference_type>(size_);
-    }
+            return operator[](pos);
+        }
 
-    const_iterator cbegin() const noexcept { begin(); }
-    const_iterator cend() const noexcept { end(); }
+        const_reference front() const noexcept { return operator[](0); }
 
-    const_reverse_iterator rbegin() const noexcept { return {end()}; }
-    const_reverse_iterator rend() const noexcept { return {begin()}; }
+        const_reference back() const noexcept { return operator[](size_ - 1); }
 
-    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-    const_reverse_iterator crend() const noexcept { return rend(); }
+        // Iterators
 
-    // Capacity
+        const_iterator begin() const noexcept { return iter_; }
 
-    bool empty() const noexcept { return size_ == 0; }
+        const_iterator end() const noexcept
+        {
+            return iter_ + static_cast<difference_type>(size_);
+        }
 
-    size_type size() const noexcept { return size_; }
+        const_iterator cbegin() const noexcept { begin(); }
+        const_iterator cend() const noexcept { end(); }
 
-    size_type max_size() const noexcept
-    {
-        return std::numeric_limits<size_type>::max() / sizeof(value_type);
-    }
+        const_reverse_iterator rbegin() const noexcept { return {end()}; }
+        const_reverse_iterator rend() const noexcept { return {begin()}; }
 
-  private:
-    size_type size_ = 0;
-    iterator iter_;
-};
+        const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+        const_reverse_iterator crend() const noexcept { return rend(); }
 
-template <typename T>
-class ArrayView<ListView<T>>
-{
-  public:
+        // Capacity
 
-    using value_type = ListView<T>;
+        bool empty() const noexcept { return size_ == 0; }
+
+        size_type size() const noexcept { return size_; }
+
+        size_type max_size() const noexcept
+        {
+            return std::numeric_limits<size_type>::max() / sizeof(value_type);
+        }
+
+      private:
+        size_type size_ = 0;
+        iterator iter_;
+    };
+
+    using value_type = view;
 
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -130,7 +129,7 @@ class ArrayView<ListView<T>>
     class iterator
     {
       public:
-        using value_type = ListView<T>;
+        using value_type = view;
         using difference_type = std::ptrdiff_t;
         using pointer = const value_type *;
         using reference = value_type;
@@ -293,7 +292,7 @@ class ArrayView<ListView<T>>
 
     const_reference operator[](size_type pos) const noexcept
     {
-        return ListView<T>(
+        return view(
             view_.begin() + offsets_[pos], view_.begin() + offsets_[pos + 1]);
     }
 

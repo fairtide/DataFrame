@@ -22,57 +22,57 @@
 namespace dataframe {
 
 template <typename... Types>
-class StructView : public StructBase
+class ArrayView<Struct<Types...>>
 {
   public:
-    using value_type = std::tuple<Types...>;
-
-    StructView(std::size_t pos, const std::tuple<ArrayView<Types>...> &views)
-        : pos_(pos)
-        , views_(views)
+    class view
     {
-    }
+      public:
+        using value_type =
+            std::tuple<typename ArrayView<Types>::value_type...>;
 
-    template <std::size_t N>
-    typename ArrayView<std::tuple_element_t<N, value_type>>::const_reference
-    get() const
-    {
-        return std::get<N>(views_)[pos_];
-    }
+        view(std::size_t pos, const std::tuple<ArrayView<Types>...> &views)
+            : pos_(pos)
+            , views_(views)
+        {
+        }
 
-    value_type get() const
-    {
-        value_type ret;
-        get_value<0>(ret, std::integral_constant<bool, 0 < nfields>());
+        template <std::size_t N>
+        typename ArrayView<FieldType<N, Types...>>::const_reference get() const
+        {
+            return std::get<N>(views_)[pos_];
+        }
 
-        return ret;
-    }
+        value_type get() const
+        {
+            value_type ret;
+            get_value<0>(ret, std::integral_constant<bool, 0 < nfields>());
 
-  private:
-    template <std::size_t N>
-    void get_value(value_type &ret, std::true_type) const
-    {
-        std::get<N>(ret) = get<N>();
-        get_value<N + 1>(ret, std::integral_constant<bool, N + 1 < nfields>());
-    }
+            return ret;
+        }
 
-    template <std::size_t>
-    void get_value(value_type &, std::false_type) const
-    {
-    }
+      private:
+        template <std::size_t N>
+        void get_value(value_type &ret, std::true_type) const
+        {
+            std::get<N>(ret) = get<N>();
+            get_value<N + 1>(
+                ret, std::integral_constant<bool, N + 1 < nfields>());
+        }
 
-  private:
-    static constexpr std::size_t nfields = sizeof...(Types);
+        template <std::size_t>
+        void get_value(value_type &, std::false_type) const
+        {
+        }
 
-    std::size_t pos_;
-    const std::tuple<ArrayView<Types>...> &views_;
-};
+      private:
+        static constexpr std::size_t nfields = sizeof...(Types);
 
-template <typename... Types>
-class ArrayView<StructView<Types...>>
-{
-  public:
-    using value_type = StructView<Types...>;
+        std::size_t pos_;
+        const std::tuple<ArrayView<Types>...> &views_;
+    };
+
+    using value_type = view;
 
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -83,7 +83,7 @@ class ArrayView<StructView<Types...>>
     class iterator
     {
       public:
-        using value_type = StructView<Types...>;
+        using value_type = view;
         using difference_type = std::ptrdiff_t;
         using pointer = const value_type *;
         using reference = value_type;
@@ -242,7 +242,7 @@ class ArrayView<StructView<Types...>>
 
     const_reference operator[](size_type pos) const noexcept
     {
-        return StructView<Types...>(pos, views_);
+        return view(pos, views_);
     }
 
     const_reference at(size_type pos) const
@@ -312,8 +312,7 @@ class ArrayView<StructView<Types...>>
         const ::arrow::StructType &type, std::true_type)
     {
         std::get<N>(views_) =
-            make_view<std::tuple_element_t<N, std::tuple<Types...>>>(
-                array.field(N));
+            make_view<FieldType<N, Types...>>(array.field(N));
 
         std::get<N>(names_) = std::string_view(type.child(N)->name());
 

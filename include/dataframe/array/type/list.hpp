@@ -24,7 +24,7 @@ namespace dataframe {
 struct ListBase {
 };
 
-template <typename T, typename Iter = const T *>
+template <typename T>
 struct List final : ListBase {
     using value_type = T;
 };

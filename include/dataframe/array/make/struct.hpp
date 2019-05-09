@@ -48,7 +48,7 @@ struct ArrayMaker<Struct<Types...>> {
         std::vector<std::shared_ptr<::arrow::Array>> &arrays, Iter first,
         Iter last, std::true_type)
     {
-        using T = std::tuple_element_t<N, std::tuple<Types...>>;
+        using T = FieldType<N, Types...>;
 
         constexpr std::integral_constant<std::size_t, N> index;
 
