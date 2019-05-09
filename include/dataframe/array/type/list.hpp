@@ -26,7 +26,7 @@ struct ListBase {
 
 template <typename T>
 struct List final : ListBase {
-    using value_type = T;
+    using data_type = T;
 };
 
 template <typename T>

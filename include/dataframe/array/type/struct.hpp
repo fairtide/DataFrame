@@ -27,7 +27,7 @@ struct StructBase {
 
 template <typename... Types>
 struct Struct final : StructBase {
-    using value_type = std::tuple<Types...>;
+    using data_type = std::tuple<Types...>;
 };
 
 template <std::size_t N, typename... Types>

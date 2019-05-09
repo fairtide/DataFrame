@@ -240,7 +240,7 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
     ::arrow::Status Visit(const ::arrow::ListType &type) final
     {
         if constexpr (std::is_base_of_v<ListBase, T>) {
-            result = is_type<typename T::value_type>(*type.value_type());
+            result = is_type<typename T::data_type>(*type.value_type());
         }
 
         return ::arrow::Status::OK();
@@ -249,7 +249,7 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
     ::arrow::Status Visit(const ::arrow::StructType &type) final
     {
         if constexpr (std::is_base_of_v<StructBase, T>) {
-            result = IsStrucType<typename T::value_type>::value(type);
+            result = IsStrucType<typename T::data_type>::value(type);
         }
 
         return ::arrow::Status::OK();
