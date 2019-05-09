@@ -87,17 +87,6 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
     }
 }
 
-template <typename T>
-struct TestEntry {
-    T value;
-    T get() const { return value; }
-};
-
-struct TestStruct {
-    TestEntry<double> float_entry;
-    TestEntry<int> int_entry;
-};
-
 TEST_CASE("Make String array", "[make_array]")
 {
     std::size_t n = 1000;
@@ -133,11 +122,29 @@ TEST_CASE("Make String array", "[make_array]")
     CHECK(pass);
 }
 
-DF_DEFINE_STRUCT_FIELD(
-    TestStruct, 0, "float", [](auto &&v) { return v.float_entry.get(); })
+template <typename T>
+struct TestEntry {
+    T value;
+    T get() const { return value; }
+};
 
-DF_DEFINE_STRUCT_FIELD(
-    TestStruct, 1, "int", [](auto &&v) { return v.int_entry.get(); })
+struct TestStruct {
+    template <typename RNG, typename Dist>
+    TestStruct(RNG &rng, Dist &dist)
+    {
+        float_entry.value = static_cast<double>(dist(rng));
+        int_entry.value = static_cast<int>(dist(rng));
+    }
+
+    TestEntry<double> float_entry;
+    TestEntry<int> int_entry;
+};
+
+DF_DEFINE_STRUCT_FIELD(TestStruct, 0, "float",
+    [](const TestStruct &v) { return v.float_entry.get(); })
+
+DF_DEFINE_STRUCT_FIELD(TestStruct, 1, "int",
+    [](const TestStruct &v) { return v.int_entry.get(); })
 
 TEST_CASE("Make Struct array", "[make_array]")
 {
@@ -145,11 +152,9 @@ TEST_CASE("Make Struct array", "[make_array]")
 
     std::mt19937_64 rng;
     std::uniform_int_distribution<> rval;
-    std::vector<TestStruct> values(n);
-
-    for (auto &v : values) {
-        v.float_entry.value = rval(rng);
-        v.int_entry.value = rval(rng);
+    std::vector<TestStruct> values;
+    for (std::size_t i = 0; i != n; ++i) {
+        values.emplace_back(rng, rval);
     }
 
     auto array_ptr =
@@ -222,4 +227,70 @@ TEST_CASE("Make List array", "[make_array]")
     CHECK(pass);
 }
 
-TEST_CASE("Make List<Struct> array", "[make_array]") {}
+TEST_CASE("Make List<Struct> array", "[make_array]")
+{
+    using T = std::pair<std::vector<TestStruct>, std::vector<TestStruct>>;
+
+    std::size_t n = 1000;
+
+    std::mt19937_64 rng;
+    std::uniform_int_distribution<> rval;
+    std::uniform_int_distribution<std::size_t> rsize(0, 100);
+    std::vector<T> values;
+
+    for (std::size_t i = 0; i != n; ++i) {
+        auto m1 = rsize(rng);
+        auto m2 = rsize(rng);
+        std::vector<TestStruct> list1;
+        std::vector<TestStruct> list2;
+        for (std::size_t j = 0; j != m1; ++j) {
+            list1.emplace_back(rng, rval);
+        }
+        for (std::size_t j = 0; j != m2; ++j) {
+            list2.emplace_back(rng, rval);
+        }
+        values.emplace_back(std::move(list1), std::move(list2));
+    }
+
+    auto array_ptr = ::dataframe::make_array<
+        ::dataframe::List<::dataframe::Struct<double, int>>>(
+        ::dataframe::field_iterator(values.begin(), &T::first),
+        ::dataframe::field_iterator(values.end(), &T::first));
+
+    auto &array = dynamic_cast<const ::arrow::ListArray &>(*array_ptr);
+
+    auto &array_values =
+        dynamic_cast<const ::arrow::StructArray &>(*array.values());
+
+    auto float_values_ptr = array_values.GetFieldByName("float");
+    auto int_values_ptr = array_values.GetFieldByName("int");
+
+    REQUIRE(float_values_ptr != nullptr);
+    REQUIRE(int_values_ptr != nullptr);
+
+    auto float_values =
+        dynamic_cast<const ::arrow::DoubleArray &>(*float_values_ptr)
+            .raw_values();
+
+    auto int_values =
+        dynamic_cast<const ::arrow::Int32Array &>(*int_values_ptr)
+            .raw_values();
+
+    bool pass = true;
+    for (std::size_t i = 0; i != n; ++i) {
+        auto &v = values[i].first;
+        auto j = static_cast<std::int64_t>(i);
+        auto first = array.value_offset(j);
+        auto last = first + array.value_length(j);
+        pass = pass &&
+            std::equal(float_values + first, float_values + last, v.begin(),
+                v.end(), [](auto &&v1, auto &&v2) {
+                    return v1 == v2.float_entry.value;
+                });
+        pass = pass &&
+            std::equal(int_values + first, int_values + last, v.begin(),
+                v.end(),
+                [](auto &&v1, auto &&v2) { return v1 == v2.int_entry.value; });
+    }
+    CHECK(pass);
+}

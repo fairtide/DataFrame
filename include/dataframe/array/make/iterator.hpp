@@ -20,19 +20,15 @@
 #include <iterator>
 #include <type_traits>
 
-#define DF_DEFINE_STRUCT_FIELD(T, I, name, getter)                                   \
+#define DF_DEFINE_STRUCT_FIELD(T, I, name, getter)                            \
     template <typename Iter>                                                  \
-    auto field_name(Iter, std::integral_constant<std::size_t, I>,             \
-        std::enable_if_t<std::is_same_v<T,                                    \
-            typename std::iterator_traits<Iter>::value_type>> * = nullptr)    \
+    auto field_name(Iter, std::integral_constant<std::size_t, I>)             \
     {                                                                         \
         return name;                                                          \
     }                                                                         \
                                                                               \
     template <typename Iter>                                                  \
-    auto field_iterator(Iter iter, std::integral_constant<std::size_t, I>,    \
-        std::enable_if_t<std::is_same_v<T,                                    \
-            typename std::iterator_traits<Iter>::value_type>> * = nullptr)    \
+    auto field_iterator(Iter iter, std::integral_constant<std::size_t, I>)    \
     {                                                                         \
         using ::dataframe::field_iterator;                                    \
         return field_iterator(iter, getter);                                  \
@@ -231,7 +227,8 @@ auto field_iterator(Iter iter, Member &&member,
 
 template <typename Iter, typename Getter>
 auto field_iterator(Iter iter, Getter &&getter,
-    std::enable_if_t<!std::is_member_pointer_v<Getter>> * = nullptr)
+    std::enable_if_t<!std::is_member_pointer_v<Getter> &&
+        std::is_invocable_v<Getter, decltype(*Iter())>> * = nullptr)
 {
     using Ref = decltype(getter(*iter));
 
