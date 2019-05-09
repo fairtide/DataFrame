@@ -142,21 +142,21 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
 
     ::arrow::Status Visit(const ::arrow::StringType &) final
     {
-        result = std::is_same_v<T, std::string_view>;
+        result = std::is_same_v<T, std::string>;
 
         return ::arrow::Status::OK();
     }
 
     ::arrow::Status Visit(const ::arrow::BinaryType &) final
     {
-        result = std::is_same_v<T, std::string_view>;
+        result = std::is_same_v<T, std::string>;
 
         return ::arrow::Status::OK();
     }
 
     ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &) final
     {
-        result = std::is_same_v<T, std::string_view>;
+        result = std::is_same_v<T, std::string>;
 
         return ::arrow::Status::OK();
     }
