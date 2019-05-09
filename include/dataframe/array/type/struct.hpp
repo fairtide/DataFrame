@@ -68,6 +68,7 @@ struct TypeTraits<Struct<Types...>> {
             ::arrow::default_memory_pool(), field_builders());
     }
 
+    using ctype = std::tuple<CType<Types>...>;
     using array_type = ::arrow::StructArray;
 
   private:

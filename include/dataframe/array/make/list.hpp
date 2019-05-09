@@ -27,20 +27,13 @@ struct ArrayMaker<List<T>> {
     template <typename Iter>
     static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
     {
-        using R = decltype(*std::begin(*first));
-
-        using U = std::remove_reference_t<R>;
-
-        using V =
-            std::conditional_t<std::is_reference_v<R> && std::is_class_v<U>,
-                std::reference_wrapper<U>, U>;
-
-        auto type = make_data_type<List<T>>();
+        using U = decltype(*std::begin(*first));
+        using V = std::remove_cv_t<std::remove_reference_t<U>>;
 
         auto length = static_cast<std::int64_t>(std::distance(first, last));
 
         std::unique_ptr<::arrow::Buffer> offsets;
-        std::vector<V, ::arrow::stl_allocator<V>> values;
+        std::vector<V, ::arrow::stl_allocator<V>> flat_values;
 
         DF_ARROW_ERROR_HANDLER(
             ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
@@ -57,13 +50,15 @@ struct ArrayMaker<List<T>> {
             auto end = std::end(*iter);
             auto count = static_cast<std::int32_t>(std::distance(begin, end));
             p[i + 1] = p[i] + count;
-            for (auto j = begin; j != end; ++j) {
-                values.emplace_back(*j);
-            }
+            flat_values.insert(flat_values.end(), begin, end);
         }
 
-        return std::make_shared<::arrow::ListArray>(type, length,
-            std::move(offsets), make_array<T>(values.begin(), values.end()));
+        auto values = make_array<T>(flat_values.begin(), flat_values.end());
+
+        auto type = ::arrow::list(values->type());
+
+        return std::make_shared<::arrow::ListArray>(
+            std::move(type), length, std::move(offsets), std::move(values));
     }
 };
 

@@ -31,15 +31,20 @@ struct DatetimeArrayMaker {
     {
         auto builder = make_builder<T>();
 
-        DF_ARROW_ERROR_HANDLER(
-            builder->AppendValues(field_iterator(first, &T::value),
-                field_iterator(last, &T::value)));
+        if constexpr (std::is_integral_v<
+                          typename std::iterator_traits<Iter>::value_type>) {
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
+        } else {
+            DF_ARROW_ERROR_HANDLER(
+                builder->AppendValues(field_iterator(first, &T::value),
+                    field_iterator(last, &T::value)));
+        }
 
         std::shared_ptr<::arrow::Array> ret;
         DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
 
         return ret;
-    }
+    } // namespace internal
 
   private:
 };

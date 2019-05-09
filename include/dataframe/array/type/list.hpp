@@ -44,6 +44,7 @@ struct TypeTraits<List<T>> {
             ::arrow::default_memory_pool(), make_builder<T>(), data_type());
     }
 
+    using ctype = std::vector<CType<T>>;
     using array_type = ::arrow::ListArray;
 };
 

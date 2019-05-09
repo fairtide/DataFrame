@@ -15,3 +15,8 @@
 # ============================================================================
 
 project(DataFrame-tests-serializer CXX)
+
+add_dataframe_test(bson
+    ${BSONCXX_LINK_LIBRARIES}
+    ${LZ4_LINK_LIBARIES}
+    ${LZ4_LINK_LIBRARIES})

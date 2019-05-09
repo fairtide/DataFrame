@@ -34,6 +34,7 @@ struct TypeTraits<std::string> {
             ::arrow::default_memory_pool());
     }
 
+    using ctype = std::string;
     using array_type = ::arrow::StringArray;
 };
 

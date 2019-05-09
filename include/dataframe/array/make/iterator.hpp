@@ -18,26 +18,34 @@
 #define DATAFRAME_ARRAY_MAKE_ITERATOR_HPP
 
 #include <iterator>
+#include <string>
 #include <type_traits>
 
-#define DF_DEFINE_STRUCT_FIELD(T, I, name, getter)                            \
+#define DF_DEFINE_STRUCT_FIELD(T, N, name, getter)                            \
     template <typename Iter>                                                  \
-    auto field_name(Iter, std::integral_constant<std::size_t, I>)             \
+    auto field_name(Iter, std::integral_constant<std::size_t, N>,             \
+        std::enable_if_t<std::is_constructible_v<T, decltype(*Iter())>> * =   \
+            nullptr)                                                          \
     {                                                                         \
         return name;                                                          \
     }                                                                         \
                                                                               \
     template <typename Iter>                                                  \
-    auto field_iterator(Iter iter, std::integral_constant<std::size_t, I>)    \
+    auto field_iterator(Iter iter, std::integral_constant<std::size_t, N>,    \
+        std::enable_if_t<std::is_constructible_v<T, decltype(*Iter())>> * =   \
+            nullptr)                                                          \
     {                                                                         \
         using ::dataframe::field_iterator;                                    \
         return field_iterator(iter, getter);                                  \
     }
 
-template <typename Iter, std::size_t N>
-auto field_name(Iter, std::integral_constant<std::size_t, N>);
-
 namespace dataframe {
+
+template <typename Iter, std::size_t N>
+auto field_name(Iter, std::integral_constant<std::size_t, N>)
+{
+    return "Field" + std::to_string(N);
+}
 
 template <typename Derived, typename Iter, typename Ref>
 class FieldIterator
@@ -245,6 +253,31 @@ auto field_iterator(Iter iter, Getter &&getter,
     };
 
     return iterator(iter, std::forward<Getter>(getter));
+}
+
+namespace internal {
+
+template <typename T>
+struct UnwrapReference {
+    using type = std::remove_reference_t<T>;
+};
+
+template <typename T>
+struct UnwrapReference<std::reference_wrapper<T>> {
+    using type = std::remove_reference_t<T>;
+};
+
+}; // namespace internal
+
+template <typename Iter, std::size_t N>
+auto field_iterator(Iter iter, std::integral_constant<std::size_t, N>)
+{
+    using T = typename internal::UnwrapReference<
+        typename std::iterator_traits<Iter>::value_type>::type;
+
+    using std::get;
+
+    return field_iterator(iter, [](const T &v) { return get<N>(v); });
 }
 
 } // namespace dataframe

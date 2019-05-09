@@ -156,6 +156,11 @@ class TypeWriter final : public ::arrow::TypeVisitor
         auto n = type.num_children();
         for (auto i = 0; i != n; ++i) {
             auto field = type.child(i);
+
+            if (field->name().empty()) {
+                throw DataFrameException("empty field name");
+            }
+
             ::bsoncxx::builder::basic::document field_builder;
             field_builder.append(kvp(Schema::NAME(), field->name()));
             TypeWriter writer(field_builder);

@@ -36,11 +36,6 @@ add_subdirectory(array)
 add_subdirectory(table)
 add_subdirectory(serializer)
 
-# add_dataframe_test(serializer_bson
-#     ${BSONCXX_LINK_LIBRARIES}
-#     ${LZ4_LINK_LIBARIES}
-#     ${LZ4_LINK_LIBRARIES})
-
 # find_program(Rscript_EXECUTABLE Rscript)
 
 # if (Rscript_EXECUTABLE)

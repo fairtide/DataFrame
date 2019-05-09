@@ -14,10 +14,10 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_SPLIT_HPP
-#define DATAFRAME_SPLIT_HPP
+#ifndef DATAFRAME_TABLE_SPLIT_HPP
+#define DATAFRAME_TABLE_SPLIT_HPP
 
-#include <dataframe/data_frame.hpp>
+#include <dataframe/table/data_frame.hpp>
 
 namespace dataframe {
 
@@ -88,4 +88,4 @@ inline std::vector<DataFrame> split_rows(
 
 } // namespace dataframe
 
-#endif // DATAFRAME_SPLIT_HPP
+#endif // DATAFRAME_TABLE_SPLIT_HPP
