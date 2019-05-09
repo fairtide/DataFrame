@@ -21,114 +21,13 @@
 
 namespace dataframe {
 
-class ListBase
-{
+struct ListBase {
 };
 
 template <typename T, typename Iter = const T *>
-class List final : public ListBase
-{
-  public:
+struct List final : ListBase {
     using value_type = T;
-
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-
-    using reference = typename std::iterator_traits<Iter>::reference;
-    using const_reference = reference;
-
-    using pointer = const value_type *;
-    using const_pointer = pointer;
-
-    using iterator = Iter;
-    using const_iterator = iterator;
-
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = reverse_iterator;
-
-    List() noexcept = default;
-
-    List(size_type size, iterator iter) noexcept
-        : size_(size)
-        , iter_(iter)
-    {
-    }
-
-    List(iterator begin, iterator end) noexcept
-        : size_(static_cast<size_type>(std::distance(begin, end)))
-        , iter_(begin)
-    {
-    }
-
-    List(const List &) = default;
-    List(List &&) noexcept = default;
-
-    List &operator=(const List &) = default;
-    List &operator=(List &&) noexcept = default;
-
-    const_reference operator[](size_type pos) const noexcept
-    {
-        return iter_[pos];
-    }
-
-    const_reference at(size_type pos) const
-    {
-        if (pos >= size_) {
-            throw std::out_of_range("dataframe::List::at");
-        }
-
-        return operator[](pos);
-    }
-
-    const_reference front() const noexcept { return operator[](0); }
-
-    const_reference back() const noexcept { return operator[](size_ - 1); }
-
-    // Iterators
-
-    const_iterator begin() const noexcept { return iter_; }
-
-    const_iterator end() const noexcept
-    {
-        return iter_ + static_cast<difference_type>(size_);
-    }
-
-    const_iterator cbegin() const noexcept { begin(); }
-    const_iterator cend() const noexcept { end(); }
-
-    const_reverse_iterator rbegin() const noexcept { return {end()}; }
-    const_reverse_iterator rend() const noexcept { return {begin()}; }
-
-    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-    const_reverse_iterator crend() const noexcept { return rend(); }
-
-    // Capacity
-
-    bool empty() const noexcept { return size_ == 0; }
-
-    size_type size() const noexcept { return size_; }
-
-    size_type max_size() const noexcept
-    {
-        return std::numeric_limits<size_type>::max() / sizeof(value_type);
-    }
-
-  private:
-    size_type size_ = 0;
-    iterator iter_;
 };
-
-template <typename T>
-bool operator==(const List<T> &v1, const List<T> &v2)
-{
-    return std::equal(v1.begin(), v1.end(), v2.begin(), v2.end());
-}
-
-template <typename T>
-bool operator!=(const List<T> &v1, const List<T> &v2)
-{
-    return !(v1 == v2);
-}
 
 template <typename T>
 struct TypeTraits<List<T>> {

@@ -22,16 +22,12 @@
 
 namespace dataframe {
 
-class StructBase
-{
+struct StructBase {
 };
 
 template <typename... Types>
-class Struct : public StructBase
-{
-  public:
+struct Struct final : StructBase {
     using value_type = std::tuple<Types...>;
-    // TODO
 };
 
 template <typename... Types>

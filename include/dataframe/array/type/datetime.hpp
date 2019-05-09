@@ -45,10 +45,10 @@ inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
     return 1;
 }
 
-template <typename ArowType>
+template <typename ArrowType>
 struct TimeType {
-    using arrow_type = ArowType;
-    using value_type = typename ArowType::c_type;
+    using arrow_type = ArrowType;
+    using value_type = typename ArrowType::c_type;
 
     value_type value;
 

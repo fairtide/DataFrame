@@ -22,7 +22,97 @@
 namespace dataframe {
 
 template <typename T>
-using ListView = List<T, typename ArrayView<T>::iterator>;
+class ListView final : public ListBase
+{
+  public:
+    using value_type = typename ArrayView<T>::value_type;
+
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+
+    using reference = typename ArrayView<T>::reference;
+    using const_reference = typename ArrayView<T>::const_reference;
+
+    using pointer = typename ArrayView<T>::pointer;
+    using const_pointer = typename ArrayView<T>::const_pointer;
+
+    using iterator = typename ArrayView<T>::iterator;
+    using const_iterator = typename ArrayView<T>::const_iterator;
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = reverse_iterator;
+
+    ListView() noexcept = default;
+
+    ListView(size_type size, iterator iter) noexcept
+        : size_(size)
+        , iter_(iter)
+    {
+    }
+
+    ListView(iterator begin, iterator end) noexcept
+        : size_(static_cast<size_type>(std::distance(begin, end)))
+        , iter_(begin)
+    {
+    }
+
+    ListView(const ListView &) = default;
+    ListView(ListView &&) noexcept = default;
+
+    ListView &operator=(const ListView &) = default;
+    ListView &operator=(ListView &&) noexcept = default;
+
+    const_reference operator[](size_type pos) const noexcept
+    {
+        return iter_[pos];
+    }
+
+    const_reference at(size_type pos) const
+    {
+        if (pos >= size_) {
+            throw std::out_of_range("dataframe::ListView::at");
+        }
+
+        return operator[](pos);
+    }
+
+    const_reference front() const noexcept { return operator[](0); }
+
+    const_reference back() const noexcept { return operator[](size_ - 1); }
+
+    // Iterators
+
+    const_iterator begin() const noexcept { return iter_; }
+
+    const_iterator end() const noexcept
+    {
+        return iter_ + static_cast<difference_type>(size_);
+    }
+
+    const_iterator cbegin() const noexcept { begin(); }
+    const_iterator cend() const noexcept { end(); }
+
+    const_reverse_iterator rbegin() const noexcept { return {end()}; }
+    const_reverse_iterator rend() const noexcept { return {begin()}; }
+
+    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+    const_reverse_iterator crend() const noexcept { return rend(); }
+
+    // Capacity
+
+    bool empty() const noexcept { return size_ == 0; }
+
+    size_type size() const noexcept { return size_; }
+
+    size_type max_size() const noexcept
+    {
+        return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
+
+  private:
+    size_type size_ = 0;
+    iterator iter_;
+};
 
 template <typename T>
 class ArrayView<ListView<T>>
