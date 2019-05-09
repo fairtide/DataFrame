@@ -21,21 +21,14 @@
 
 namespace dataframe {
 
-namespace internal {
-
-template <typename T, typename Iter>
-struct ListArrayMaker<T> : ::arrow::TypeVisitor {
-    Iter first;
-    Iter last;
-};
-
-} // namespace internal
-
 template <typename T>
 struct ArrayMaker<List<T>> {
     template <typename Iter>
     static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
     {
+        class itetrator
+        {
+        };
     }
 };
 

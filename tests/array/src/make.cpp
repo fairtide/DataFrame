@@ -99,6 +99,42 @@ struct TestStruct {
     TestEntry<int> int_entry;
 };
 
+TEST_CASE("Make String array", "[make_array]")
+{
+    std::size_t n = 1000;
+
+    std::mt19937_64 rng;
+    std::uniform_int_distribution<char> rchar;
+    std::uniform_int_distribution<std::size_t> rsize(0, 100);
+    std::vector<char> buf;
+    std::vector<std::string> values;
+
+    auto setbuf = [&]() {
+        buf.resize(rsize(rng));
+        for (auto &c : buf) {
+            c = rchar(rng);
+        }
+    };
+
+    for (std::size_t i = 0; i != n; ++i) {
+        setbuf();
+        values.emplace_back(buf.data(), buf.size());
+    }
+
+    auto array_ptr =
+        ::dataframe::make_array<std::string>(values.begin(), values.end());
+
+    auto &array = dynamic_cast<const ::arrow::StringArray &>(*array_ptr);
+
+    bool pass = true;
+    for (std::size_t i = 0; i != n; ++i) {
+        pass =
+            pass && values[i] == array.GetView(static_cast<std::int64_t>(i));
+    }
+
+    CHECK(pass);
+}
+
 DF_DEFINE_STRUCT_FIELD(
     TestStruct, 0, "float", [](auto &&v) { return v.float_entry.get(); })
 
@@ -108,9 +144,11 @@ DF_DEFINE_STRUCT_FIELD(
 TEST_CASE("Make Struct array", "[make_array]")
 {
     std::size_t n = 1000;
+
     std::mt19937_64 rng;
     std::uniform_int_distribution<> rval;
     std::vector<TestStruct> values(n);
+
     for (auto &v : values) {
         v.float_entry.value = rval(rng);
         v.int_entry.value = rval(rng);

@@ -29,7 +29,7 @@ struct ArrayMaker<std::string> {
         auto builder = make_builder<std::string>();
 
         for (auto iter = first; iter != last; ++iter) {
-            DF_ARROW_ERROR_HANDLER(builder.Append(std::string_view(*iter)));
+            DF_ARROW_ERROR_HANDLER(builder->Append(std::string_view(*iter)));
         }
 
         std::shared_ptr<::arrow::Array> ret;
