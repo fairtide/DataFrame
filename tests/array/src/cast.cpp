@@ -76,18 +76,18 @@ DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>)
     TEST_CASE("Cast for " #T, "[cast_array]")                                 \
     {                                                                         \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>)         \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Second>)              \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>)    \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Millisecond>)         \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>)    \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Microsecond>)         \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)     \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)          \
     }
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Second>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Millisecond>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Microsecond>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 #undef DEFINE_TEST_CASE
 
 TEST_CASE("Cast nested", "[cast_array]")

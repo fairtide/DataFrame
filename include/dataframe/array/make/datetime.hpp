@@ -62,8 +62,7 @@ struct ArrayMaker<Timestamp<Unit>>
 };
 
 template <TimeUnit Unit>
-struct ArrayMaker<TimeOfDay<Unit>>
-    : internal::DatetimeArrayMaker<TimeOfDay<Unit>> {
+struct ArrayMaker<Time<Unit>> : internal::DatetimeArrayMaker<Time<Unit>> {
 };
 
 } // namespace dataframe

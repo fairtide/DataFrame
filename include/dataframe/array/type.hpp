@@ -179,10 +179,10 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
     {
         switch (type.unit()) {
             case ::arrow::TimeUnit::SECOND:
-                result = std::is_same_v<T, TimeOfDay<TimeUnit::Second>>;
+                result = std::is_same_v<T, Time<TimeUnit::Second>>;
                 break;
             case ::arrow::TimeUnit::MILLI:
-                result = std::is_same_v<T, TimeOfDay<TimeUnit::Millisecond>>;
+                result = std::is_same_v<T, Time<TimeUnit::Millisecond>>;
                 break;
             case ::arrow::TimeUnit::MICRO:
                 break;
@@ -201,10 +201,10 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
             case ::arrow::TimeUnit::MILLI:
                 break;
             case ::arrow::TimeUnit::MICRO:
-                result = std::is_same_v<T, TimeOfDay<TimeUnit::Microsecond>>;
+                result = std::is_same_v<T, Time<TimeUnit::Microsecond>>;
                 break;
             case ::arrow::TimeUnit::NANO:
-                result = std::is_same_v<T, TimeOfDay<TimeUnit::Nanosecond>>;
+                result = std::is_same_v<T, Time<TimeUnit::Nanosecond>>;
                 break;
         }
 

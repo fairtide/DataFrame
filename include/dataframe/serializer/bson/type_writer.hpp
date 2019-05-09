@@ -60,34 +60,71 @@ class TypeWriter final : public ::arrow::TypeVisitor
 
 #undef DF_DEFINE_VISITOR
 
-#define DF_DEFINE_VISITOR(TypeName, prefix)                                   \
-    ::arrow::Status Visit(const ::arrow::TypeName##Type &type) final          \
-    {                                                                         \
-        using ::bsoncxx::builder::basic::kvp;                                 \
-                                                                              \
-        switch (type.unit()) {                                                \
-            case ::arrow::TimeUnit::SECOND:                                   \
-                builder_.append(kvp(Schema::TYPE(), prefix "[s]"));           \
-                break;                                                        \
-            case ::arrow::TimeUnit::MILLI:                                    \
-                builder_.append(kvp(Schema::TYPE(), prefix "[ms]"));          \
-                break;                                                        \
-            case ::arrow::TimeUnit::MICRO:                                    \
-                builder_.append(kvp(Schema::TYPE(), prefix "[us]"));          \
-                break;                                                        \
-            case ::arrow::TimeUnit::NANO:                                     \
-                builder_.append(kvp(Schema::TYPE(), prefix "[ns]"));          \
-                break;                                                        \
-        }                                                                     \
-                                                                              \
-        return ::arrow::Status::OK();                                         \
+    ::arrow::Status Visit(const ::arrow::TimestampType &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        switch (type.unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                builder_.append(kvp(Schema::TYPE(), "timestamp[s]"));
+                break;
+            case ::arrow::TimeUnit::MILLI:
+                builder_.append(kvp(Schema::TYPE(), "timestamp[ms]"));
+                break;
+            case ::arrow::TimeUnit::MICRO:
+                builder_.append(kvp(Schema::TYPE(), "timestamp[us]"));
+                break;
+            case ::arrow::TimeUnit::NANO:
+                builder_.append(kvp(Schema::TYPE(), "timestamp[ns]"));
+                break;
+        }
+
+        return ::arrow::Status::OK();
     }
 
-    DF_DEFINE_VISITOR(Timestamp, "timestamp")
-    DF_DEFINE_VISITOR(Time32, "time32")
-    DF_DEFINE_VISITOR(Time64, "time64")
+    ::arrow::Status Visit(const ::arrow::Time32Type &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
 
-#undef DF_DEFINE_VISITOR
+        switch (type.unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                builder_.append(kvp(Schema::TYPE(), "time[s]"));
+                break;
+            case ::arrow::TimeUnit::MILLI:
+                builder_.append(kvp(Schema::TYPE(), "time[ms]"));
+                break;
+            case ::arrow::TimeUnit::MICRO:
+                throw DataFrameException("Unexpected Time32 unit");
+                break;
+            case ::arrow::TimeUnit::NANO:
+                throw DataFrameException("Unexpected Time32 unit");
+                break;
+        }
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::Time64Type &type) final
+    {
+        using ::bsoncxx::builder::basic::kvp;
+
+        switch (type.unit()) {
+            case ::arrow::TimeUnit::SECOND:
+                throw DataFrameException("Unexpected Time64 unit");
+                break;
+            case ::arrow::TimeUnit::MILLI:
+                throw DataFrameException("Unexpected Time64 unit");
+                break;
+            case ::arrow::TimeUnit::MICRO:
+                builder_.append(kvp(Schema::TYPE(), "time[us]"));
+                break;
+            case ::arrow::TimeUnit::NANO:
+                builder_.append(kvp(Schema::TYPE(), "time[ns]"));
+                break;
+        }
+
+        return ::arrow::Status::OK();
+    }
 
     // ::arrow::Status Visit(const ::arrow::IntervalType &type) final
     // {

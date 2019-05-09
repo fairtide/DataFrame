@@ -55,13 +55,13 @@
         DEFINE_TEST_SECTION(                                                  \
             T, ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>)     \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>)         \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Second>)              \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>)    \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Millisecond>)         \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>)    \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Microsecond>)         \
         DEFINE_TEST_SECTION(                                                  \
-            T, ::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)     \
+            T, ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)          \
         DEFINE_TEST_SECTION(T, std::string)                                   \
         DEFINE_TEST_SECTION(T, ::dataframe::List<int>)                        \
         DEFINE_TEST_SECTION(T, ::dataframe::Struct<int>)                      \
@@ -86,10 +86,10 @@ DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Second>)
 DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>)
 DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>)
 DEFINE_TEST_CASE(::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Microsecond>)
-DEFINE_TEST_CASE(::dataframe::TimeOfDay<::dataframe::TimeUnit::Nanosecond>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Second>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Millisecond>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Microsecond>)
+DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 DEFINE_TEST_CASE(std::string)
 DEFINE_TEST_CASE(::dataframe::List<int>)
 DEFINE_TEST_CASE(::dataframe::Struct<int>)

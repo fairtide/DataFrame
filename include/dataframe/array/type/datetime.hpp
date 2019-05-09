@@ -127,28 +127,28 @@ struct Timestamp : TimeType<::arrow::TimestampType> {
 };
 
 template <TimeUnit>
-struct TimeOfDay;
+struct Time;
 
 template <>
-struct TimeOfDay<TimeUnit::Second> : TimeType<::arrow::Time32Type> {
+struct Time<TimeUnit::Second> : TimeType<::arrow::Time32Type> {
     static constexpr TimeUnit unit = TimeUnit::Second;
     using TimeType<::arrow::Time32Type>::TimeType;
 };
 
 template <>
-struct TimeOfDay<TimeUnit::Millisecond> : TimeType<::arrow::Time32Type> {
+struct Time<TimeUnit::Millisecond> : TimeType<::arrow::Time32Type> {
     static constexpr TimeUnit unit = TimeUnit::Millisecond;
     using TimeType<::arrow::Time32Type>::TimeType;
 };
 
 template <>
-struct TimeOfDay<TimeUnit::Microsecond> : TimeType<::arrow::Time64Type> {
+struct Time<TimeUnit::Microsecond> : TimeType<::arrow::Time64Type> {
     static constexpr TimeUnit unit = TimeUnit::Microsecond;
     using TimeType<::arrow::Time64Type>::TimeType;
 };
 
 template <>
-struct TimeOfDay<TimeUnit::Nanosecond> : TimeType<::arrow::Time64Type> {
+struct Time<TimeUnit::Nanosecond> : TimeType<::arrow::Time64Type> {
     static constexpr TimeUnit unit = TimeUnit::Nanosecond;
     using TimeType<::arrow::Time64Type>::TimeType;
 };
@@ -206,7 +206,7 @@ struct TypeTraits<Timestamp<Unit>> {
 };
 
 template <>
-struct TypeTraits<TimeOfDay<TimeUnit::Second>> {
+struct TypeTraits<Time<TimeUnit::Second>> {
     static std::shared_ptr<::arrow::Time32Type> data_type()
     {
         return std::make_shared<::arrow::Time32Type>(
@@ -224,7 +224,7 @@ struct TypeTraits<TimeOfDay<TimeUnit::Second>> {
 };
 
 template <>
-struct TypeTraits<TimeOfDay<TimeUnit::Millisecond>> {
+struct TypeTraits<Time<TimeUnit::Millisecond>> {
     static std::shared_ptr<::arrow::Time32Type> data_type()
     {
         return std::make_shared<::arrow::Time32Type>(::arrow::TimeUnit::MILLI);
@@ -241,7 +241,7 @@ struct TypeTraits<TimeOfDay<TimeUnit::Millisecond>> {
 };
 
 template <>
-struct TypeTraits<TimeOfDay<TimeUnit::Microsecond>> {
+struct TypeTraits<Time<TimeUnit::Microsecond>> {
     static std::shared_ptr<::arrow::Time64Type> data_type()
     {
         return std::make_shared<::arrow::Time64Type>(::arrow::TimeUnit::MICRO);
@@ -258,7 +258,7 @@ struct TypeTraits<TimeOfDay<TimeUnit::Microsecond>> {
 };
 
 template <>
-struct TypeTraits<TimeOfDay<TimeUnit::Nanosecond>> {
+struct TypeTraits<Time<TimeUnit::Nanosecond>> {
     static std::shared_ptr<::arrow::Time64Type> data_type()
     {
         return std::make_shared<::arrow::Time64Type>(::arrow::TimeUnit::NANO);

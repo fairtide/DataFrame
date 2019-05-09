@@ -131,7 +131,7 @@ struct CastArrayVisitor<Timestamp<Unit>> final : ::arrow::ArrayVisitor {
 };
 
 template <TimeUnit Unit>
-struct CastArrayVisitor<TimeOfDay<Unit>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Time<Unit>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
@@ -141,12 +141,12 @@ struct CastArrayVisitor<TimeOfDay<Unit>> final : ::arrow::ArrayVisitor {
 
     ::arrow::Status Visit(const ::arrow::Time32Array &array) final
     {
-        return internal::cast_time_array<TimeOfDay<Unit>>(array, result);
+        return internal::cast_time_array<Time<Unit>>(array, result);
     }
 
     ::arrow::Status Visit(const ::arrow::Time64Array &array) final
     {
-        return internal::cast_time_array<TimeOfDay<Unit>>(array, result);
+        return internal::cast_time_array<Time<Unit>>(array, result);
     }
 };
 

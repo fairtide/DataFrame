@@ -28,8 +28,8 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Second>,
-    ::dataframe::TimeOfDay<::dataframe::TimeUnit::Millisecond>, std::string)
+    ::dataframe::Time<::dataframe::TimeUnit::Second>,
+    ::dataframe::Time<::dataframe::TimeUnit::Millisecond>, std::string)
 {
     // TODO void, bool, Dict, Decimal, FixedBinary
 
