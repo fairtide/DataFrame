@@ -17,8 +17,10 @@
 #ifndef DATAFRAME_ARRAY_CAST_HPP
 #define DATAFRAME_ARRAY_CAST_HPP
 
+#include <dataframe/array/cast/bool.hpp>
 #include <dataframe/array/cast/datetime.hpp>
 #include <dataframe/array/cast/list.hpp>
+#include <dataframe/array/cast/null.hpp>
 #include <dataframe/array/cast/primitive.hpp>
 #include <dataframe/array/cast/string.hpp>
 #include <dataframe/array/cast/struct.hpp>

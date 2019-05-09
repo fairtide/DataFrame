@@ -22,7 +22,8 @@
 namespace dataframe {
 
 template <>
-struct CastArrayVisitor<Date32> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Datestamp<DateUnit::Day>> final
+    : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
@@ -37,7 +38,8 @@ struct CastArrayVisitor<Date32> final : ::arrow::ArrayVisitor {
 };
 
 template <>
-struct CastArrayVisitor<Date64> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Datestamp<DateUnit::Millisecond>> final
+    : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
@@ -49,7 +51,9 @@ struct CastArrayVisitor<Date64> final : ::arrow::ArrayVisitor {
     {
         return ::arrow::Status::OK();
     }
-}; // namespace internal
+};
+
+namespace internal {
 
 template <typename T>
 struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
@@ -65,8 +69,9 @@ struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
         using U = typename T::value_type;
 
         auto &type = static_cast<typename T::arrow_type &>(*array.type());
+        auto unit = static_cast<TimeUnit>(type.unit());
 
-        if (type.unit() == T::unit) {
+        if (unit == T::unit) {
             return ::arrow::Status::OK();
         }
 
@@ -81,7 +86,7 @@ struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
         auto values = reinterpret_cast<U *>(
             dynamic_cast<::arrow::MutableBuffer &>(*buf).mutable_data());
 
-        auto from_nanos = time_unit_nanos(type.unit());
+        auto from_nanos = time_unit_nanos(unit);
         auto to_nanos = time_unit_nanos(T::unit);
 
         if (from_nanos > to_nanos) {
@@ -117,22 +122,25 @@ struct CastTimeArrayVisitor : public ::arrow::ArrayVisitor {
     }
 };
 
-template <::arrow::TimeUnit::type Unit>
+} // namespace internal
+
+template <TimeUnit Unit>
 struct CastArrayVisitor<Timestamp<Unit>> final
-    : public CastTimeArrayVisitor<Timestamp<Unit>> {
-    using CastTimeArrayVisitor<Timestamp<Unit>>::CastTimeArrayVisitor;
+    : public internal::CastTimeArrayVisitor<Timestamp<Unit>> {
+    using internal::CastTimeArrayVisitor<
+        Timestamp<Unit>>::CastTimeArrayVisitor;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct CastArrayVisitor<Time32<Unit>> final
-    : public CastTimeArrayVisitor<Time32<Unit>> {
-    using CastTimeArrayVisitor<Time32<Unit>>::CastTimeArrayVisitor;
+    : public internal::CastTimeArrayVisitor<Time32<Unit>> {
+    using internal::CastTimeArrayVisitor<Time32<Unit>>::CastTimeArrayVisitor;
 };
 
-template <::arrow::TimeUnit::type Unit>
+template <TimeUnit Unit>
 struct CastArrayVisitor<Time64<Unit>> final
-    : public CastTimeArrayVisitor<Time64<Unit>> {
-    using CastTimeArrayVisitor<Time64<Unit>>::CastTimeArrayVisitor;
+    : public internal::CastTimeArrayVisitor<Time64<Unit>> {
+    using internal::CastTimeArrayVisitor<Time64<Unit>>::CastTimeArrayVisitor;
 };
 
 } // namespace dataframe

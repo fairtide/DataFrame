@@ -21,27 +21,21 @@
 
 namespace dataframe {
 
-#define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
-    template <>                                                               \
-    struct TypeTraits<T> {                                                    \
-        static std::shared_ptr<::arrow::Arrow##Type> data_type()              \
-        {                                                                     \
-            return std::make_shared<::arrow::Arrow##Type>();                  \
-        }                                                                     \
-                                                                              \
-        static std::unique_ptr<::arrow::Arrow##Builder> builder()             \
-        {                                                                     \
-            return std::make_unique<::arrow::Arrow##Builder>(                 \
-                ::arrow::default_memory_pool());                              \
-        }                                                                     \
-                                                                              \
-        using array_type = ::arrow::Arrow##Array;                             \
-    };
+template <>
+struct TypeTraits<std::string> {
+    static std::shared_ptr<::arrow::StringType> data_type()
+    {
+        return std::make_shared<::arrow::StringType>();
+    }
 
-DF_DEFINE_TYPE_TRAITS(std::string, String)
-DF_DEFINE_TYPE_TRAITS(std::string_view, String)
+    static std::unique_ptr<::arrow::StringBuilder> builder()
+    {
+        return std::make_unique<::arrow::StringBuilder>(
+            ::arrow::default_memory_pool());
+    }
 
-#undef DF_DEFINE_TYPE_TRAITS
+    using array_type = ::arrow::StringArray;
+};
 
 } // namespace dataframe
 

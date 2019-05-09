@@ -64,7 +64,8 @@ struct TypeTraits<Struct<Types...>> {
     static std::unique_ptr<::arrow::StructBuilder> builder(Args &&... args)
     {
         return std::make_unique<::arrow::StructBuilder>(
-            data_type(std::forward<Args>(args)...), field_builders());
+            data_type(std::forward<Args>(args)...),
+            ::arrow::default_memory_pool(), field_builders());
     }
 
     using array_type = ::arrow::StructArray;
@@ -108,6 +109,8 @@ struct TypeTraits<Struct<Types...>> {
     {
         std::vector<std::shared_ptr<::arrow::ArrayBuilder>> builders;
         set_builder<0>(builders, std::integral_constant<bool, 0 < nfields>());
+
+        return builders;
     }
 
     template <std::size_t>

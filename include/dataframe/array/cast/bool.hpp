@@ -14,15 +14,15 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_CAST_LIST_HPP
-#define DATAFRAME_ARRAY_CAST_LIST_HPP
+#ifndef DATAFRAME_ARRAY_CAST_BOOL_HPP
+#define DATAFRAME_ARRAY_CAST_BOOL_HPP
 
 #include <dataframe/array/cast/primitive.hpp>
 
 namespace dataframe {
 
-template <typename T>
-struct CastArrayVisitor<List<T>> final : ::arrow::ArrayVisitor {
+template <>
+struct CastArrayVisitor<bool> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
@@ -30,22 +30,12 @@ struct CastArrayVisitor<List<T>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::ListArray &array) final
+    ::arrow::Status Visit(const ::arrow::BooleanArray &) final
     {
-        // TODO offsets and nulls
-
-        auto data = array.data()->Copy();
-
-        data->child_data.at(0) = cast_array<T>(array.values())->data()->Copy();
-
-        data->type = ::arrow::list(data->child_data.at(0)->type);
-
-        result = ::arrow::MakeArray(std::move(data));
-
         return ::arrow::Status::OK();
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_CAST_LIST_HPP
+#endif // DATAFRAME_ARRAY_CAST_BOOL_HPP

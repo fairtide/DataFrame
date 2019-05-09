@@ -32,12 +32,54 @@ struct CastArrayVisitor<Struct<Types...>> final : ::arrow::ArrayVisitor {
 
     ::arrow::Status Visit(const ::arrow::StructArray &array) final
     {
+        auto &type = static_cast<const ::arrow::StructType &>(*array.type());
+
+        if (nfields != type.num_children()) {
+            throw DataFrameException("Structure of wrong size");
+        }
+
         auto data = array.data()->Copy();
-        data->child_data.at(0) = cast_array<T>(data.child_data.at(0));
-        dta->type = ::arrow::list_(data.child_data.at(0)->type());
+        std::vector<std::shared_ptr<::arrow::Field>> fields;
+        std::vector<std::shared_ptr<::arrow::ArrayData>> children;
+
+        cast<0>(array, type, fields, children,
+            std::integral_constant<bool, 0 < nfields>());
+
+        data->child_data = std::move(children);
+
+        data->type = ::arrow::struct_(fields);
+
         result = ::arrow::MakeArray(std::move(data));
 
         return ::arrow::Status::OK();
+    }
+
+  private:
+    static constexpr std::size_t nfields = sizeof...(Types);
+
+    template <std::size_t N>
+    void cast(const ::arrow::StructArray &array,
+        const ::arrow::StructType &type,
+        std::vector<std::shared_ptr<::arrow::Field>> &fields,
+        std::vector<std::shared_ptr<::arrow::ArrayData>> &children,
+        std::true_type)
+    {
+        children.push_back(cast_array<FieldType<N, Types...>>(array.field(N))
+                               ->data()
+                               ->Copy());
+
+        fields.push_back(
+            ::arrow::field(type.child(N)->name(), children.back()->type));
+
+        cast<N + 1>(array, type, fields, children,
+            std::integral_constant<bool, N + 1 < nfields>());
+    }
+
+    template <std::size_t>
+    void cast(const ::arrow::StructArray &, const ::arrow::StructType &,
+        std::vector<std::shared_ptr<::arrow::Field>> &,
+        std::vector<std::shared_ptr<::arrow::ArrayData>> &, std::false_type)
+    {
     }
 };
 

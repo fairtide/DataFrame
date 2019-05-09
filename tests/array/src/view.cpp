@@ -205,7 +205,7 @@ struct TestData<::dataframe::Struct<Args...>>
 };
 
 template <>
-struct TestData<std::string_view> : TestDataBase<std::string> {
+struct TestData<std::string> : TestDataBase<std::string> {
     TestData(std::size_t n = 0, bool nullable = false)
         : TestDataBase<std::string>(n, nullable)
     {
@@ -261,7 +261,7 @@ TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
     ::dataframe::Time64<::dataframe::TimeUnit::Second>,
     ::dataframe::Time64<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time64<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>, std::string_view,
+    ::dataframe::Time64<::dataframe::TimeUnit::Nanosecond>, std::string,
     ::dataframe::List<int>, (::dataframe::Struct<int, double>),
     (::dataframe::List<::dataframe::Struct<int, double>>),
     (::dataframe::Struct<::dataframe::List<int>, double>) )

@@ -81,7 +81,7 @@ inline std::shared_ptr<::arrow::Array> cast_array(
     std::shared_ptr<::arrow::Array> data)
 {
     if (is_type<T>(data)) {
-        return std::move(data);
+        return data;
     }
 
     CastArrayVisitor<T> visitor(std::move(data));

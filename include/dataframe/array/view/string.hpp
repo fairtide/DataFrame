@@ -22,7 +22,7 @@
 namespace dataframe {
 
 template <>
-class ArrayView<std::string_view>
+class ArrayView<std::string>
 {
   public:
     using value_type = std::string_view;
