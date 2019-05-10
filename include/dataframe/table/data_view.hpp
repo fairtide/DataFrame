@@ -14,10 +14,10 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_DATA_VIEW_HPP
-#define DATAFRAME_DATA_VIEW_HPP
+#ifndef DATAFRAME_TABLE_DATA_VIEW_HPP
+#define DATAFRAME_TABLE_DATA_VIEW_HPP
 
-#include <dataframe/data_frame.hpp>
+#include <dataframe/table/data_frame.hpp>
 
 namespace dataframe {
 
@@ -194,6 +194,12 @@ class DataView
     const Proxy proxy_;
 };
 
+template <typename Proxy>
+inline DataView<Proxy> make_view(::dataframe::DataFrame data)
+{
+    return DataView<Proxy>(std::move(data));
+}
+
 } // namespace dataframe
 
-#endif // DATAFRAME_DATA_VIEW_HPP
+#endif // DATAFRAME_TABLE_DATA_VIEW_HPP

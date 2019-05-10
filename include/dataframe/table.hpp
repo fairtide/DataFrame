@@ -20,6 +20,7 @@
 #include <dataframe/table/bind.hpp>
 #include <dataframe/table/column.hpp>
 #include <dataframe/table/data_frame.hpp>
+#include <dataframe/table/data_view.hpp>
 #include <dataframe/table/split.hpp>
 
 #endif // DATAFRAME_TABLE_HPP
