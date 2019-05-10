@@ -25,6 +25,61 @@
 
 #include <catch2/catch.hpp>
 
+struct RowOutput {
+    RowOutput() = default;
+
+    ~RowOutput()
+    {
+        ::dataframe::JSONRowWriter writer("data");
+
+        writer.write(data.rows(0, 6));
+        auto json_str = writer.str();
+
+        ::rapidjson::Document json_doc;
+        json_doc.Parse(json_str.c_str());
+
+        ::rapidjson::StringBuffer json_buffer;
+        ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
+            json_buffer);
+        json_doc.Accept(json_writer);
+
+        std::ofstream out("JSONRowWriter.json");
+        out << json_buffer.GetString() << std::endl;
+        out.close();
+    }
+
+    ::dataframe::DataFrame data;
+};
+
+struct ColOutput {
+    ColOutput() = default;
+
+    ~ColOutput()
+    {
+        ::dataframe::JSONColumnWriter writer;
+
+        writer.write(data.rows(0, 6));
+        auto json_str = writer.str();
+
+        ::rapidjson::Document json_doc;
+        json_doc.Parse(json_str.c_str());
+
+        ::rapidjson::StringBuffer json_buffer;
+        ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
+            json_buffer);
+        json_doc.Accept(json_writer);
+
+        std::ofstream out("JSONColumnWriter.json");
+        out << json_buffer.GetString() << std::endl;
+        out.close();
+    }
+
+    ::dataframe::DataFrame data;
+};
+
+static RowOutput row_output;
+static ColOutput col_output;
+
 TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
     std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
     std::uint16_t, std::uint32_t, std::uint64_t,
@@ -44,24 +99,8 @@ TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
     dat["test"].emplace<TestType>(generate_data<TestType>(n));
-
-    ::dataframe::JSONRowWriter writer("data");
-
-    writer.write(dat.rows(0, 6));
-    auto json_str = writer.str();
-
-    ::rapidjson::Document json_doc;
-    json_doc.Parse(json_str.c_str());
-
-    ::rapidjson::StringBuffer json_buffer;
-    ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
-        json_buffer);
-    json_doc.Accept(json_writer);
-
-    std::ofstream out(
-        "JSONRowWriter." + dat["test"].data()->type()->ToString() + ".json");
-    out << json_buffer.GetString() << std::endl;
-    out.close();
+    row_output.data[dat["test"].data()->type()->ToString()] =
+        dat["test"].data();
 }
 
 TEMPLATE_TEST_CASE("JSON Column Serializer", "[serializer][template]",
@@ -83,21 +122,6 @@ TEMPLATE_TEST_CASE("JSON Column Serializer", "[serializer][template]",
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
     dat["test"].emplace<TestType>(generate_data<TestType>(n));
-
-    ::dataframe::JSONColumnWriter writer;
-    writer.write(dat.rows(0, 6));
-    auto json_str = writer.str();
-
-    ::rapidjson::Document json_doc;
-    json_doc.Parse(json_str.c_str());
-
-    ::rapidjson::StringBuffer json_buffer;
-    ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
-        json_buffer);
-    json_doc.Accept(json_writer);
-
-    std::ofstream out("JSONColumnWriter." +
-        dat["test"].data()->type()->ToString() + ".json");
-    out << json_buffer.GetString() << std::endl;
-    out.close();
+    col_output.data[dat["test"].data()->type()->ToString()] =
+        dat["test"].data();
 }

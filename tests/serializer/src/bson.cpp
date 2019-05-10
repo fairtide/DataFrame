@@ -26,6 +26,37 @@
 
 #include <catch2/catch.hpp>
 
+struct Output {
+    Output() = default;
+
+    ~Output()
+    {
+        ::dataframe::BSONWriter writer;
+
+        writer.write(data.rows(0, 6));
+        auto bson_doc = writer.extract();
+
+        auto json_str = ::bsoncxx::to_json(
+            bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
+
+        ::rapidjson::Document json_doc;
+        json_doc.Parse(json_str.c_str());
+
+        ::rapidjson::StringBuffer json_buffer;
+        ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
+            json_buffer);
+        json_doc.Accept(json_writer);
+
+        std::ofstream out("BSONWriter.json");
+        out << json_buffer.GetString() << std::endl;
+        out.close();
+    }
+
+    ::dataframe::DataFrame data;
+};
+
+static Output output;
+
 TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
     std::uint32_t, std::uint64_t,
@@ -48,28 +79,10 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
     dat["test"].emplace<TestType>(generate_data<TestType>(n));
+    output.data[dat["test"].data()->type()->ToString()] = dat["test"].data();
 
     ::dataframe::BSONWriter writer;
     ::dataframe::BSONReader reader;
-
-    writer.write(dat.rows(0, 6));
-    auto bson_doc = writer.extract();
-
-    auto json_str = ::bsoncxx::to_json(
-        bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
-
-    ::rapidjson::Document json_doc;
-    json_doc.Parse(json_str.c_str());
-
-    ::rapidjson::StringBuffer json_buffer;
-    ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> json_writer(
-        json_buffer);
-    json_doc.Accept(json_writer);
-
-    std::ofstream out(
-        "BSONWriter." + dat["test"].data()->type()->ToString() + ".json");
-    out << json_buffer.GetString() << std::endl;
-    out.close();
 
     writer.write(dat);
     auto str = writer.str();
@@ -78,7 +91,6 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     auto array2 = ret["test"].data();
     CHECK(array1->Equals(array2));
 
-    // slice
     for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
         writer.write(chunk);
         str = writer.str();
