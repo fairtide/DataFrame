@@ -35,9 +35,9 @@ inline std::vector<std::shared_ptr<::arrow::Array>> split_array(
     ret.reserve(static_cast<std::size_t>(
         length / chunk_size + (length % chunk_size == 0 ? 0 : 1)));
 
-    auto end = std::min(length, offset + chunk_size);
-    auto len = end - offset;
     while (offset < length) {
+        auto end = std::min(length, offset + chunk_size);
+        auto len = end - offset;
         ret.push_back(array.Slice(offset, len));
         offset = end;
     }

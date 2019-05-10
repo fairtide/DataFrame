@@ -21,6 +21,9 @@
 
 namespace dataframe {
 
+inline std::shared_ptr<::arrow::Array> bind_array(
+    const std::vector<std::shared_ptr<::arrow::Array>> &chunks);
+
 namespace internal {
 
 struct ArrayBindVisitor final : ::arrow::TypeVisitor {
@@ -119,8 +122,61 @@ struct ArrayBindVisitor final : ::arrow::TypeVisitor {
 
 #undef DF_DEFINE_VISITOR
 
-    // DF_DEFINE_VISITOR(List)
-    // DF_DEFINE_VISITOR(Struct)
+    ::arrow::Status Visit(const ::arrow::ListType &) final
+    {
+        std::shared_ptr<::arrow::Buffer> offsets;
+
+        ARROW_RETURN_NOT_OK(
+            ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
+                (length + 1) * static_cast<std::int64_t>(sizeof(std::int32_t)),
+                &offsets));
+
+        auto v = reinterpret_cast<std::int32_t *>(
+            dynamic_cast<::arrow::MutableBuffer &>(*offsets).mutable_data());
+
+        std::vector<std::shared_ptr<::arrow::Array>> value_chunks;
+
+        std::int32_t u = 0;
+        *v++ = u;
+        for (auto &chunk : chunks) {
+            auto data = std::static_pointer_cast<::arrow::ListArray>(chunk);
+            auto n = data->length();
+            auto p = data->raw_value_offsets();
+            value_chunks.push_back(data->values()->Slice(p[0], p[n] - p[0]));
+            for (std::int32_t i = 0; i != n; ++i) {
+                u += p[i + 1] - p[i];
+                *v++ = u;
+            }
+        }
+
+        auto values = bind_array(value_chunks);
+
+        result = std::make_shared<::arrow::ListArray>(chunks.front()->type(),
+            length, std::move(offsets), std::move(values));
+
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::StructType &type) final
+    {
+        auto nfields = type.num_children();
+        std::vector<std::shared_ptr<::arrow::Array>> children;
+        for (auto i = 0; i != nfields; ++i) {
+            std::vector<std::shared_ptr<::arrow::Array>> values;
+            for (auto &chunk : chunks) {
+                auto data =
+                    std::static_pointer_cast<::arrow::StructArray>(chunk);
+                values.push_back(data->field(i));
+            }
+            children.push_back(bind_array(values));
+        }
+
+        result = std::make_shared<::arrow::StructArray>(
+            chunks.front()->type(), length, children);
+
+        return ::arrow::Status::OK();
+    }
+
     // DF_DEFINE_VISITOR(Union)
     // DF_DEFINE_VISITOR(Dictionary) // TODO
 };
@@ -132,6 +188,10 @@ inline std::shared_ptr<::arrow::Array> bind_array(
 {
     if (chunks.empty()) {
         return nullptr;
+    }
+
+    if (chunks.size() == 1) {
+        return chunks.front();
     }
 
     internal::ArrayBindVisitor visitor(chunks);
