@@ -24,7 +24,7 @@ struct Generator {
     static auto get(std::size_t n)
     {
         std::mt19937_64 rng;
-        std::uniform_int_distribution<> rval;
+        std::uniform_int_distribution<> rval(-1000, 1000);
         std::vector<U> values;
 
         for (std::size_t i = 0; i != n; ++i) {

@@ -19,6 +19,7 @@ project(DataFrame-tests CXX)
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/Catch2/single_include)
 
 add_definitions(-DCATCH_CONFIG_MAIN)
+add_definitions(-DRAPIDJSON_HAS_STDSTRING)
 
 function(add_dataframe_test testname)
     add_executable(${testname}-test ${PROJECT_SOURCE_DIR}/src/${testname}.cpp)
@@ -27,7 +28,7 @@ function(add_dataframe_test testname)
         PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
         OUTPUT_NAME ${testname})
 
-    target_link_libraries(${testname}-test ${link_libraries} ${ARGN})
+    target_link_libraries(${testname}-test ${Arrow_LINK_LIBRARIES} ${ARGN})
     add_dependencies(tests ${testname}-test)
     add_test(NAME ${testname} COMMAND ${testname}-test)
 endfunction(add_dataframe_test src)
