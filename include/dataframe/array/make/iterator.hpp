@@ -259,15 +259,15 @@ namespace internal {
 
 template <typename T>
 struct UnwrapReference {
-    using type = std::remove_reference_t<T>;
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
 };
 
 template <typename T>
 struct UnwrapReference<std::reference_wrapper<T>> {
-    using type = std::remove_reference_t<T>;
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
 };
 
-}; // namespace internal
+} // namespace internal
 
 template <typename Iter, std::size_t N>
 auto field_iterator(Iter iter, std::integral_constant<std::size_t, N>)

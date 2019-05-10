@@ -51,6 +51,12 @@ class ArrayView<Struct<Types...>>
             return ret;
         }
 
+        template <typename T>
+        void set(T &value) const
+        {
+            set_value<0>(value, std::integral_constant<bool, 0 < nfields>());
+        }
+
       private:
         template <std::size_t N>
         void get_value(value_type &ret, std::true_type) const
@@ -62,6 +68,21 @@ class ArrayView<Struct<Types...>>
 
         template <std::size_t>
         void get_value(value_type &, std::false_type) const
+        {
+        }
+
+        template <std::size_t N, typename T>
+        void set_value(T &value, std::true_type)
+        {
+            set_field(
+                value, get<N>(), std::integral_constant<std::size_t, N>());
+
+            set_value<N + 1>(
+                value, std::integral_constant<bool, N + 1 < nfields>());
+        }
+
+        template <std::size_t, typename T>
+        void set_value(T &, std::false_type)
         {
         }
 

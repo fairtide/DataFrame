@@ -37,13 +37,13 @@ struct ArrayMaker {
 };
 
 template <typename T, typename Iter>
-std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
 {
     return ArrayMaker<T>::make(first, last);
 }
 
 template <typename T, typename Iter, typename ValidIter>
-std::shared_ptr<::arrow::Array> make_array(
+inline std::shared_ptr<::arrow::Array> make_array(
     Iter first, Iter last, ValidIter valid)
 {
     auto array = make_array<T>(first, last);
