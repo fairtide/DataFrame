@@ -16,6 +16,7 @@
 
 project(DataFrame-tests-array CXX)
 
+add_dataframe_test(bind)
 add_dataframe_test(cast)
 add_dataframe_test(make)
 add_dataframe_test(type)

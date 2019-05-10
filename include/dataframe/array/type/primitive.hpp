@@ -41,7 +41,7 @@ template <typename T, typename... Args>
 auto make_builder(Args &&... args)
 {
     return TypeTraits<T>::builder(std::forward<Args>(args)...);
-}
+};
 
 #define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
     template <>                                                               \

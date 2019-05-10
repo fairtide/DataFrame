@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_TABLE_HPP
 #define DATAFRAME_TABLE_HPP
 
+#include <dataframe/table/bind.hpp>
 #include <dataframe/table/column.hpp>
 #include <dataframe/table/data_frame.hpp>
 #include <dataframe/table/split.hpp>

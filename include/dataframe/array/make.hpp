@@ -31,6 +31,14 @@ inline std::shared_ptr<::arrow::Array> make_array(Container &&container)
     return make_array<T>(std::begin(container), std::end(container));
 }
 
+template <typename T, typename Container, typename Alloc>
+inline std::shared_ptr<::arrow::Array> make_array(
+    Container &&container, const std::vector<bool, Alloc> &valids)
+{
+    return make_array<T>(
+        std::begin(container), std::end(container), valids.begin());
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_MAKE_HPP

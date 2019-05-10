@@ -16,6 +16,8 @@
 
 project(DataFrame-tests CXX)
 
+include_directories(${PROJECT_SOURCE_DIR}/include)
+
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/Catch2/single_include)
 
 add_definitions(-DCATCH_CONFIG_MAIN)

@@ -35,6 +35,7 @@ struct Generator {
     }
 };
 
+
 template <typename T>
 auto generate_data(std::size_t n)
 {

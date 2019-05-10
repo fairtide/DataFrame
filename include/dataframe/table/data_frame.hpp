@@ -25,16 +25,16 @@ namespace dataframe {
 class DataFrame
 {
   public:
+    using size_type = std::size_t;
+
     DataFrame() = default;
-
     DataFrame(DataFrame &&) noexcept = default;
-
     DataFrame &operator=(DataFrame &&) noexcept = default;
 
     DataFrame(const DataFrame &other)
     {
         auto ncol = other.ncol();
-        for (std::size_t i = 0; i != ncol; ++i) {
+        for (size_type i = 0; i != ncol; ++i) {
             auto col = other[i];
             operator[](col.name()) = col;
         }
@@ -45,7 +45,7 @@ class DataFrame
         if (this != &other) {
             clear();
             auto ncol = other.ncol();
-            for (std::size_t i = 0; i != ncol; ++i) {
+            for (size_type i = 0; i != ncol; ++i) {
                 auto col = other[i];
                 operator[](col.name()) = col;
             }
@@ -64,8 +64,8 @@ class DataFrame
         auto nrows = table.num_rows();
         std::vector<std::shared_ptr<::arrow::Column>> columns;
         std::vector<std::shared_ptr<::arrow::Field>> fields;
-        columns.reserve(static_cast<std::size_t>(table.num_columns()));
-        fields.reserve(static_cast<std::size_t>(table.num_columns()));
+        columns.reserve(static_cast<size_type>(table.num_columns()));
+        fields.reserve(static_cast<size_type>(table.num_columns()));
         for (auto i = 0; i != table.num_columns(); ++i) {
             auto col = table.column(i);
             columns.push_back(col);
@@ -85,38 +85,55 @@ class DataFrame
         return ColumnProxy(std::move(name), table_);
     }
 
-    ConstColumnProxy operator[](std::size_t j) const
+    ConstColumnProxy operator[](size_type j) const
     {
         return ConstColumnProxy(table_->column(static_cast<int>(j)));
     }
 
-    ColumnProxy operator[](std::size_t j)
+    ColumnProxy operator[](size_type j)
     {
         return ColumnProxy(
             table_->column(static_cast<int>(j))->name(), table_);
     }
 
+    ConstColumnProxy at(size_type j) const
+    {
+        if (j >= ncol()) {
+            throw std::out_of_range("DataFrame::at");
+        }
+
+        return operator[](j);
+    }
+
+    ColumnProxy at(size_type j)
+    {
+        if (j >= ncol()) {
+            throw std::out_of_range("DataFrame::at");
+        }
+
+        return operator[](j);
+    }
+
     const ::arrow::Table &table() const { return *table_; }
 
-    std::size_t nrow() const
+    size_type nrow() const
     {
-        return table_ == nullptr ?
-            static_cast<std::size_t>(0) :
-            static_cast<std::size_t>(table_->num_rows());
+        return table_ == nullptr ? static_cast<size_type>(0) :
+                                   static_cast<size_type>(table_->num_rows());
     }
 
-    std::size_t ncol() const
+    size_type ncol() const
     {
         return table_ == nullptr ?
-            static_cast<std::size_t>(0) :
-            static_cast<std::size_t>(table_->num_columns());
+            static_cast<size_type>(0) :
+            static_cast<size_type>(table_->num_columns());
     }
 
-    std::size_t memory_usage() const
+    size_type memory_usage() const
     {
-        std::size_t ret = 0;
+        size_type ret = 0;
         auto n = ncol();
-        for (std::size_t i = 0; i != n; ++i) {
+        for (size_type i = 0; i != n; ++i) {
             ret += operator[](i).memory_usage();
         }
 
@@ -130,14 +147,14 @@ class DataFrame
     explicit operator bool() const { return table_ != nullptr; }
 
     /// \brief Select a range of rows
-    DataFrame rows(std::size_t begin, std::size_t end) const
+    DataFrame rows(size_type begin, size_type end) const
     {
         if (begin >= end) {
             return DataFrame();
         }
 
         DataFrame ret;
-        for (std::size_t k = 0; k != ncol(); ++k) {
+        for (size_type k = 0; k != ncol(); ++k) {
             auto col = operator[](k);
             ret[col.name()] = col(begin, end);
         }
@@ -146,14 +163,14 @@ class DataFrame
     }
 
     /// \brief Select a range of columns
-    DataFrame cols(std::size_t begin, std::size_t end) const
+    DataFrame cols(size_type begin, size_type end) const
     {
         if (begin >= end) {
             return DataFrame();
         }
 
         DataFrame ret;
-        for (std::size_t k = begin; k != end; ++k) {
+        for (size_type k = begin; k != end; ++k) {
             auto col = operator[](k);
             ret[col.name()] = col;
         }

@@ -17,8 +17,10 @@
 #ifndef DATAFRAME_ARRAY_HPP
 #define DATAFRAME_ARRAY_HPP
 
+#include <dataframe/array/bind.hpp>
 #include <dataframe/array/cast.hpp>
 #include <dataframe/array/make.hpp>
+#include <dataframe/array/split.hpp>
 #include <dataframe/array/type.hpp>
 #include <dataframe/array/view.hpp>
 
