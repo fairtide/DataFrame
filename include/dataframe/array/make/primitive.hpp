@@ -21,6 +21,13 @@
 
 namespace dataframe {
 
+template <typename T, std::size_t N>
+inline std::string field_name(
+    const T *, std::integral_constant<std::size_t, N>)
+{
+    return "Field" + std::to_string(N);
+}
+
 template <typename T>
 struct ArrayMaker {
     template <typename Iter>
