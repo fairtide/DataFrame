@@ -233,6 +233,12 @@ class ColumnProxy : public ConstColumnProxy
         return operator=(col.data());
     }
 
+    template <typename T, typename Alloc>
+    ColumnProxy &operator=(const std::vector<T, Alloc> &vec)
+    {
+        return operator=(make_array<T>(vec));
+    }
+
     /// \brief Assign a pre-constructed Arrow array
     ColumnProxy &operator=(std::shared_ptr<::arrow::Array> data)
     {

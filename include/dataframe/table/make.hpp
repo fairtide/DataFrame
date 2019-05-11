@@ -19,29 +19,47 @@
 
 #include <dataframe/table/data_frame.hpp>
 
+#define DF_FIELD_PAIR(T, field) std::make_pair(#field, &T::field)
+
 namespace dataframe {
 
-template <typename T, typename... Args>
-inline ::dataframe make_dataframe(Args &&... args)
+namespace internal {
+
+template <typename Iter>
+inline void make_column(DataFrame &, Iter, Iter)
 {
-    static_assert(std::is_base_of_v<StructBase, T>);
+}
 
-    auto array = make_array<T>(first, last);
-    auto &type = dynamic_cast<const ::arrow::StructType &>(*array->type());
+template <typename Iter, typename K, typename V, typename... Args>
+inline void make_column(DataFrame &ret, Iter first, Iter last,
+    const std::pair<K, V> &kv, Args &&... args)
+{
+    ret[kv.first].emplace(first, last, kv.second);
+    make_column(ret, first, last, std::forward<Args>(args)...);
+}
 
-    ::arrow::ArrayVector table;
-    DF_ARROW_ERROR_HANDLER(
-        std::static_pointer_cast<::arrow::StructArray>(array)->Flatten(
-            ::arrow::default_memory_pool(), &table));
+} // namespace internal
 
-    ::dataframe::DataFrame ret;
-
-    auto nfields = type.num_children();
-    for (auto i = 0; i != nfields; ++i) {
-        ret[type.child(i)->name()] = table.at(static_cast<std::size_t>(i));
-    }
+template <typename Iter, typename... Args>
+inline DataFrame make_dataframe(Iter first, Iter last, Args &&... args)
+{
+    DataFrame ret;
+    internal::make_column(ret, first, last, std::forward<Args>(args)...);
 
     return ret;
+}
+
+template <typename T, typename Alloc, typename... Args>
+inline DataFrame make_dataframe(
+    const std::vector<T, Alloc> &vec, Args &&... args)
+{
+    return make_dataframe(vec.begin(), vec.end(), std::forward<Args>(args)...);
+}
+
+template <typename T, typename... Args>
+inline DataFrame make_dataframe(std::size_t n, const T *data, Args &&... args)
+{
+    return make_dataframe(data, data + n, std::forward<Args>(args)...);
 }
 
 } // namespace dataframe
