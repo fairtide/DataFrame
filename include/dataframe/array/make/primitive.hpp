@@ -36,39 +36,41 @@ struct ArrayMaker {
     }
 };
 
+template <typename Valid>
+inline std::int64_t make_null_bitmap(
+    std::int64_t length, Valid valid, std::shared_ptr<::arrow::Buffer> *out)
+{
+    DF_ARROW_ERROR_HANDLER(
+        ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
+            ::arrow::BitUtil::BytesForBits(length), out));
+
+    auto bits =
+        dynamic_cast<::arrow::MutableBuffer &>(*out->get()).mutable_data();
+
+    std::int64_t null_count = 0;
+    for (std::int64_t i = 0; i != length; ++i, ++valid) {
+        auto is_valid = *valid;
+        null_count += !is_valid;
+        ::arrow::BitUtil::SetBitTo(bits, i, is_valid);
+    }
+
+    return null_count;
+}
+
 template <typename T, typename Iter>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
 {
     return ArrayMaker<T>::make(first, last);
 }
 
-template <typename T, typename Iter, typename ValidIter>
+template <typename T, typename Iter, typename Valid>
 inline std::shared_ptr<::arrow::Array> make_array(
-    Iter first, Iter last, ValidIter valid)
+    Iter first, Iter last, Valid valid)
 {
-    auto array = make_array<T>(first, last);
-    auto data = array->data()->Copy();
-    auto length = data->length;
-    auto bytes = ::arrow::BitUtil::BytesForBits(length);
+    auto data = make_array<T>(first, last)->data()->Copy();
 
-    std::unique_ptr<::arrow::Buffer> nulls;
-    DF_ARROW_ERROR_HANDLER(::arrow::AllocateBuffer(
-        ::arrow::default_memory_pool(), bytes, &nulls));
-
-    auto bits = dynamic_cast<::arrow::MutableBuffer &>(*nulls).mutable_data();
-    std::int64_t null_count = 0;
-    for (std::int64_t i = 0; i != length; ++i) {
-        auto v = static_cast<bool>(*valid++);
-        null_count += !v;
-        ::arrow::BitUtil::SetBitTo(bits, i, v);
-    }
-
-    data->null_count = null_count;
-    if (data->buffers.empty()) {
-        data->buffers.emplace_back(std::move(nulls));
-    } else {
-        data->buffers[0] = std::move(nulls);
-    }
+    data->null_count =
+        make_null_bitmap(data->length, valid, &data->buffers.at(0));
 
     return ::arrow::MakeArray(data);
 }

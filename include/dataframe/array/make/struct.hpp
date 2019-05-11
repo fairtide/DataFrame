@@ -17,7 +17,6 @@
 #ifndef DATAFRAME_ARRAY_MAKE_STRUCT_HPP
 #define DATAFRAME_ARRAY_MAKE_STRUCT_HPP
 
-#include <dataframe/array/make/iterator.hpp>
 #include <dataframe/array/make/primitive.hpp>
 
 namespace dataframe {

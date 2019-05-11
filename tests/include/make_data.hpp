@@ -18,10 +18,10 @@
 #include <random>
 
 template <typename T>
-struct Generator {
+struct DataMaker {
     using U = ::dataframe::CType<T>;
 
-    static auto get(std::size_t n)
+    static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<> rval(-1000, 1000);
@@ -36,14 +36,14 @@ struct Generator {
 };
 
 template <typename T>
-auto generate_data(std::size_t n)
+auto make_data(std::size_t n)
 {
-    return Generator<T>::get(n);
+    return DataMaker<T>::make(n);
 }
 
 template <>
-struct Generator<bool> {
-    static auto get(std::size_t n)
+struct DataMaker<bool> {
+    static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
         std::bernoulli_distribution rbit;
@@ -58,15 +58,15 @@ struct Generator<bool> {
 };
 
 template <>
-struct Generator<std::string> {
-    static auto get(std::size_t n)
+struct DataMaker<std::string> {
+    static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<std::size_t> rsize(0, 10);
         std::vector<std::string> values;
 
         for (std::size_t i = 0; i != n; ++i) {
-            auto buf = generate_data<std::uint8_t>(rsize(rng));
+            auto buf = make_data<std::uint8_t>(rsize(rng));
             values.emplace_back(
                 reinterpret_cast<const char *>(buf.data()), buf.size());
         }
@@ -76,17 +76,17 @@ struct Generator<std::string> {
 };
 
 template <typename T>
-struct Generator<::dataframe::List<T>> {
+struct DataMaker<::dataframe::List<T>> {
     using U = ::dataframe::CType<::dataframe::List<T>>;
 
-    static auto get(std::size_t n)
+    static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<std::size_t> rsize(0, 10);
         std::vector<U> values;
 
         for (std::size_t i = 0; i != n; ++i) {
-            values.emplace_back(generate_data<T>(rsize(rng)));
+            values.emplace_back(make_data<T>(rsize(rng)));
         }
 
         return values;
@@ -94,13 +94,13 @@ struct Generator<::dataframe::List<T>> {
 };
 
 template <typename... Types>
-struct Generator<::dataframe::Struct<Types...>> {
+struct DataMaker<::dataframe::Struct<Types...>> {
     using U = ::dataframe::CType<::dataframe::Struct<Types...>>;
 
-    static auto get(std::size_t n)
+    static auto make(std::size_t n)
     {
         std::vector<U> values(n);
-        get<0>(values, std::integral_constant<bool, 0 < nfields>());
+        make<0>(values, std::integral_constant<bool, 0 < nfields>());
 
         return values;
     }
@@ -109,20 +109,19 @@ struct Generator<::dataframe::Struct<Types...>> {
     static constexpr std::size_t nfields = sizeof...(Types);
 
     template <std::size_t N>
-    static void get(std::vector<U> &values, std::true_type)
+    static void make(std::vector<U> &values, std::true_type)
     {
-        auto v =
-            generate_data<::dataframe::FieldType<N, Types...>>(values.size());
+        auto v = make_data<::dataframe::FieldType<N, Types...>>(values.size());
 
         for (std::size_t i = 0; i != v.size(); ++i) {
             std::get<N>(values[i]) = std::move(v[i]);
         }
 
-        get<N + 1>(values, std::integral_constant<bool, N + 1 < nfields>());
+        make<N + 1>(values, std::integral_constant<bool, N + 1 < nfields>());
     }
 
     template <std::size_t>
-    static void get(std::vector<U> &, std::false_type)
+    static void make(std::vector<U> &, std::false_type)
     {
     }
 };

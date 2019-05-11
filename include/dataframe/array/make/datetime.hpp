@@ -17,7 +17,6 @@
 #ifndef DATAFRAME_ARRAY_MAKE_DATETIME_HPP
 #define DATAFRAME_ARRAY_MAKE_DATETIME_HPP
 
-#include <dataframe/array/make/iterator.hpp>
 #include <dataframe/array/make/primitive.hpp>
 
 namespace dataframe {
@@ -31,20 +30,22 @@ struct DatetimeArrayMaker {
     {
         auto builder = make_builder<T>();
 
-        if constexpr (std::is_integral_v<
-                          typename std::iterator_traits<Iter>::value_type>) {
-            DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
-        } else {
+        constexpr bool is_time_type = std::is_base_of_v<TimeTypeBase,
+            typename std::iterator_traits<Iter>::value_type>;
+
+        if constexpr (is_time_type) {
             DF_ARROW_ERROR_HANDLER(
                 builder->AppendValues(field_iterator(first, &T::value),
                     field_iterator(last, &T::value)));
+        } else {
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
         }
 
         std::shared_ptr<::arrow::Array> ret;
         DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
 
         return ret;
-    } // namespace internal
+    }
 
   private:
 };

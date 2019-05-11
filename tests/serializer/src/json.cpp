@@ -16,7 +16,7 @@
 
 #include <dataframe/serializer/json.hpp>
 
-#include "generate_data.hpp"
+#include "make_data.hpp"
 
 #include <iostream>
 #include <rapidjson/document.h>
@@ -98,7 +98,7 @@ TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
-    dat["test"].emplace<TestType>(generate_data<TestType>(n));
+    dat["test"].emplace<TestType>(make_data<TestType>(n));
     row_output.data[dat["test"].data()->type()->ToString()] =
         dat["test"].data();
 }
@@ -121,7 +121,7 @@ TEMPLATE_TEST_CASE("JSON Column Serializer", "[serializer][template]",
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
-    dat["test"].emplace<TestType>(generate_data<TestType>(n));
+    dat["test"].emplace<TestType>(make_data<TestType>(n));
     col_output.data[dat["test"].data()->type()->ToString()] =
         dat["test"].data();
 }

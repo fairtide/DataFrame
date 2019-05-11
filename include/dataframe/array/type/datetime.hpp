@@ -54,7 +54,7 @@ struct TimeTypeBase {
 };
 
 template <typename ArrowType>
-struct TimeType final : TimeTypeBase {
+struct TimeType : TimeTypeBase {
     using arrow_type = ArrowType;
     using value_type = typename ArrowType::c_type;
 

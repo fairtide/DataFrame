@@ -16,7 +16,7 @@
 
 #include <dataframe/serializer/record_batch_stream.hpp>
 
-#include "generate_data.hpp"
+#include "make_data.hpp"
 
 #include <catch2/catch.hpp>
 
@@ -41,7 +41,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000000;
-    dat["test"].emplace<TestType>(generate_data<TestType>(n));
+    dat["test"].emplace<TestType>(make_data<TestType>(n));
 
     ::dataframe::RecordBatchStreamWriter writer;
     ::dataframe::RecordBatchStreamReader reader;

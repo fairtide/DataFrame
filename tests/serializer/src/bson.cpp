@@ -16,7 +16,7 @@
 
 #include <dataframe/serializer/bson.hpp>
 
-#include "generate_data.hpp"
+#include "make_data.hpp"
 
 #include <bsoncxx/json.hpp>
 #include <iostream>
@@ -78,7 +78,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000000;
-    dat["test"].emplace<TestType>(generate_data<TestType>(n));
+    dat["test"].emplace<TestType>(make_data<TestType>(n));
     output.data[dat["test"].data()->type()->ToString()] = dat["test"].data();
 
     ::dataframe::BSONWriter writer;

@@ -18,7 +18,7 @@
 #include <dataframe/array/make.hpp>
 #include <dataframe/array/split.hpp>
 
-#include "generate_data.hpp"
+#include "make_data.hpp"
 
 #include <catch2/catch.hpp>
 
@@ -49,7 +49,7 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
 
     SECTION("array")
     {
-        auto array = ::dataframe::make_array<T>(generate_data<T>(n));
+        auto array = ::dataframe::make_array<T>(make_data<T>(n));
 
         auto chunks = ::dataframe::split_array(array, k);
 
@@ -62,8 +62,8 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
 
     SECTION("nullable array")
     {
-        auto array = ::dataframe::make_array<T>(
-            generate_data<T>(n), generate_data<bool>(n));
+        auto array =
+            ::dataframe::make_array<T>(make_data<T>(n), make_data<bool>(n));
 
         auto chunks = ::dataframe::split_array(array, k);
 

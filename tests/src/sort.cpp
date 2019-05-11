@@ -23,7 +23,7 @@ struct DF {
     ::dataframe::DataFrame rsorted;
 };
 
-inline DF generate_dataframe()
+inline DF make_dataframe()
 {
     DF ret;
 
@@ -143,7 +143,7 @@ inline DF generate_dataframe()
 
 TEST(Sort, UInt8)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "UInt8");
     auto rsorted = ::dataframe::sort(ret.orig, "UInt8", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -152,7 +152,7 @@ TEST(Sort, UInt8)
 
 TEST(Sort, Int8)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Int8");
     auto rsorted = ::dataframe::sort(ret.orig, "Int8", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -161,7 +161,7 @@ TEST(Sort, Int8)
 
 TEST(Sort, UInt16)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "UInt16");
     auto rsorted = ::dataframe::sort(ret.orig, "UInt16", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -170,7 +170,7 @@ TEST(Sort, UInt16)
 
 TEST(Sort, Int16)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Int16");
     auto rsorted = ::dataframe::sort(ret.orig, "Int16", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -179,7 +179,7 @@ TEST(Sort, Int16)
 
 TEST(Sort, UInt32)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "UInt32");
     auto rsorted = ::dataframe::sort(ret.orig, "UInt32", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -188,7 +188,7 @@ TEST(Sort, UInt32)
 
 TEST(Sort, Int32)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Int32");
     auto rsorted = ::dataframe::sort(ret.orig, "Int32", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -197,7 +197,7 @@ TEST(Sort, Int32)
 
 TEST(Sort, UInt64)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "UInt64");
     auto rsorted = ::dataframe::sort(ret.orig, "UInt64", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -206,7 +206,7 @@ TEST(Sort, UInt64)
 
 TEST(Sort, Int64)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Int64");
     auto rsorted = ::dataframe::sort(ret.orig, "Int64", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -215,7 +215,7 @@ TEST(Sort, Int64)
 
 TEST(Sort, Float)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Float");
     auto rsorted = ::dataframe::sort(ret.orig, "Float", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -224,7 +224,7 @@ TEST(Sort, Float)
 
 TEST(Sort, Double)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Double");
     auto rsorted = ::dataframe::sort(ret.orig, "Double", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -233,7 +233,7 @@ TEST(Sort, Double)
 
 TEST(Sort, Date)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Date");
     auto rsorted = ::dataframe::sort(ret.orig, "Date", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -242,7 +242,7 @@ TEST(Sort, Date)
 
 TEST(Sort, Timestamp)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "Timestamp");
     auto rsorted = ::dataframe::sort(ret.orig, "Timestamp", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -251,7 +251,7 @@ TEST(Sort, Timestamp)
 
 TEST(Sort, String)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     auto sorted = ::dataframe::sort(ret.orig, "String");
     auto rsorted = ::dataframe::sort(ret.orig, "String", true);
     EXPECT_EQ(sorted, ret.sorted);
@@ -260,7 +260,7 @@ TEST(Sort, String)
 
 TEST(Sort, Categorical)
 {
-    auto ret = generate_dataframe();
+    auto ret = make_dataframe();
     EXPECT_THROW(::dataframe::sort(ret.orig, "Categorical"),
         ::dataframe::DataFrameException);
     EXPECT_THROW(::dataframe::sort(ret.orig, "Categorical", true),
