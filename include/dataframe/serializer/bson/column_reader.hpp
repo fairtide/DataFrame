@@ -24,7 +24,7 @@ namespace dataframe {
 
 namespace bson {
 
-class ColumnReader : public ::arrow::TypeVisitor
+class ColumnReader
 {
   public:
     ColumnReader(::arrow::MemoryPool *pool)
