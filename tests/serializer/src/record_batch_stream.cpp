@@ -20,9 +20,9 @@
 
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
-    std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
-    std::uint32_t, std::uint64_t,
+TEMPLATE_TEST_CASE("RecordBatchStream Serializer", "[serializer][template]",
+    std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
+    std::uint16_t, std::uint32_t, std::uint64_t,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>, std::string,
+    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,
     ::dataframe::List<double>, ::dataframe::Struct<double>,
     ::dataframe::List<::dataframe::Struct<double>>,
     ::dataframe::Struct<::dataframe::List<double>>)
@@ -41,7 +41,8 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000000;
-    dat["test"].emplace<TestType>(make_data<TestType>(n));
+    auto values = make_data<TestType>(n);
+    dat["test"].emplace<TestType>(std::move(values));
 
     ::dataframe::RecordBatchStreamWriter writer;
     ::dataframe::RecordBatchStreamReader reader;
@@ -57,7 +58,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
         writer.write(chunk);
         str = writer.str();
-        ret = reader.read(str);
+        ret = reader.read(str, true);
 
         array1 = chunk["test"].data();
         array2 = ret["test"].data();

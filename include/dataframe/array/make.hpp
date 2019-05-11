@@ -53,7 +53,7 @@ inline std::shared_ptr<::arrow::Array> make_array(
     InputIter first, InputIter last, Getter &&getter)
 {
     using T =
-        std::remove_cv_t<internal::UnwrapReference<decltype(getter(*first))>>;
+        std::remove_cv_t<std::remove_reference_t<decltype(getter(*first))>>;
 
     return make_array<T>(first, last, std::forward<Getter>(getter));
 }

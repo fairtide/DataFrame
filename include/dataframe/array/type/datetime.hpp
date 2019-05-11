@@ -75,6 +75,22 @@ struct TimeType : TimeTypeBase {
 };
 
 template <typename T>
+typename T::value_type get_field(const T &dt,
+    std::integral_constant<std::size_t, 0>,
+    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr) noexcept
+{
+    return dt.value;
+}
+
+template <typename T>
+void get_field(const T &dt, typename T::value_type v,
+    std::integral_constant<std::size_t, 0>,
+    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr) noexcept
+{
+    dt.value = v;
+}
+
+template <typename T>
 inline bool operator==(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
 {
     return v1.value == v2.value;

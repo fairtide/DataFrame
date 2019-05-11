@@ -48,14 +48,13 @@ struct ArrayMaker<Struct<Types...>> {
         Iter last, std::true_type)
     {
         using T = FieldType<N, Types...>;
+        using V = typename std::iterator_traits<Iter>::value_type;
 
-        constexpr std::integral_constant<std::size_t, N> index;
-
-        arrays.emplace_back(make_array<T>(
-            field_iterator(first, index), field_iterator(last, index)));
+        arrays.emplace_back(
+            make_array<T>(field_iterator<N>(first), field_iterator<N>(last)));
 
         fields.emplace_back(
-            ::arrow::field(field_name(first, index), arrays.back()->type()));
+            ::arrow::field(field_name<V, N>(), arrays.back()->type()));
 
         make<N + 1>(fields, arrays, first, last,
             std::integral_constant<bool, N + 1 < nfields>());

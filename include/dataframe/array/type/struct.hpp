@@ -20,46 +20,59 @@
 #include <dataframe/array/type/primitive.hpp>
 #include <tuple>
 
-#define DF_DEFINE_STRUCT_FIELD(T, N, name, getter)                            \
-    template <typename Iter>                                                  \
-    auto field_name(Iter, std::integral_constant<std::size_t, N>,             \
-        std::enable_if_t<std::is_constructible_v<T, decltype(*Iter())>> * =   \
-            nullptr)                                                          \
+#define DF_DEFINE_STRUCT_FIELD(Type, Index, Name, Getter, Setter)             \
+    inline auto field_name(                                                   \
+        Type *, std::integral_constant<std::size_t, Index>)                   \
     {                                                                         \
-        return name;                                                          \
+        return Name;                                                          \
     }                                                                         \
                                                                               \
-    template <typename Iter>                                                  \
-    auto field_iterator(Iter iter, std::integral_constant<std::size_t, N>,    \
-        std::enable_if_t<std::is_constructible_v<T, decltype(*Iter())>> * =   \
-            nullptr)                                                          \
+    inline auto get_field(                                                    \
+        const Type &__value, std::integral_constant<std::size_t, Index>)      \
     {                                                                         \
-        using ::dataframe::field_iterator;                                    \
-        return field_iterator(iter, getter);                                  \
+        return Getter(__value);                                               \
+    }                                                                         \
+                                                                              \
+    template <typename __V>                                                   \
+    inline void set_field(                                                    \
+        Type &__value, __V &&__v, std::integral_constant<std::size_t, Index>) \
+    {                                                                         \
+        return Setter(__value, std::forward<__V>(__v));                       \
     }
 
 namespace dataframe {
 
-namespace internal {
+template <typename T, std::size_t N>
+inline auto field_name(const T *, std::integral_constant<std::size_t, N>)
+{
+    return "Field" + std::to_string(N);
+}
 
-template <typename T>
-struct UnwrapReference {
-    using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
+template <typename T, std::size_t N>
+inline auto field_name()
+{
+    return field_name(
+        static_cast<T *>(nullptr), std::integral_constant<std::size_t, N>());
+}
 
-template <typename T>
-struct UnwrapReference<std::reference_wrapper<T>> {
-    using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
+template <typename T, std::size_t N>
+inline auto get_field(const T &value, std::integral_constant<std::size_t, N>)
+{
+    return std::get<N>(value);
+}
 
-} // namespace internal
+template <typename T, typename V, std::size_t N>
+inline void set_field(T &value, V &&v, std::integral_constant<std::size_t, N>)
+{
+    std::get<N>(value) = v;
+}
 
-template <typename Derived, typename Iter, typename Ref>
+template <std::size_t N, typename T, typename Ref, typename Iter>
 class FieldIterator
 {
   public:
+    using value_type = T;
     using reference = Ref;
-    using value_type = std::remove_reference_t<reference>;
     using difference_type = std::ptrdiff_t;
     using pointer = value_type *;
     using iterator_category =
@@ -77,11 +90,7 @@ class FieldIterator
     FieldIterator &operator=(const FieldIterator &) noexcept = default;
     FieldIterator &operator=(FieldIterator &&) noexcept = default;
 
-    reference operator*() const noexcept(
-        noexcept(static_cast<const Derived *>(this)->dereference(iter_)))
-    {
-        return static_cast<const Derived *>(this)->dereference(iter_);
-    }
+    reference operator*() const { return get_field(*iter_, index_); }
 
     FieldIterator &operator++() noexcept
     {
@@ -194,89 +203,71 @@ class FieldIterator
         return !(x < y);
     }
 
-  private:
+  protected:
+    static constexpr std::integral_constant<std::size_t, N> index_;
+
     Iter iter_;
 };
 
+template <std::size_t N, typename Iter>
+inline auto field_iterator(Iter iter)
+{
+    using Ref =
+        decltype(get_field(*iter, std::integral_constant<std::size_t, N>()));
+
+    using T = std::remove_cv_t<std::remove_reference_t<Ref>>;
+
+    return FieldIterator<N, T, Ref, Iter>(iter);
+}
+
 template <typename Iter, typename Member>
-auto field_iterator(Iter iter, Member &&member,
+inline auto field_iterator(Iter iter, Member &&member,
     std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
 {
     using Ref = decltype((*iter).*member);
 
-    struct iterator : FieldIterator<iterator, Iter, Ref> {
-        iterator(Iter iter, Member mem)
-            : FieldIterator<iterator, Iter, Ref>(iter)
-            , mptr(mem)
+    using T = std::remove_cv_t<std::remove_reference_t<Ref>>;
+
+    using base = FieldIterator<0, T, Ref, Iter>;
+
+    struct iterator : base {
+        iterator(Iter iter, Member m)
+            : base(iter)
+            , mptr(m)
         {
         }
 
         Member mptr;
 
-        Ref dereference(Iter iter) const { return (*iter).*mptr; }
+        Ref operator*() const { return (*this->iter_).*mptr; }
     };
 
-    return iterator(iter, std::forward<Member>(member));
+    return iterator(iter, member);
 }
 
 template <typename Iter, typename Member>
-auto field_iterator(Iter iter, Member &&member,
+inline auto field_iterator(Iter iter, Member &&member,
     std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
 {
     using Ref = decltype(((*iter).*member)());
 
-    struct iterator : FieldIterator<iterator, Iter, Ref> {
-        iterator(Iter iter, Member mem)
-            : FieldIterator<iterator, Iter, Ref>(iter)
-            , mptr(mem)
+    using T = std::remove_cv_t<std::remove_reference_t<Ref>>;
+
+    using base = FieldIterator<0, T, Ref, Iter>;
+
+    struct iterator : base {
+        iterator(Iter iter, Member m)
+            : base(iter)
+            , mptr(m)
         {
         }
 
         Member mptr;
 
-        Ref dereference(Iter iter) const { return ((*iter).*mptr)(); }
+        Ref operator*() const { return ((*this->iter_).*mptr)(); }
     };
 
-    return iterator(iter, std::forward<Member>(member));
-}
-
-template <typename Iter, typename Getter>
-auto field_iterator(Iter iter, Getter &&getter,
-    std::enable_if_t<!std::is_member_pointer_v<Getter> &&
-        std::is_invocable_v<Getter, decltype(*Iter())>> * = nullptr)
-{
-    using Ref = decltype(getter(*iter));
-
-    struct iterator : FieldIterator<iterator, Iter, Ref> {
-        iterator(Iter iter, Getter v)
-            : FieldIterator<iterator, Iter, Ref>(iter)
-            , get(std::move(v))
-        {
-        }
-
-        Getter get;
-
-        Ref dereference(Iter iter) const { return get(*iter); }
-    };
-
-    return iterator(iter, std::forward<Getter>(getter));
-}
-
-template <typename Iter, std::size_t N>
-auto field_name(Iter, std::integral_constant<std::size_t, N>)
-{
-    return "Field" + std::to_string(N);
-}
-
-template <typename Iter, std::size_t N>
-auto field_iterator(Iter iter, std::integral_constant<std::size_t, N>)
-{
-    using T = typename internal::UnwrapReference<
-        typename std::iterator_traits<Iter>::value_type>::type;
-
-    using std::get;
-
-    return field_iterator(iter, [](const T &v) { return get<N>(v); });
+    return iterator(iter, member);
 }
 
 struct StructBase {

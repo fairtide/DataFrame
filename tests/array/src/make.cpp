@@ -136,11 +136,15 @@ struct TestStruct {
     TestEntry<int> int_entry;
 };
 
-DF_DEFINE_STRUCT_FIELD(TestStruct, 0, "float",
-    [](const TestStruct &v) { return v.float_entry.get(); })
+DF_DEFINE_STRUCT_FIELD(
+    TestStruct, 0, "float",
+    [](const TestStruct &v) { return v.float_entry.get(); },
+    ([](const TestStruct &v, auto &&u) { v.float_entry.value = u; }))
 
-DF_DEFINE_STRUCT_FIELD(TestStruct, 1, "int",
-    [](const TestStruct &v) { return v.int_entry.get(); })
+DF_DEFINE_STRUCT_FIELD(
+    TestStruct, 1, "int",
+    [](const TestStruct &v) { return v.int_entry.get(); },
+    ([](const TestStruct &v, auto &&u) { v.int_entry.value = u; }))
 
 TEST_CASE("Make Struct array", "[make_array]")
 {

@@ -69,7 +69,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>, std::string,
+    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,
     ::dataframe::List<double>, ::dataframe::Struct<double>,
     ::dataframe::List<::dataframe::Struct<double>>,
     ::dataframe::Struct<::dataframe::List<double>>)

@@ -34,9 +34,8 @@ struct DatetimeArrayMaker {
             typename std::iterator_traits<Iter>::value_type>;
 
         if constexpr (is_time_type) {
-            DF_ARROW_ERROR_HANDLER(
-                builder->AppendValues(field_iterator(first, &T::value),
-                    field_iterator(last, &T::value)));
+            DF_ARROW_ERROR_HANDLER(builder->AppendValues(
+                field_iterator<0>(first), field_iterator<0>(last)));
         } else {
             DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
         }

@@ -20,9 +20,9 @@
 
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
-    std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
-    std::uint32_t, std::uint64_t,
+TEMPLATE_TEST_CASE("RecordBatchFile Serializer", "[serializer][template]",
+    std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
+    std::uint16_t, std::uint32_t, std::uint64_t,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -32,7 +32,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>, std::string,
+    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,
     ::dataframe::List<double>, ::dataframe::Struct<double>,
     ::dataframe::List<::dataframe::Struct<double>>,
     ::dataframe::Struct<::dataframe::List<double>>)
