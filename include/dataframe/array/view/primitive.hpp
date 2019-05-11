@@ -51,8 +51,9 @@ class ArrayView
     explicit ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))
         , size_(static_cast<size_type>(data_->length()))
-        , iter_(reinterpret_cast<const T *>(
+        , begin_(reinterpret_cast<const T *>(
               dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
+        , end_(begin_ + size_)
     {
     }
 
@@ -64,7 +65,7 @@ class ArrayView
 
     const_reference operator[](size_type pos) const noexcept
     {
-        return iter_[pos];
+        return begin_[pos];
     }
 
     const_reference at(size_type pos) const
@@ -84,12 +85,8 @@ class ArrayView
 
     // Iterators
 
-    const_iterator begin() const noexcept { return iter_; }
-
-    const_iterator end() const noexcept
-    {
-        return iter_ + static_cast<difference_type>(size_);
-    }
+    const_iterator begin() const noexcept { return begin_; }
+    const_iterator end() const noexcept { return end_; }
 
     const_iterator cbegin() const noexcept { return begin(); }
     const_iterator cend() const noexcept { return end(); }
@@ -118,10 +115,19 @@ class ArrayView
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
     }
 
+    template <typename OutputIter, typename Setter>
+    OutputIter set(OutputIter out, Setter &&setter)
+    {
+        for (std::size_t i = 0; i != size_; ++i, ++out) {
+            setter(operator[](i), out);
+        }
+    }
+
   private:
     std::shared_ptr<::arrow::Array> data_;
     size_type size_ = 0;
-    const T *iter_ = nullptr;
+    const T *begin_ = nullptr;
+    const T *end_ = nullptr;
 };
 
 template <typename T>

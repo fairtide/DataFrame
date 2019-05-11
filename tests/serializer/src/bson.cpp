@@ -77,7 +77,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     // TODO void, bool, Dict, Decimal, FixedBinary
 
     ::dataframe::DataFrame dat;
-    std::size_t n = 1000;
+    std::size_t n = 1000000;
     dat["test"].emplace<TestType>(generate_data<TestType>(n));
     output.data[dat["test"].data()->type()->ToString()] = dat["test"].data();
 

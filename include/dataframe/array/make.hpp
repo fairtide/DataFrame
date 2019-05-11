@@ -39,6 +39,39 @@ inline std::shared_ptr<::arrow::Array> make_array(
         std::begin(container), std::end(container), valids.begin());
 }
 
+template <typename InputIter>
+inline std::shared_ptr<::arrow::Array> make_array(
+    InputIter first, InputIter last)
+{
+    using T = typename std::iterator_traits<InputIter>::value_type;
+
+    return make_array<T>(first, last);
+}
+
+template <typename InputIter, typename Getter>
+inline std::shared_ptr<::arrow::Array> make_array(
+    InputIter first, InputIter last, Getter &&getter)
+{
+    using T =
+        std::remove_cv_t<internal::UnwrapReference<decltype(getter(*first))>>;
+
+    return make_array<T>(first, last, std::forward<Getter>(getter));
+}
+
+template <typename T, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    std::size_t n, const T *data, Args &&... args)
+{
+    return make_array(data, data + n, std::forward<Args>(args)...);
+}
+
+template <typename T, typename U, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    std::size_t n, const U *data, Args &&... args)
+{
+    return make_array<T>(data, data + n, std::forward<Args>(args)...);
+}
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_MAKE_HPP

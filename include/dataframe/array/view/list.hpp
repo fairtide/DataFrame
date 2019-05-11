@@ -47,15 +47,17 @@ class ArrayView<List<T>>
 
         view() noexcept = default;
 
-        view(size_type size, iterator iter) noexcept
+        view(size_type size, iterator begin) noexcept
             : size_(size)
-            , iter_(iter)
+            , begin_(begin)
+            , end_(begin_ + size_)
         {
         }
 
         view(iterator begin, iterator end) noexcept
             : size_(static_cast<size_type>(std::distance(begin, end)))
-            , iter_(begin)
+            , begin_(begin)
+            , end_(end)
         {
         }
 
@@ -67,7 +69,7 @@ class ArrayView<List<T>>
 
         const_reference operator[](size_type pos) const noexcept
         {
-            return iter_[pos];
+            return begin_[pos];
         }
 
         const_reference at(size_type pos) const
@@ -86,12 +88,8 @@ class ArrayView<List<T>>
 
         // Iterators
 
-        const_iterator begin() const noexcept { return iter_; }
-
-        const_iterator end() const noexcept
-        {
-            return iter_ + static_cast<difference_type>(size_);
-        }
+        const_iterator begin() const noexcept { return begin_; }
+        const_iterator end() const noexcept { return end_; }
 
         const_iterator cbegin() const noexcept { begin(); }
         const_iterator cend() const noexcept { end(); }
@@ -115,7 +113,8 @@ class ArrayView<List<T>>
 
       private:
         size_type size_ = 0;
-        iterator iter_;
+        iterator begin_;
+        iterator end_;
     };
 
     using value_type = view;
@@ -223,7 +222,7 @@ class ArrayView<List<T>>
 
         friend bool operator==(const iterator &x, const iterator &y) noexcept
         {
-            return x.pos_ == y.pos_ && x.ptr_ == y.ptr_;
+            return x.pos_ == y.pos_;
         }
 
         friend bool operator!=(const iterator &x, const iterator &y) noexcept
@@ -233,7 +232,7 @@ class ArrayView<List<T>>
 
         friend bool operator<(const iterator &x, const iterator &y) noexcept
         {
-            return x.pos_ < y.pos_ && x.ptr_ == y.ptr_;
+            return x.pos_ < y.pos_;
         }
 
         friend bool operator>(const iterator &x, const iterator &y) noexcept
@@ -341,6 +340,14 @@ class ArrayView<List<T>>
     size_type max_size() const noexcept
     {
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
+
+    template <typename OutputIter, typename Setter>
+    OutputIter set(OutputIter out, Setter &&setter)
+    {
+        for (std::size_t i = 0; i != size_; ++i, ++out) {
+            setter(operator[](i), out);
+        }
     }
 
   private:

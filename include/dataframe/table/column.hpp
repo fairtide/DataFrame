@@ -221,6 +221,12 @@ class ColumnProxy : public ConstColumnProxy
         operator=(make_array<T>(std::forward<Args>(args)...));
     }
 
+    template <typename... Args>
+    void emplace(Args &&... args)
+    {
+        operator=(make_array(std::forward<Args>(args)...));
+    }
+
     /// \brief Assign another column
     ColumnProxy &operator=(ConstColumnProxy col)
     {

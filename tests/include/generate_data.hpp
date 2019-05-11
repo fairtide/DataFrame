@@ -35,12 +35,27 @@ struct Generator {
     }
 };
 
-
 template <typename T>
 auto generate_data(std::size_t n)
 {
     return Generator<T>::get(n);
 }
+
+template <>
+struct Generator<bool> {
+    static auto get(std::size_t n)
+    {
+        std::mt19937_64 rng;
+        std::bernoulli_distribution rbit;
+        std::vector<bool> values;
+
+        for (std::size_t i = 0; i != n; ++i) {
+            values.push_back(rbit(rng));
+        }
+
+        return values;
+    }
+};
 
 template <>
 struct Generator<std::string> {

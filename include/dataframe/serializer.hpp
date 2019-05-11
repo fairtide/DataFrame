@@ -17,7 +17,6 @@
 #ifndef DATAFRAME_SERIALIZER_HPP
 #define DATAFRAME_SERIALIZER_HPP
 
-#include <dataframe/serializer/csv.hpp>
 #include <dataframe/serializer/feather.hpp>
 #include <dataframe/serializer/record_batch_file.hpp>
 #include <dataframe/serializer/record_batch_stream.hpp>

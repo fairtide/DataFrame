@@ -130,7 +130,7 @@ class ArrayView<std::string>
 
         friend bool operator==(const iterator &x, const iterator &y) noexcept
         {
-            return x.pos_ == y.pos_ && x.ptr_ == y.ptr_;
+            return x.pos_ == y.pos_;
         }
 
         friend bool operator!=(const iterator &x, const iterator &y) noexcept
@@ -140,7 +140,7 @@ class ArrayView<std::string>
 
         friend bool operator<(const iterator &x, const iterator &y) noexcept
         {
-            return x.pos_ < y.pos_ && x.ptr_ == y.ptr_;
+            return x.pos_ < y.pos_;
         }
 
         friend bool operator>(const iterator &x, const iterator &y) noexcept
@@ -250,6 +250,14 @@ class ArrayView<std::string>
     size_type max_size() const noexcept
     {
         return std::numeric_limits<size_type>::max() / sizeof(value_type);
+    }
+
+    template <typename OutputIter, typename Setter>
+    OutputIter set(OutputIter out, Setter &&setter)
+    {
+        for (std::size_t i = 0; i != size_; ++i, ++out) {
+            setter(operator[](i), out);
+        }
     }
 
   private:

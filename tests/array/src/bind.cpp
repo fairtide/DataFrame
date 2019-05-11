@@ -47,7 +47,7 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
     auto m = static_cast<std::int64_t>(n);
     auto k = m / 9;
 
-    SECTION("Bind/Split")
+    SECTION("array")
     {
         auto array = ::dataframe::make_array<T>(generate_data<T>(n));
 
@@ -60,17 +60,17 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
         CHECK(ret->Equals(array));
     }
 
-    // SECTION("Bind/Split nullable array")
-    // {
-    //     auto array = ::dataframe::make_array<T>(
-    //         generate_data<T>(n), generate_data<bool>(n));
+    SECTION("nullable array")
+    {
+        auto array = ::dataframe::make_array<T>(
+            generate_data<T>(n), generate_data<bool>(n));
 
-    //     auto chunks = ::dataframe::split_array(array, k);
+        auto chunks = ::dataframe::split_array(array, k);
 
-    //     CHECK(chunks.size() == m / k + (m % k == 0 ? 0 : 1));
+        CHECK(chunks.size() == m / k + (m % k == 0 ? 0 : 1));
 
-    //     auto ret = ::dataframe::bind_array(chunks);
+        auto ret = ::dataframe::bind_array(chunks);
 
-    //     CHECK(ret->Equals(array));
-    // }
+        CHECK(ret->Equals(array));
+    }
 }

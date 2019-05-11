@@ -63,12 +63,12 @@ inline std::shared_ptr<::arrow::Array> make_array(
         ::arrow::BitUtil::SetBitTo(bits, i, v);
     }
 
+    data->null_count = null_count;
     if (data->buffers.empty()) {
         data->buffers.emplace_back(std::move(nulls));
     } else {
         data->buffers[0] = std::move(nulls);
     }
-    data->null_count = null_count;
 
     return ::arrow::MakeArray(data);
 }
