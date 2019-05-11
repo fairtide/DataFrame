@@ -280,33 +280,41 @@ inline std::shared_ptr<::arrow::Array> make_array(
 inline std::shared_ptr<::arrow::Array> make_array(
     const ::Rcpp::IntegerVector &values)
 {
-    // if (values.hasAttribute("class")) {
-    //     ::Rcpp::CharacterVector cls = values.attr("class");
-    //     std::string clsname(cls.at(0));
+    if (values.hasAttribute("class")) {
+        ::Rcpp::CharacterVector cls = values.attr("class");
+        std::string clsname(cls.at(0));
 
-    //     if (clsname == "ordered" || clsname == "factor") {
-    //         if (!values.hasAttribute("levels")) {
-    //             throw DataFrameException("Attribute levels not found");
-    //         }
+        if (clsname == "ordered" || clsname == "factor") {
+            if (!values.hasAttribute("levels")) {
+                throw DataFrameException("Attribute levels not found");
+            }
 
-    //         ::Rcpp::CharacterVector levels = values.attr("levels");
+            ::Rcpp::CharacterVector levels = values.attr("levels");
 
-    //         auto lvls = internal::to_string_view(levels);
+            auto lvls = internal::to_string_view(levels);
 
-    //         CategoricalArray ret;
-    //         ret.reserve(static_cast<std::size_t>(values.size()));
-    //         for (auto i : values) {
-    //             if (i == NA_INTEGER) {
-    //                 ret.emplace_back();
-    //             } else {
-    //                 ret.emplace_back(lvls.at(static_cast<std::size_t>(i -
-    //                 1)));
-    //             }
-    //         }
+            auto index_type = make_data_type<std::int32_t>();
+            auto dictionary = make_array<std::string>(lvls);
 
-    //         return make_array(ret);
-    //     }
-    // }
+            ::arrow::StringDictionaryBuilder builder(
+                ::arrow::dictionary(index_type, dictionary),
+                ::arrow::default_memory_pool());
+
+            for (auto i : values) {
+                if (i == NA_INTEGER) {
+                    DF_ARROW_ERROR_HANDLER(builder.AppendNull());
+                } else {
+                    DF_ARROW_ERROR_HANDLER(builder.Append(
+                        lvls.at(static_cast<std::size_t>(i - 1))));
+                }
+            }
+
+            std::shared_ptr<::arrow::Array> ret;
+            DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+
+            return ret;
+        }
+    }
 
     std::vector<bool> mask;
     for (auto i = 0; i != values.size(); ++i) {
@@ -470,32 +478,35 @@ inline void cast_dataframe(const DataFrame &df, ::Rcpp::List *out)
             ::Rcpp::newDatetimeVector vec(0);
             cast_array(*col.data(), &vec);
             ret[key] = vec;
-            // } else if (col.is_dictionary()) {
-            //     auto data = col.as_view<CategoricalArray>();
+        } else if (col.is_type<Dict<std::string>>()) {
+            ::Rcpp::CharacterVector levels;
+            ::Rcpp::IntegerVector index;
 
-            //     auto &lvl = data.levels();
-            //     ::Rcpp::CharacterVector levels;
-            //     for (auto &&v : lvl) {
-            //         levels.push_back(v);
-            //     }
+            auto data = col.data();
+            auto view = col.as<Dict<std::string>>();
+            auto length = data->length();
+            auto indices = view.indices();
 
-            //     auto &idx = data.index();
-            //     ::Rcpp::IntegerVector index;
-            //     for (auto &&v : idx) {
-            //         if (v < 0) {
-            //             index.push_back(NA_INTEGER);
-            //         } else {
-            //             index.push_back(v + 1);
-            //         }
-            //     }
+            for (auto v : view.dictionary()) {
+                levels.push_back(std::string(v));
+            }
 
-            //     index.attr("class") = "factor";
-            //     index.attr("levels") = levels;
+            for (std::int64_t j = 0; j != length; ++j) {
+                if (data->IsValid(j)) {
+                    index.push_back(static_cast<int>(
+                        indices[static_cast<std::size_t>(j)] + 1));
+                } else {
+                    index.push_back(NA_INTEGER);
+                }
+            }
 
-            //     ret[key] = index;
+            index.attr("class") = "factor";
+            index.attr("levels") = levels;
+
+            ret[key] = index;
         } else {
             throw DataFrameException(
-                "Unknown dtype cannot be converted to JSON");
+                "Unsupported type " + col.data()->type()->ToString());
         }
     }
 

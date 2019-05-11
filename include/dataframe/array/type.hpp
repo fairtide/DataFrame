@@ -18,6 +18,7 @@
 #define DATAFRAME_ARRAY_TYPE_HPP
 
 #include <dataframe/array/type/datetime.hpp>
+#include <dataframe/array/type/dict.hpp>
 #include <dataframe/array/type/iterator.hpp>
 #include <dataframe/array/type/list.hpp>
 #include <dataframe/array/type/primitive.hpp>
@@ -256,7 +257,15 @@ struct IsTypeVisitor final : ::arrow::TypeVisitor {
 
     // ::arrow::Status Visit(const ::arrow::UnionType &type) final {}
 
-    // ::arrow::Status Visit(const ::arrow::DictionaryType &type) final {}
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    {
+        if constexpr (std::is_base_of_v<DictBase, T>) {
+            result = is_type<std::int32_t>(*type.index_type()) &&
+                is_type<typename T::data_type>(*type.dictionary()->type());
+        }
+
+        return ::arrow::Status::OK();
+    }
 };
 
 } // namespace internal

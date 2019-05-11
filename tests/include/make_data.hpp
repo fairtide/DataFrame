@@ -77,6 +77,11 @@ struct DataMaker<std::string> {
 };
 
 template <typename T>
+struct DataMaker<::dataframe::Dict<T>> {
+    static auto make(std::size_t n) { return make_data<T>(n); }
+};
+
+template <typename T>
 struct DataMaker<::dataframe::List<T>> {
     using U = ::dataframe::CType<::dataframe::List<T>>;
 

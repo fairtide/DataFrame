@@ -14,14 +14,23 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_VIEW_HPP
-#define DATAFRAME_ARRAY_VIEW_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_DICT_HPP
+#define DATAFRAME_ARRAY_MAKE_DICT_HPP
 
-#include <dataframe/array/view/bool.hpp>
-#include <dataframe/array/view/dict.hpp>
-#include <dataframe/array/view/list.hpp>
-#include <dataframe/array/view/primitive.hpp>
-#include <dataframe/array/view/string.hpp>
-#include <dataframe/array/view/struct.hpp>
+#include <dataframe/array/make/primitive.hpp>
 
-#endif // DATAFRAME_ARRAY_VIEW_HPP
+namespace dataframe {
+
+template <typename T>
+struct ArrayMaker<Dict<T>> {
+    template <typename Iter>
+    static void append(BuilderType<Dict<T>> *builder, Iter first, Iter last)
+    {
+        auto array = make_array<T>(first, last);
+        DF_ARROW_ERROR_HANDLER(builder->AppendArray(*array));
+    }
+};
+
+} // namespace dataframe
+
+#endif // DATAFRAME_ARRAY_MAKE_DICT_HPP

@@ -19,6 +19,7 @@
 
 #include <dataframe/array/cast/bool.hpp>
 #include <dataframe/array/cast/datetime.hpp>
+#include <dataframe/array/cast/dict.hpp>
 #include <dataframe/array/cast/list.hpp>
 #include <dataframe/array/cast/null.hpp>
 #include <dataframe/array/cast/primitive.hpp>
