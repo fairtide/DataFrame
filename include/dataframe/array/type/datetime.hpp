@@ -50,8 +50,11 @@ inline constexpr std::int64_t time_unit_nanos(::arrow::TimeUnit::type unit)
     return time_unit_nanos(static_cast<TimeUnit>(unit));
 }
 
+struct TimeTypeBase {
+};
+
 template <typename ArrowType>
-struct TimeType {
+struct TimeType final : TimeTypeBase {
     using arrow_type = ArrowType;
     using value_type = typename ArrowType::c_type;
 
