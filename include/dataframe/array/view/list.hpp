@@ -69,7 +69,8 @@ class ArrayView<List<T>>
 
         const_reference operator[](size_type pos) const noexcept
         {
-            return begin_[pos];
+            return *(
+                begin_ + static_cast<typename iterator::difference_type>(pos));
         }
 
         const_reference at(size_type pos) const
