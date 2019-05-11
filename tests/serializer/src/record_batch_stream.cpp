@@ -22,7 +22,7 @@
 
 TEMPLATE_TEST_CASE("RecordBatchStream Serializer", "[serializer][template]",
     std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
-    std::uint16_t, std::uint32_t, std::uint64_t,
+    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -40,7 +40,7 @@ TEMPLATE_TEST_CASE("RecordBatchStream Serializer", "[serializer][template]",
     // TODO void, bool, Dict, Decimal, FixedBinary
 
     ::dataframe::DataFrame dat;
-    std::size_t n = 1000000;
+    std::size_t n = 1000;
     auto values = make_data<TestType>(n);
     dat["test"].emplace<TestType>(std::move(values));
 
@@ -52,16 +52,24 @@ TEMPLATE_TEST_CASE("RecordBatchStream Serializer", "[serializer][template]",
     auto ret = reader.read(str);
     auto array1 = dat["test"].data();
     auto array2 = ret["test"].data();
-    CHECK(array1->Equals(array2));
+
+    CHECK(array1->length() == array2->length());
+    if (array1->length() > 0) {
+        CHECK(array1->Equals(array2));
+    }
 
     // slice
     for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
         writer.write(chunk);
         str = writer.str();
-        ret = reader.read(str, true);
+        ret = reader.read(str);
 
         array1 = chunk["test"].data();
         array2 = ret["test"].data();
-        CHECK(array1->Equals(array2));
+
+        CHECK(array1->length() == array2->length());
+        if (array1->length() > 0) {
+            CHECK(array1->Equals(array2));
+        }
     }
 }

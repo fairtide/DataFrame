@@ -34,8 +34,125 @@ struct DatetimeArrayMaker {
             typename std::iterator_traits<Iter>::value_type>;
 
         if constexpr (is_time_type) {
-            DF_ARROW_ERROR_HANDLER(builder->AppendValues(
-                field_iterator<0>(first), field_iterator<0>(last)));
+
+            struct iterator {
+                using value_type = typename T::value_type;
+                using difference_type = std::ptrdiff_t;
+                using pointer = const value_type *;
+                using reference = const value_type &;
+                using iterator_category =
+                    typename std::iterator_traits<Iter>::iterator_category;
+
+                iterator(Iter i)
+                    : iter(i)
+                {
+                }
+
+                Iter iter;
+
+                reference operator*() const { return iter->value; }
+
+                iterator &operator++() noexcept
+                {
+                    ++iter;
+
+                    return *this;
+                }
+
+                iterator operator++(int) noexcept
+                {
+                    auto ret = *this;
+                    ++(*this);
+
+                    return ret;
+                }
+
+                iterator &operator--() noexcept
+                {
+                    --iter;
+
+                    return *this;
+                }
+
+                iterator operator--(int) noexcept
+                {
+                    auto ret = *this;
+                    --(*this);
+
+                    return ret;
+                }
+
+                iterator &operator+=(difference_type n) noexcept
+                {
+                    iter += n;
+
+                    return *this;
+                }
+
+                iterator &operator-=(difference_type n) noexcept
+                {
+                    return *this += -n;
+                }
+
+                iterator operator+(difference_type n) const noexcept
+                {
+                    auto ret = *this;
+                    ret += n;
+
+                    return ret;
+                }
+
+                iterator operator-(difference_type n) const noexcept
+                {
+                    auto ret = *this;
+                    ret -= n;
+
+                    return ret;
+                }
+
+                difference_type operator-(const iterator &other) noexcept
+                {
+                    return iter - other.iter;
+                }
+
+                reference operator[](difference_type n) const noexcept
+                {
+                    return *(*this + n);
+                }
+
+                bool operator==(const iterator &other) noexcept
+                {
+                    return iter == other.iter;
+                }
+
+                bool operator!=(const iterator &other) noexcept
+                {
+                    return iter != other.iter;
+                }
+
+                bool operator<(const iterator &other) noexcept
+                {
+                    return iter < other.iter;
+                }
+
+                bool operator>(const iterator &other) noexcept
+                {
+                    return iter > other.iter;
+                }
+
+                bool operator<=(const iterator &other) noexcept
+                {
+                    return iter <= other.iter;
+                }
+
+                bool operator>=(const iterator &other) noexcept
+                {
+                    return iter >= other.iter;
+                }
+            };
+
+            DF_ARROW_ERROR_HANDLER(
+                builder->AppendValues(iterator(first), iterator(last)));
         } else {
             DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
         }
@@ -45,8 +162,6 @@ struct DatetimeArrayMaker {
 
         return ret;
     }
-
-  private:
 };
 
 } // namespace internal

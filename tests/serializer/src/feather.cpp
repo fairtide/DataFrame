@@ -22,19 +22,19 @@
 
 TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
-    std::uint32_t, std::uint64_t,
+    std::uint32_t, std::uint64_t, std::string,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
-    ::dataframe::Time<::dataframe::TimeUnit::Millisecond>, std::string)
+    ::dataframe::Time<::dataframe::TimeUnit::Millisecond>)
 {
     // TODO void, bool, Dict, Decimal, FixedBinary
 
     ::dataframe::DataFrame dat;
-    std::size_t n = 1000000;
+    std::size_t n = 1000;
     dat["test"].emplace<TestType>(make_data<TestType>(n));
 
     ::dataframe::FeatherWriter writer;
@@ -45,7 +45,11 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     auto ret = reader.read(str);
     auto array1 = dat["test"].data();
     auto array2 = ret["test"].data();
-    CHECK(array1->Equals(array2));
+
+    CHECK(array1->length() == array2->length());
+    if (array1->length() > 0) {
+        CHECK(array1->Equals(array2));
+    }
 
     // slice
     for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
@@ -55,6 +59,10 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
 
         array1 = chunk["test"].data();
         array2 = ret["test"].data();
-        CHECK(array1->Equals(array2));
+
+        CHECK(array1->length() == array2->length());
+        if (array1->length() > 0) {
+            CHECK(array1->Equals(array2));
+        }
     }
 }

@@ -82,7 +82,7 @@ static ColOutput col_output;
 
 TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
     std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
-    std::uint16_t, std::uint32_t, std::uint64_t,
+    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -92,7 +92,7 @@ TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>, std::string)
+    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 {
     // TODO void, bool, Dict, Decimal, FixedBinary
 
@@ -105,7 +105,7 @@ TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
 
 TEMPLATE_TEST_CASE("JSON Column Serializer", "[serializer][template]",
     std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
-    std::uint16_t, std::uint32_t, std::uint64_t,
+    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -115,7 +115,7 @@ TEMPLATE_TEST_CASE("JSON Column Serializer", "[serializer][template]",
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>, std::string)
+    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 {
     // TODO void, bool, Dict, Decimal, FixedBinary
 

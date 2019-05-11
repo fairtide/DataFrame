@@ -15,6 +15,7 @@
 // ============================================================================
 
 #include <dataframe/array/type.hpp>
+#include <dataframe/array/view.hpp>
 #include <random>
 
 template <typename T>
@@ -25,7 +26,7 @@ struct DataMaker {
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<> rval(-1000, 1000);
-        std::vector<U> values;
+        std::vector<T> values;
 
         for (std::size_t i = 0; i != n; ++i) {
             values.emplace_back(static_cast<U>(rval(rng)));
@@ -62,7 +63,7 @@ struct DataMaker<std::string> {
     static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
-        std::uniform_int_distribution<std::size_t> rsize(0, 10);
+        std::uniform_int_distribution<std::size_t> rsize(1, 10);
         std::vector<std::string> values;
 
         for (std::size_t i = 0; i != n; ++i) {
@@ -82,7 +83,7 @@ struct DataMaker<::dataframe::List<T>> {
     static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
-        std::uniform_int_distribution<std::size_t> rsize(0, 10);
+        std::uniform_int_distribution<std::size_t> rsize(1, 10);
         std::vector<U> values;
 
         for (std::size_t i = 0; i != n; ++i) {
@@ -125,3 +126,40 @@ struct DataMaker<::dataframe::Struct<Types...>> {
     {
     }
 };
+
+namespace dataframe {
+
+template <DateUnit Unit>
+inline bool operator==(
+    typename Datestamp<Unit>::value_type v1, const Datestamp<Unit> &v2)
+{
+    return v1 == v2.value;
+}
+
+template <TimeUnit Unit>
+inline bool operator==(
+    typename Timestamp<Unit>::value_type v1, const Timestamp<Unit> &v2)
+{
+    return v1 == v2.value;
+}
+
+template <TimeUnit Unit>
+inline bool operator==(
+    typename Time<Unit>::value_type v1, const Time<Unit> &v2)
+{
+    return v1 == v2.value;
+}
+
+template <typename V, typename... Types>
+inline bool operator==(const std::tuple<Types...> &v1, V v2)
+{
+    return v1 == v2.get();
+}
+
+template <typename T, typename V>
+inline bool operator==(const std::vector<T> &v1, V v2)
+{
+    return std::equal(v1.begin(), v1.end(), v2.begin(), v2.end());
+}
+
+} // namespace dataframe
