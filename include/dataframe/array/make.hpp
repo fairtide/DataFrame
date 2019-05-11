@@ -54,6 +54,78 @@ inline std::shared_ptr<::arrow::Array> set_mask(
     return ::arrow::MakeArray(data);
 }
 
+template <typename V, typename R, typename Iter, typename Member>
+class MemberObjectIterator
+{
+  public:
+    using value_type = V;
+    using reference = R;
+    using iterator_category =
+        typename std::iterator_traits<Iter>::iterator_category;
+
+    MemberObjectIterator(Iter iter, Member ptr)
+        : iter_(iter)
+        , ptr_(ptr)
+    {
+    }
+
+    reference operator*() const { return (*iter_).*ptr_; }
+
+    DF_DEFINE_ITERATOR_MEMBERS(MemberObjectIterator, iter_)
+
+  private:
+    Iter iter_;
+    Member ptr_;
+};
+
+template <typename V, typename R, typename Iter, typename Member>
+class MemberFunctionIterator
+{
+  public:
+    using value_type = V;
+    using reference = R;
+    using iterator_category =
+        typename std::iterator_traits<Iter>::iterator_category;
+
+    MemberFunctionIterator(Iter iter, Member ptr)
+        : iter_(iter)
+        , ptr_(ptr)
+    {
+    }
+
+    reference operator*() const { return ((*iter_).*ptr_)(); }
+
+    DF_DEFINE_ITERATOR_MEMBERS(MemberFunctionIterator, iter_)
+
+  private:
+    Iter iter_;
+    Member ptr_;
+};
+
+template <typename V, typename R, typename Iter, typename Getter>
+class MemberGetterIterator
+{
+  public:
+    using value_type = V;
+    using reference = R;
+    using iterator_category =
+        typename std::iterator_traits<Iter>::iterator_category;
+
+    MemberGetterIterator(Iter iter, Getter get)
+        : iter_(iter)
+        , get_(get)
+    {
+    }
+
+    reference operator*() const { return get_(*iter_); }
+
+    DF_DEFINE_ITERATOR_MEMBERS(MemberGetterIterator, iter_)
+
+  private:
+    Iter iter_;
+    Getter get_;
+};
+
 } // namespace internal
 
 template <typename Iter>
@@ -71,31 +143,9 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
 {
     using R = decltype((*first).*member);
     using V = std::remove_cv_t<std::remove_reference_t<R>>;
+    using I = internal::MemberObjectIterator<V, R, Iter, Member>;
 
-    class iterator
-    {
-      public:
-        using value_type = V;
-        using reference = R;
-        using iterator_category =
-            typename std::iterator_traits<Iter>::iterator_category;
-
-        iterator(Iter iter, Member ptr)
-            : iter_(iter)
-            , ptr_(ptr)
-        {
-        }
-
-        reference operator*() const { return (*iter_).*ptr_; }
-
-        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
-
-      private:
-        Iter iter_;
-        Member ptr_;
-    };
-
-    return make_array<T>(iterator(first, member), iterator(last, member));
+    return make_array<T>(I(first, member), I(last, member));
 }
 
 template <typename Iter, typename Member>
@@ -116,31 +166,9 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
 {
     using R = decltype(((*first).*member)());
     using V = std::remove_cv_t<std::remove_reference_t<R>>;
+    using I = internal::MemberFunctionIterator<V, R, Iter, Member>;
 
-    class iterator
-    {
-      public:
-        using value_type = V;
-        using reference = R;
-        using iterator_category =
-            typename std::iterator_traits<Iter>::iterator_category;
-
-        iterator(Iter iter, Member ptr)
-            : iter_(iter)
-            , ptr_(ptr)
-        {
-        }
-
-        reference operator*() const { return ((*iter_).*ptr_)(); }
-
-        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
-
-      private:
-        Iter iter_;
-        Member ptr_;
-    };
-
-    return make_array<T>(iterator(first, member), iterator(last, member));
+    return make_array<T>(I(first, member), I(last, member));
 }
 
 template <typename Iter, typename Member>
@@ -162,31 +190,9 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
 {
     using R = decltype(getter(*first));
     using V = std::remove_cv_t<std::remove_reference_t<R>>;
+    using I = internal::MemberGetterIterator<V, R, Iter, Getter>;
 
-    class iterator
-    {
-      public:
-        using value_type = V;
-        using reference = R;
-        using iterator_category =
-            typename std::iterator_traits<Iter>::iterator_category;
-
-        iterator(Iter iter, Getter get)
-            : iter_(iter)
-            , get_(get)
-        {
-        }
-
-        reference operator*() const { return get_(*iter_); }
-
-        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
-
-      private:
-        Iter iter_;
-        Getter get_;
-    };
-
-    return make_array<T>(iterator(first, getter), iterator(last, getter));
+    return make_array<T>(I(first, getter), I(last, getter));
 }
 
 template <typename Iter, typename Getter>

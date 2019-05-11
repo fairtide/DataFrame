@@ -18,49 +18,26 @@
 #define DATAFRAME_ARRAY_MAKE_LIST_HPP
 
 #include <dataframe/array/make/primitive.hpp>
-#include <arrow/util/concatenate.h>
 
 namespace dataframe {
 
 template <typename T>
 struct ArrayMaker<List<T>> {
     template <typename Iter>
-    static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
+    static void append(BuilderType<List<T>> *builder, Iter first, Iter last)
     {
-        auto length = static_cast<std::int64_t>(std::distance(first, last));
+        auto value_builder =
+            dynamic_cast<BuilderType<T> *>(builder->value_builder());
 
-        std::unique_ptr<::arrow::Buffer> offsets;
-
-        DF_ARROW_ERROR_HANDLER(
-            ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
-                (length + 1) * static_cast<std::int64_t>(sizeof(std::int32_t)),
-                &offsets));
-
-        auto p = reinterpret_cast<std::int32_t *>(
-            dynamic_cast<::arrow::MutableBuffer &>(*offsets).mutable_data());
-
-        p[0] = 0;
-        auto iter = first;
-        ::arrow::ArrayVector value_list;
-        value_list.reserve(static_cast<std::size_t>(length));
-        for (std::int64_t i = 0; i != length; ++i, ++iter) {
-            auto begin = std::begin(*iter);
-            auto end = std::end(*iter);
-            auto count = static_cast<std::int32_t>(std::distance(begin, end));
-            p[i + 1] = p[i] + count;
-            if (count > 0) {
-                value_list.push_back(make_array<T>(begin, end));
-            }
+        if (value_builder == nullptr) {
+            throw DataFrameException("Null value builder");
         }
 
-        std::shared_ptr<::arrow::Array> values;
-        DF_ARROW_ERROR_HANDLER(::arrow::Concatenate(
-            value_list, ::arrow::default_memory_pool(), &values));
-
-        auto type = ::arrow::list(values->type());
-
-        return std::make_shared<::arrow::ListArray>(
-            std::move(type), length, std::move(offsets), std::move(values));
+        for (auto iter = first; iter != last; ++iter) {
+            DF_ARROW_ERROR_HANDLER(builder->Append(true));
+            ArrayMaker<T>::append(
+                value_builder, std::begin(*iter), std::end(*iter));
+        }
     }
 };
 

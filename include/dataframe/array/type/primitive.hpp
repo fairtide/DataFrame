@@ -26,22 +26,28 @@ template <typename T>
 struct TypeTraits;
 
 template <typename T>
+auto make_data_type()
+{
+    return TypeTraits<T>::data_type();
+}
+
+template <typename T>
+auto make_builder()
+{
+    return TypeTraits<T>::builder();
+};
+
+template <typename T>
 using CType = typename TypeTraits<T>::ctype;
 
 template <typename T>
 using ArrayType = typename TypeTraits<T>::array_type;
 
-template <typename T, typename... Args>
-auto make_data_type(Args &&... args)
-{
-    return TypeTraits<T>::data_type(std::forward<Args>(args)...);
-}
+template <typename T>
+using DataType = typename decltype(make_data_type<T>())::element_type;
 
-template <typename T, typename... Args>
-auto make_builder(Args &&... args)
-{
-    return TypeTraits<T>::builder(std::forward<Args>(args)...);
-};
+template <typename T>
+using BuilderType = typename decltype(make_builder<T>())::element_type;
 
 #define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
     template <>                                                               \

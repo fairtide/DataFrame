@@ -24,22 +24,21 @@ namespace dataframe {
 template <typename T>
 struct ArrayMaker {
     template <typename Iter>
-    static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
+    static void append(BuilderType<T> *builder, Iter first, Iter last)
     {
-        auto builder = make_builder<T>();
         DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
-
-        std::shared_ptr<::arrow::Array> ret;
-        DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
-
-        return ret;
     }
 };
 
 template <typename T, typename Iter>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
 {
-    return ArrayMaker<T>::make(first, last);
+    auto builder = make_builder<T>();
+    ArrayMaker<T>::append(builder.get(), first, last);
+    std::shared_ptr<::arrow::Array> ret;
+    DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
+
+    return ret;
 }
 
 } // namespace dataframe

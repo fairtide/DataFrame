@@ -24,72 +24,76 @@ namespace dataframe {
 template <typename... Types>
 struct ArrayMaker<Struct<Types...>> {
     template <typename Iter>
-    static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
+    static void append(
+        BuilderType<Struct<Types...>> *builder, Iter first, Iter last)
     {
-        std::vector<std::shared_ptr<::arrow::Field>> fields;
-        std::vector<std::shared_ptr<::arrow::Array>> arrays;
-        make<0>(fields, arrays, first, last,
-            std::integral_constant<bool, 0 < nfields>());
+        DF_ARROW_ERROR_HANDLER(builder->AppendValues(
+            static_cast<std::int64_t>(std::distance(first, last)), nullptr));
 
-        if (arrays.empty()) {
-            return nullptr;
-        }
-
-        return std::make_shared<::arrow::StructArray>(
-            ::arrow::struct_(fields), arrays.front()->length(), arrays);
+        append<0>(
+            builder, first, last, std::integral_constant<bool, 0 < nfields>());
     }
 
   private:
+    template <std::size_t N, typename V, typename R, typename Iter>
+    class iterator
+    {
+      public:
+        using value_type = V;
+        using reference = R;
+        using iterator_category =
+            typename std::iterator_traits<Iter>::iterator_category;
+
+        iterator(Iter iter)
+            : iter_(iter)
+        {
+        }
+
+        reference operator*() const
+        {
+            return get_field(*iter_, field_index<N>());
+        }
+
+        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
+
+      private:
+        Iter iter_;
+    };
+
     static constexpr std::size_t nfields = sizeof...(Types);
 
     template <std::size_t N, typename Iter>
-    static void make(std::vector<std::shared_ptr<::arrow::Field>> &fields,
-        std::vector<std::shared_ptr<::arrow::Array>> &arrays, Iter first,
+    static void append(BuilderType<Struct<Types...>> *builder, Iter first,
         Iter last, std::true_type)
     {
         using T = FieldType<N, Types...>;
         using R = decltype(get_field(*first, field_index<N>()));
         using V = std::remove_cv_t<std::remove_reference_t<R>>;
+        using I = iterator<N, V, R, Iter>;
 
-        class iterator
-        {
-          public:
-            using value_type = V;
-            using reference = R;
-            using iterator_category =
-                typename std::iterator_traits<Iter>::iterator_category;
+        auto field_builder =
+            dynamic_cast<BuilderType<T> *>(builder->field_builder(N));
 
-            iterator(Iter iter)
-                : iter_(iter)
-            {
-            }
+        if (field_builder == nullptr) {
+            throw DataFrameException("Null field builder");
+        }
 
-            reference operator*() const
-            {
-                return get_field(*iter_, field_index<N>());
-            }
+        ArrayMaker<T>::append(field_builder, I(first), I(last));
 
-            DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
-
-          private:
-            Iter iter_;
-        };
-
-        arrays.emplace_back(make_array<T>(iterator(first), iterator(last)));
-
-        fields.emplace_back(::arrow::field(
-            "field" + std::to_string(N), arrays.back()->type()));
-
-        make<N + 1>(fields, arrays, first, last,
+        append<N + 1>(builder, first, last,
             std::integral_constant<bool, N + 1 < nfields>());
     }
 
     template <std::size_t, typename Iter>
-    static void make(std::vector<std::shared_ptr<::arrow::Field>> &,
-        std::vector<std::shared_ptr<::arrow::Array>> &, Iter, Iter,
-        std::false_type)
+    static void append(
+        BuilderType<Struct<Types...>> *, Iter, Iter, std::false_type)
     {
     }
+};
+
+template <typename T, typename... Types>
+struct ArrayMaker<NamedStruct<T, Types...>>
+    : public ArrayMaker<Struct<Types...>> {
 };
 
 } // namespace dataframe

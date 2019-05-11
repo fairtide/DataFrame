@@ -57,6 +57,13 @@ struct Output {
 
 static Output output;
 
+struct TestStruct;
+
+inline auto field_name(const TestStruct *, ::dataframe::field_index<0>)
+{
+    return "Test";
+}
+
 TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
     std::uint32_t, std::uint64_t, std::string,
@@ -70,9 +77,9 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::List<double>, ::dataframe::Struct<double>,
-    ::dataframe::List<::dataframe::Struct<double>>,
-    ::dataframe::Struct<::dataframe::List<double>>)
+    ::dataframe::List<double>, (::dataframe::NamedStruct<TestStruct, double>),
+    (::dataframe::List<::dataframe::NamedStruct<TestStruct, double>>),
+    (::dataframe::NamedStruct<TestStruct, ::dataframe::List<double>>) )
 {
     // TODO void, bool, Dict, Decimal, FixedBinary
 

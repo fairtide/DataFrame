@@ -26,10 +26,8 @@ namespace internal {
 template <typename T>
 struct DatetimeArrayMaker {
     template <typename Iter>
-    static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
+    static void append(BuilderType<T> *builder, Iter first, Iter last)
     {
-        auto builder = make_builder<T>();
-
         constexpr bool is_time_type = std::is_base_of_v<TimeTypeBase,
             typename std::iterator_traits<Iter>::value_type>;
 
@@ -61,11 +59,6 @@ struct DatetimeArrayMaker {
         } else {
             DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
         }
-
-        std::shared_ptr<::arrow::Array> ret;
-        DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
-
-        return ret;
     }
 };
 

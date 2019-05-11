@@ -255,6 +255,13 @@ class ArrayView<Struct<Types...>>
     std::array<std::string_view, nfields> names_;
 };
 
+template <typename T, typename... Types>
+class ArrayView<NamedStruct<T, Types...>> : public ArrayView<Struct<Types...>>
+{
+  public:
+    using ArrayView<Struct<Types...>>::ArrayView;
+};
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_VIEW_STRUCT_HPP

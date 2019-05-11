@@ -49,28 +49,22 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
 
         CHECK(data->length() == static_cast<std::int64_t>(n));
         CHECK(data->null_count() == 0);
-
-        if (!std::equal(
-                values.begin(), values.end(), view.begin(), view.end())) {
-            std::cout << *data << std::endl;
-        }
-
         CHECK(std::equal(
             values.begin(), values.end(), view.begin(), view.end()));
     }
 
-    // SECTION("Make nullable array")
-    // {
-    // auto valids = make_data<bool>(n);
-    // auto null_count = static_cast<std::int64_t>(n) -
-    //     std::accumulate(valids.begin(), valids.end(), INT64_C(0));
-    //
-    //     auto data = ::dataframe::make_array<TestType>(values, valids);
-    //     auto view = ::dataframe::make_view<TestType>(data);
+    SECTION("Make nullable array")
+    {
+        auto valids = make_data<bool>(n);
+        auto null_count = static_cast<std::int64_t>(n) -
+            std::accumulate(valids.begin(), valids.end(), INT64_C(0));
 
-    //     CHECK(data->length() == static_cast<std::int64_t>(n));
-    //     CHECK(data->null_count() == null_count);
-    //     CHECK(std::equal(
-    //         values.begin(), values.end(), view.begin(), view.end()));
-    // }
+        auto data = ::dataframe::make_array<TestType>(values, valids);
+        auto view = ::dataframe::make_view<TestType>(data);
+
+        CHECK(data->length() == static_cast<std::int64_t>(n));
+        CHECK(data->null_count() == null_count);
+        CHECK(std::equal(
+            values.begin(), values.end(), view.begin(), view.end()));
+    }
 }

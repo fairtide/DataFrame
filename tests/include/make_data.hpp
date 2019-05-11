@@ -127,6 +127,11 @@ struct DataMaker<::dataframe::Struct<Types...>> {
     }
 };
 
+template <typename T, typename... Types>
+struct DataMaker<::dataframe::NamedStruct<T, Types...>>
+    : DataMaker<::dataframe::Struct<Types...>> {
+};
+
 namespace dataframe {
 
 template <DateUnit Unit>
