@@ -48,123 +48,31 @@ struct ArrayMaker<Struct<Types...>> {
         Iter last, std::true_type)
     {
         using T = FieldType<N, Types...>;
-        using R = decltype(std::get<N>(*first));
+        using R = decltype(get_field(*first, field_index<N>()));
         using V = std::remove_cv_t<std::remove_reference_t<R>>;
 
-        struct iterator {
+        class iterator
+        {
+          public:
             using value_type = V;
-            using difference_type = std::ptrdiff_t;
-            using pointer = const value_type *;
             using reference = R;
             using iterator_category =
                 typename std::iterator_traits<Iter>::iterator_category;
 
-            iterator(Iter i)
-                : iter(i)
+            iterator(Iter iter)
+                : iter_(iter)
             {
             }
 
-            Iter iter;
-
-            reference operator*() const { return std::get<N>(*iter); }
-
-            iterator &operator++() noexcept
+            reference operator*() const
             {
-                ++iter;
-
-                return *this;
+                return get_field(*iter_, field_index<N>());
             }
 
-            iterator operator++(int) noexcept
-            {
-                auto ret = *this;
-                ++(*this);
+            DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
 
-                return ret;
-            }
-
-            iterator &operator--() noexcept
-            {
-                --iter;
-
-                return *this;
-            }
-
-            iterator operator--(int) noexcept
-            {
-                auto ret = *this;
-                --(*this);
-
-                return ret;
-            }
-
-            iterator &operator+=(difference_type n) noexcept
-            {
-                iter += n;
-
-                return *this;
-            }
-
-            iterator &operator-=(difference_type n) noexcept
-            {
-                return *this += -n;
-            }
-
-            iterator operator+(difference_type n) const noexcept
-            {
-                auto ret = *this;
-                ret += n;
-
-                return ret;
-            }
-
-            iterator operator-(difference_type n) const noexcept
-            {
-                auto ret = *this;
-                ret -= n;
-
-                return ret;
-            }
-
-            difference_type operator-(const iterator &other) noexcept
-            {
-                return iter - other.iter;
-            }
-
-            reference operator[](difference_type n) const noexcept
-            {
-                return *(*this + n);
-            }
-
-            bool operator==(const iterator &other) noexcept
-            {
-                return iter == other.iter;
-            }
-
-            bool operator!=(const iterator &other) noexcept
-            {
-                return iter != other.iter;
-            }
-
-            bool operator<(const iterator &other) noexcept
-            {
-                return iter < other.iter;
-            }
-
-            bool operator>(const iterator &other) noexcept
-            {
-                return iter > other.iter;
-            }
-
-            bool operator<=(const iterator &other) noexcept
-            {
-                return iter <= other.iter;
-            }
-
-            bool operator>=(const iterator &other) noexcept
-            {
-                return iter >= other.iter;
-            }
+          private:
+            Iter iter_;
         };
 
         arrays.emplace_back(make_array<T>(iterator(first), iterator(last)));

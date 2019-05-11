@@ -21,13 +21,6 @@
 
 namespace dataframe {
 
-template <typename T, std::size_t N>
-inline std::string field_name(
-    const T *, std::integral_constant<std::size_t, N>)
-{
-    return "Field" + std::to_string(N);
-}
-
 template <typename T>
 struct ArrayMaker {
     template <typename Iter>
@@ -43,43 +36,10 @@ struct ArrayMaker {
     }
 };
 
-template <typename Valid>
-inline std::int64_t make_null_bitmap(
-    std::int64_t length, Valid valid, std::shared_ptr<::arrow::Buffer> *out)
-{
-    DF_ARROW_ERROR_HANDLER(
-        ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
-            ::arrow::BitUtil::BytesForBits(length), out));
-
-    auto bits =
-        dynamic_cast<::arrow::MutableBuffer &>(*out->get()).mutable_data();
-
-    std::int64_t null_count = 0;
-    for (std::int64_t i = 0; i != length; ++i, ++valid) {
-        auto is_valid = *valid;
-        null_count += !is_valid;
-        ::arrow::BitUtil::SetBitTo(bits, i, is_valid);
-    }
-
-    return null_count;
-}
-
 template <typename T, typename Iter>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
 {
     return ArrayMaker<T>::make(first, last);
-}
-
-template <typename T, typename Iter, typename Valid>
-inline std::shared_ptr<::arrow::Array> make_array(
-    Iter first, Iter last, Valid valid)
-{
-    auto data = make_array<T>(first, last)->data()->Copy();
-
-    data->null_count =
-        make_null_bitmap(data->length, valid, &data->buffers.at(0));
-
-    return ::arrow::MakeArray(data);
 }
 
 } // namespace dataframe

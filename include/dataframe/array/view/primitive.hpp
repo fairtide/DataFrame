@@ -121,6 +121,8 @@ class ArrayView
         for (std::size_t i = 0; i != size_; ++i, ++out) {
             setter(operator[](i), out);
         }
+
+        return out;
     }
 
   private:

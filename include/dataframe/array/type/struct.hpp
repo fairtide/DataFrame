@@ -22,6 +22,28 @@
 
 namespace dataframe {
 
+template <std::size_t N>
+using field_index = std::integral_constant<std::size_t, N>;
+
+template <typename T, std::size_t N>
+inline std::string field_name(const T *, field_index<N>)
+{
+    return "Field" + std::to_string(N);
+}
+
+template <typename... Types, std::size_t N>
+inline const std::tuple_element_t<N, std::tuple<Types...>> &get_field(
+    const std::tuple<Types...> &value, field_index<N>)
+{
+    return std::get<N>(value);
+}
+
+template <std::size_t N, typename V, typename... Types>
+inline void set_field(std::tuple<Types...> &value, V &&v, field_index<N>)
+{
+    std::get<N>(value) = std::forward<V>(v);
+}
+
 struct StructBase {
 };
 

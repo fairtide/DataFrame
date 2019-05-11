@@ -18,6 +18,7 @@
 #define DATAFRAME_ARRAY_TYPE_HPP
 
 #include <dataframe/array/type/datetime.hpp>
+#include <dataframe/array/type/iterator.hpp>
 #include <dataframe/array/type/list.hpp>
 #include <dataframe/array/type/primitive.hpp>
 #include <dataframe/array/type/string.hpp>

@@ -35,120 +35,25 @@ struct DatetimeArrayMaker {
 
         if constexpr (is_time_type) {
 
-            struct iterator {
+            class iterator
+            {
+              public:
                 using value_type = typename T::value_type;
-                using difference_type = std::ptrdiff_t;
-                using pointer = const value_type *;
-                using reference = const value_type &;
+                using reference = value_type;
                 using iterator_category =
                     typename std::iterator_traits<Iter>::iterator_category;
 
-                iterator(Iter i)
-                    : iter(i)
+                iterator(Iter iter)
+                    : iter_(iter)
                 {
                 }
 
-                Iter iter;
+                reference operator*() const { return (*iter_).value; }
 
-                reference operator*() const { return iter->value; }
+                DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
 
-                iterator &operator++() noexcept
-                {
-                    ++iter;
-
-                    return *this;
-                }
-
-                iterator operator++(int) noexcept
-                {
-                    auto ret = *this;
-                    ++(*this);
-
-                    return ret;
-                }
-
-                iterator &operator--() noexcept
-                {
-                    --iter;
-
-                    return *this;
-                }
-
-                iterator operator--(int) noexcept
-                {
-                    auto ret = *this;
-                    --(*this);
-
-                    return ret;
-                }
-
-                iterator &operator+=(difference_type n) noexcept
-                {
-                    iter += n;
-
-                    return *this;
-                }
-
-                iterator &operator-=(difference_type n) noexcept
-                {
-                    return *this += -n;
-                }
-
-                iterator operator+(difference_type n) const noexcept
-                {
-                    auto ret = *this;
-                    ret += n;
-
-                    return ret;
-                }
-
-                iterator operator-(difference_type n) const noexcept
-                {
-                    auto ret = *this;
-                    ret -= n;
-
-                    return ret;
-                }
-
-                difference_type operator-(const iterator &other) noexcept
-                {
-                    return iter - other.iter;
-                }
-
-                reference operator[](difference_type n) const noexcept
-                {
-                    return *(*this + n);
-                }
-
-                bool operator==(const iterator &other) noexcept
-                {
-                    return iter == other.iter;
-                }
-
-                bool operator!=(const iterator &other) noexcept
-                {
-                    return iter != other.iter;
-                }
-
-                bool operator<(const iterator &other) noexcept
-                {
-                    return iter < other.iter;
-                }
-
-                bool operator>(const iterator &other) noexcept
-                {
-                    return iter > other.iter;
-                }
-
-                bool operator<=(const iterator &other) noexcept
-                {
-                    return iter <= other.iter;
-                }
-
-                bool operator>=(const iterator &other) noexcept
-                {
-                    return iter >= other.iter;
-                }
+              private:
+                Iter iter_;
             };
 
             DF_ARROW_ERROR_HANDLER(

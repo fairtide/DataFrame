@@ -25,32 +25,175 @@
 
 namespace dataframe {
 
-template <typename T, typename Container>
-inline std::shared_ptr<::arrow::Array> make_array(Container &&container)
+namespace internal {
+
+template <typename Iter>
+inline std::shared_ptr<::arrow::Array> set_mask(
+    const std::shared_ptr<::arrow::Array> &array, Iter iter)
 {
-    return make_array<T>(std::begin(container), std::end(container));
+    auto data = array->data()->Copy();
+    auto length = data->length;
+    auto &null_bitmap = data->buffers.at(0);
+
+    DF_ARROW_ERROR_HANDLER(
+        ::arrow::AllocateBuffer(::arrow::default_memory_pool(),
+            ::arrow::BitUtil::BytesForBits(length), &null_bitmap));
+
+    auto bits =
+        dynamic_cast<::arrow::MutableBuffer &>(*null_bitmap).mutable_data();
+
+    std::int64_t null_count = 0;
+    for (std::int64_t i = 0; i != length; ++i, ++iter) {
+        auto is_valid = *iter;
+        null_count += !is_valid;
+        ::arrow::BitUtil::SetBitTo(bits, i, is_valid);
+    }
+
+    data->null_count = null_count;
+
+    return ::arrow::MakeArray(data);
 }
 
-template <typename T, typename Container, typename Alloc>
-inline std::shared_ptr<::arrow::Array> make_array(
-    Container &&container, const std::vector<bool, Alloc> &valids)
-{
-    return make_array<T>(
-        std::begin(container), std::end(container), valids.begin());
-}
+} // namespace internal
 
-template <typename InputIter>
-inline std::shared_ptr<::arrow::Array> make_array(
-    InputIter first, InputIter last)
+template <typename Iter>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
 {
-    using T = typename std::iterator_traits<InputIter>::value_type;
+    using T = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
 
     return make_array<T>(first, last);
 }
 
-template <typename InputIter, typename Getter>
-inline std::shared_ptr<::arrow::Array> make_array(
-    InputIter first, InputIter last, Getter &&getter)
+template <typename T, typename Iter, typename Member>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    Member &&member,
+    std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
+{
+    using R = decltype((*first).*member);
+    using V = std::remove_cv_t<std::remove_reference_t<R>>;
+
+    class iterator
+    {
+      public:
+        using value_type = V;
+        using reference = R;
+        using iterator_category =
+            typename std::iterator_traits<Iter>::iterator_category;
+
+        iterator(Iter iter, Member ptr)
+            : iter_(iter)
+            , ptr_(ptr)
+        {
+        }
+
+        reference operator*() const { return (*iter_).*ptr_; }
+
+        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
+
+      private:
+        Iter iter_;
+        Member ptr_;
+    };
+
+    return make_array<T>(iterator(first, member), iterator(last, member));
+}
+
+template <typename Iter, typename Member>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    Member &&member,
+    std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
+{
+    using T =
+        std::remove_cv_t<std::remove_reference_t<decltype((*first).member)>>;
+
+    return make_array<T>(first, last, std::forward<Member>(member));
+}
+
+template <typename T, typename Iter, typename Member>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    Member &&member,
+    std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
+{
+    using R = decltype(((*first).*member)());
+    using V = std::remove_cv_t<std::remove_reference_t<R>>;
+
+    class iterator
+    {
+      public:
+        using value_type = V;
+        using reference = R;
+        using iterator_category =
+            typename std::iterator_traits<Iter>::iterator_category;
+
+        iterator(Iter iter, Member ptr)
+            : iter_(iter)
+            , ptr_(ptr)
+        {
+        }
+
+        reference operator*() const { return ((*iter_).*ptr_)(); }
+
+        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
+
+      private:
+        Iter iter_;
+        Member ptr_;
+    };
+
+    return make_array<T>(iterator(first, member), iterator(last, member));
+}
+
+template <typename Iter, typename Member>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    Member &&member,
+    std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
+{
+    using T = std::remove_cv_t<
+        std::remove_reference_t<decltype(((*first).member)())>>;
+
+    return make_array<T>(first, last, std::forward<Member>(member));
+}
+
+template <typename T, typename Iter, typename Getter>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    Getter &&getter,
+    std::enable_if_t<!std::is_member_pointer_v<Getter> &&
+        std::is_invocable_v<Getter, decltype(*first)>> * = nullptr)
+{
+    using R = decltype(getter(*first));
+    using V = std::remove_cv_t<std::remove_reference_t<R>>;
+
+    class iterator
+    {
+      public:
+        using value_type = V;
+        using reference = R;
+        using iterator_category =
+            typename std::iterator_traits<Iter>::iterator_category;
+
+        iterator(Iter iter, Getter get)
+            : iter_(iter)
+            , get_(get)
+        {
+        }
+
+        reference operator*() const { return get_(*iter_); }
+
+        DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
+
+      private:
+        Iter iter_;
+        Getter get_;
+    };
+
+    return make_array<T>(iterator(first, getter), iterator(last, getter));
+}
+
+template <typename Iter, typename Getter>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    Getter &&getter,
+    std::enable_if_t<!std::is_member_pointer_v<Getter> &&
+        std::is_invocable_v<Getter, decltype(*first)>> * = nullptr)
 {
     using T =
         std::remove_cv_t<std::remove_reference_t<decltype(getter(*first))>>;
@@ -58,18 +201,58 @@ inline std::shared_ptr<::arrow::Array> make_array(
     return make_array<T>(first, last, std::forward<Getter>(getter));
 }
 
-template <typename T, typename... Args>
+template <typename T, typename Iter, typename Valid, typename... Args>
 inline std::shared_ptr<::arrow::Array> make_array(
-    std::size_t n, const T *data, Args &&... args)
+    Iter first, Iter last, Valid valid, Args &&... args)
 {
-    return make_array(data, data + n, std::forward<Args>(args)...);
+    return internal::set_mask(
+        make_array<T>(first, last, std::forward<Args>(args)...), valid);
 }
 
-template <typename T, typename U, typename... Args>
+template <typename Iter, typename Valid, typename... Args>
 inline std::shared_ptr<::arrow::Array> make_array(
-    std::size_t n, const U *data, Args &&... args)
+    Iter first, Iter last, Valid valid, Args &&... args)
+{
+    return internal::set_mask(
+        make_array(first, last, std::forward<Args>(args)...), valid);
+}
+
+template <typename T, typename Iter, typename Alloc, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    const std::vector<bool, Alloc> &valid, Args &&... args)
+{
+    return internal::set_mask(
+        make_array<T>(first, last, std::forward<Args>(args)...),
+        valid.begin());
+}
+
+template <typename Iter, typename Alloc, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    const std::vector<bool, Alloc> &valid, Args &&... args)
+{
+    return internal::set_mask(
+        make_array(first, last, std::forward<Args>(args)...), valid.begin());
+}
+
+template <typename T, typename V, typename Alloc, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    const std::vector<V, Alloc> &vec, Args &&... args)
+{
+    return make_array<T>(vec.begin(), vec.end(), std::forward<Args>(args)...);
+}
+
+template <typename T, typename V, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    std::size_t n, const V *data, Args &&... args)
 {
     return make_array<T>(data, data + n, std::forward<Args>(args)...);
+}
+
+template <typename V, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    std::size_t n, const V *data, Args &&... args)
+{
+    return make_array(data, data + n, std::forward<Args>(args)...);
 }
 
 } // namespace dataframe

@@ -105,126 +105,15 @@ class ArrayView<Struct<Types...>>
     {
       public:
         using value_type = view;
-        using difference_type = std::ptrdiff_t;
-        using pointer = const value_type *;
         using reference = value_type;
         using iterator_category = std::random_access_iterator_tag;
-
-        iterator() noexcept = default;
-        iterator(const iterator &) noexcept = default;
-        iterator(iterator &&) noexcept = default;
-        iterator &operator=(const iterator &) noexcept = default;
-        iterator &operator=(iterator &&) noexcept = default;
 
         reference operator*() const noexcept
         {
             return ptr_->operator[](static_cast<size_type>(pos_));
         }
 
-        iterator &operator++() noexcept
-        {
-            ++pos_;
-
-            return *this;
-        }
-
-        iterator operator++(int) noexcept
-        {
-            auto ret = *this;
-            ++(*this);
-
-            return ret;
-        }
-
-        iterator &operator--() noexcept
-        {
-            --pos_;
-
-            return *this;
-        }
-
-        iterator operator--(int) noexcept
-        {
-            auto ret = *this;
-            --(*this);
-
-            return ret;
-        }
-
-        iterator &operator+=(difference_type n) noexcept
-        {
-            pos_ += n;
-
-            return *this;
-        }
-
-        iterator &operator-=(difference_type n) noexcept
-        {
-            return *this += -n;
-        }
-
-        iterator operator+(difference_type n) const noexcept
-        {
-            auto ret = *this;
-            ret += n;
-
-            return ret;
-        }
-
-        iterator operator-(difference_type n) const noexcept
-        {
-            auto ret = *this;
-            ret -= n;
-
-            return ret;
-        }
-
-        friend iterator operator+(
-            difference_type n, const iterator &iter) noexcept
-        {
-            return iter + n;
-        }
-
-        friend difference_type operator-(
-            const iterator &x, const iterator &y) noexcept
-        {
-            return x.pos_ - y.pos_;
-        }
-
-        reference operator[](difference_type n) const noexcept
-        {
-            return *(*this + n);
-        }
-
-        friend bool operator==(const iterator &x, const iterator &y) noexcept
-        {
-            return x.pos_ == y.pos_;
-        }
-
-        friend bool operator!=(const iterator &x, const iterator &y) noexcept
-        {
-            return !(x == y);
-        }
-
-        friend bool operator<(const iterator &x, const iterator &y) noexcept
-        {
-            return x.pos_ < y.pos_;
-        }
-
-        friend bool operator>(const iterator &x, const iterator &y) noexcept
-        {
-            return y < x;
-        }
-
-        friend bool operator<=(const iterator &x, const iterator &y) noexcept
-        {
-            return !(y < x);
-        }
-
-        friend bool operator>=(const iterator &x, const iterator &y) noexcept
-        {
-            return !(x < y);
-        }
+        DF_DEFINE_ITERATOR_MEMBERS(iterator, pos_)
 
       private:
         friend ArrayView;
@@ -353,6 +242,8 @@ class ArrayView<Struct<Types...>>
         for (std::size_t i = 0; i != size_; ++i, ++out) {
             setter(operator[](i), out);
         }
+
+        return out;
     }
 
   private:
