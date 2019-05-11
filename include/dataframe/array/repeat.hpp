@@ -14,49 +14,46 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_VIEW_STRING_HPP
-#define DATAFRAME_ARRAY_VIEW_STRING_HPP
+#ifndef DATAFRAME_ARRAY_REPEAT_HPP
+#define DATAFRAME_ARRAY_REPEAT_HPP
 
-#include <dataframe/array/view/primitive.hpp>
+#include <dataframe/array/type.hpp>
 
 namespace dataframe {
 
-template <>
-class ArrayView<std::string>
+template <typename T>
+class Repeat
 {
   public:
-    using value_type = std::string_view;
+    using value_type = T;
 
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
 
-    using reference = value_type;
+    using reference = const value_type &;
     using const_reference = reference;
 
     class iterator
     {
       public:
-        using value_type = std::string_view;
-        using reference = value_type;
+        using value_type = T;
+        using reference = const value_type &;
         using iterator_category = std::random_access_iterator_tag;
 
-        reference operator*() const noexcept
-        {
-            return ptr_->operator[](static_cast<size_type>(pos_));
-        }
+        reference operator*() const noexcept { return *ptr_; }
 
         DF_DEFINE_ITERATOR_MEMBERS(iterator, pos_)
 
       private:
-        friend ArrayView;
+        friend Repeat;
 
-        iterator(const ArrayView *ptr, size_type pos)
+        iterator(pointer ptr, size_type pos)
             : ptr_(ptr)
             , pos_(static_cast<std::ptrdiff_t>(pos))
         {
         }
 
-        const ArrayView *ptr_;
+        pointer ptr_;
         difference_type pos_;
     };
 
@@ -68,51 +65,37 @@ class ArrayView<std::string>
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    ArrayView() noexcept = default;
-
-    ArrayView(std::shared_ptr<::arrow::Array> data)
-        : data_(std::move(data))
-        , size_(static_cast<size_type>(data_->length()))
-        , offsets_(dynamic_cast<const ::arrow::BinaryArray &>(*data_)
-                       .raw_value_offsets())
-        , buffer_(reinterpret_cast<const char *>(
-              dynamic_cast<const ::arrow::BinaryArray &>(*data_)
-                  .value_data()
-                  ->data()))
+    explicit Repeat(const value_type &value, size_type size = 0)
+        : value_(value)
+        , size_(size)
     {
     }
 
-    ArrayView(const ArrayView &) = default;
-    ArrayView(ArrayView &&) noexcept = default;
+    Repeat(const Repeat &) = default;
+    Repeat(Repeat &&) noexcept = default;
 
-    ArrayView &operator=(const ArrayView &) = default;
-    ArrayView &operator=(ArrayView &&) noexcept = default;
+    Repeat &operator=(const Repeat &) = default;
+    Repeat &operator=(Repeat &&) noexcept = default;
 
-    const_reference operator[](size_type pos) const noexcept
-    {
-        return std::string_view(buffer_ + offsets_[pos],
-            static_cast<std::size_t>(offsets_[pos + 1] - offsets_[pos]));
-    }
+    const_reference operator[](size_type) const noexcept { return value_; }
 
     const_reference at(size_type pos) const
     {
         if (pos >= size_) {
-            throw std::out_of_range("dataframe::ArrayView::at");
+            throw std::out_of_range("dataframe::Repeat::at");
         }
 
         return operator[](pos);
     }
 
-    const_reference front() const noexcept { return operator[](0); }
+    const_reference front() const noexcept { return value_; }
 
-    const_reference back() const noexcept { return operator[](size_ - 1); }
-
-    std::shared_ptr<::arrow::Array> data() const noexcept { return data_; }
+    const_reference back() const noexcept { return value_; }
 
     // Iterators
 
-    const_iterator begin() const noexcept { return iterator(this, 0); }
-    const_iterator end() const noexcept { return iterator(this, size_); }
+    const_iterator begin() const noexcept { return iterator(&value_, 0); }
+    const_iterator end() const noexcept { return iterator(&value_, size_); }
 
     const_iterator cbegin() const noexcept { return begin(); }
     const_iterator cend() const noexcept { return end(); }
@@ -145,26 +128,23 @@ class ArrayView<std::string>
     OutputIter set(OutputIter out, Setter &&setter)
     {
         for (std::size_t i = 0; i != size_; ++i, ++out) {
-            setter(operator[](i), out);
+            setter(value_, out);
         }
 
         return out;
     }
 
   private:
-    std::shared_ptr<::arrow::Array> data_;
+    value_type value_;
     size_type size_;
-    const std::int32_t *offsets_;
-    const char *buffer_;
 };
 
-template <>
-class ArrayView<std::string_view> : public ArrayView<std::string>
+template <typename T>
+inline Repeat<T> repeat(const T &value, std::size_t size = 0)
 {
-  public:
-    using ArrayView<std::string>::ArrayView;
-};
+    return Repeat<T>(value, size);
+}
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_VIEW_STRING_HPP
+#endif // DATAFRAME_ARRAY_REPEAT_HPP

@@ -20,7 +20,7 @@
 #include <Rcpp.h>
 #undef Free
 
-#include <dataframe/dataframe.hpp>
+#include <dataframe/table/data_frame.hpp>
 
 namespace dataframe {
 
@@ -280,46 +280,46 @@ inline std::shared_ptr<::arrow::Array> make_array(
 inline std::shared_ptr<::arrow::Array> make_array(
     const ::Rcpp::IntegerVector &values)
 {
-    if (values.hasAttribute("class")) {
-        ::Rcpp::CharacterVector cls = values.attr("class");
-        std::string clsname(cls.at(0));
+    // if (values.hasAttribute("class")) {
+    //     ::Rcpp::CharacterVector cls = values.attr("class");
+    //     std::string clsname(cls.at(0));
 
-        if (clsname == "ordered" || clsname == "factor") {
-            if (!values.hasAttribute("levels")) {
-                throw DataFrameException("Attribute levels not found");
-            }
+    //     if (clsname == "ordered" || clsname == "factor") {
+    //         if (!values.hasAttribute("levels")) {
+    //             throw DataFrameException("Attribute levels not found");
+    //         }
 
-            ::Rcpp::CharacterVector levels = values.attr("levels");
+    //         ::Rcpp::CharacterVector levels = values.attr("levels");
 
-            auto lvls = internal::to_string_view(levels);
+    //         auto lvls = internal::to_string_view(levels);
 
-            CategoricalArray ret;
-            ret.reserve(static_cast<std::size_t>(values.size()));
-            for (auto i : values) {
-                if (i == NA_INTEGER) {
-                    ret.emplace_back();
-                } else {
-                    ret.emplace_back(lvls.at(static_cast<std::size_t>(i - 1)));
-                }
-            }
+    //         CategoricalArray ret;
+    //         ret.reserve(static_cast<std::size_t>(values.size()));
+    //         for (auto i : values) {
+    //             if (i == NA_INTEGER) {
+    //                 ret.emplace_back();
+    //             } else {
+    //                 ret.emplace_back(lvls.at(static_cast<std::size_t>(i -
+    //                 1)));
+    //             }
+    //         }
 
-            return make_array(ret);
-        }
-    }
+    //         return make_array(ret);
+    //     }
+    // }
 
-    ArrayMask mask;
+    std::vector<bool> mask;
     for (auto i = 0; i != values.size(); ++i) {
         mask.push_back(values[i] != NA_INTEGER);
     }
 
-    return make_array(ArrayView<int>(
-        static_cast<std::size_t>(values.size()), values.begin(), mask));
+    return make_array<int>(values.begin(), values.end(), mask.begin());
 }
 
 inline std::shared_ptr<::arrow::Array> make_array(
     const ::Rcpp::NumericVector &values)
 {
-    ArrayMask mask;
+    std::vector<bool> mask;
     for (auto i = 0; i != values.size(); ++i) {
         auto v = values[i];
         mask.push_back(!(R_IsNA(v) && !R_IsNaN(v)));
@@ -330,10 +330,8 @@ inline std::shared_ptr<::arrow::Array> make_array(
         std::string clsname(cls.at(0));
 
         if (clsname == "Date") {
-            return make_array(
-                ArrayView<double>(static_cast<std::size_t>(values.size()),
-                    values.begin(), mask),
-                TimeUnit::Day);
+            return make_array<Datestamp<DateUnit::Day>>(
+                values.begin(), values.end(), mask.begin());
         }
 
         if (clsname == "POSIXct") {
@@ -343,19 +341,19 @@ inline std::shared_ptr<::arrow::Array> make_array(
             for (std::size_t i = 0; i != n; ++i) {
                 t[i] = v[i] * 1e6;
             }
-            return make_array(ArrayView<double>(t.size(), t.data(), mask),
-                TimeUnit::Microsecond);
+
+            return make_array<Timestamp<TimeUnit::Microsecond>>(
+                t.begin(), t.end(), mask.begin());
         }
     }
 
-    return make_array(ArrayView<double>(
-        static_cast<std::size_t>(values.size()), values.begin(), mask));
+    return make_array<double>(values.begin(), values.end(), mask.begin());
 }
 
 inline std::shared_ptr<::arrow::Array> make_array(
     const ::Rcpp::CharacterVector &values)
 {
-    return make_array(internal::to_string_view(values));
+    return make_array<std::string>(internal::to_string_view(values));
 }
 
 inline DataFrame make_dataframe(const ::Rcpp::List &list)
@@ -447,104 +445,57 @@ inline void cast_dataframe(const DataFrame &df, ::Rcpp::List *out)
         auto col = df[i];
         auto key = col.name();
 
-        switch (col.dtype()) {
-            case DataType::Bool: {
-                ::Rcpp::LogicalVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::UInt8: {
-                ::Rcpp::IntegerVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Int8: {
-                ::Rcpp::IntegerVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::UInt16: {
-                ::Rcpp::IntegerVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Int16: {
-                ::Rcpp::IntegerVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::UInt32: {
-                ::Rcpp::IntegerVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Int32: {
-                ::Rcpp::IntegerVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::UInt64: {
-                ::Rcpp::NumericVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Int64: {
-                ::Rcpp::NumericVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Float: {
-                ::Rcpp::NumericVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Double: {
-                ::Rcpp::NumericVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::String: {
-                ::Rcpp::CharacterVector vec;
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Date: {
-                ::Rcpp::newDateVector vec(0);
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Timestamp: {
-                ::Rcpp::newDatetimeVector vec(0);
-                cast_array(*col.data(), &vec);
-                ret[key] = vec;
-            } break;
-            case DataType::Categorical: {
-                auto data = col.as_view<CategoricalArray>();
+        if (col.is_type<bool>()) {
+            ::Rcpp::LogicalVector vec;
+            cast_array(*col.data(), &vec);
+            ret[key] = vec;
+        } else if (col.is_real() || col.is_type<std::int64_t>() ||
+            col.is_type<std::uint64_t>()) {
+            ::Rcpp::NumericVector vec;
+            cast_array(*col.data(), &vec);
+            ret[key] = vec;
+        } else if (col.is_integer()) {
+            ::Rcpp::IntegerVector vec;
+            cast_array(*col.data(), &vec);
+            ret[key] = vec;
+        } else if (col.is_binary()) {
+            ::Rcpp::CharacterVector vec;
+            cast_array(*col.data(), &vec);
+            ret[key] = vec;
+        } else if (col.is_type<Datestamp<DateUnit::Day>>()) {
+            ::Rcpp::newDateVector vec(0);
+            cast_array(*col.data(), &vec);
+            ret[key] = vec;
+        } else if (col.is_timestamp()) {
+            ::Rcpp::newDatetimeVector vec(0);
+            cast_array(*col.data(), &vec);
+            ret[key] = vec;
+            // } else if (col.is_dictionary()) {
+            //     auto data = col.as_view<CategoricalArray>();
 
-                auto &lvl = data.levels();
-                ::Rcpp::CharacterVector levels;
-                for (auto &&v : lvl) {
-                    levels.push_back(v);
-                }
+            //     auto &lvl = data.levels();
+            //     ::Rcpp::CharacterVector levels;
+            //     for (auto &&v : lvl) {
+            //         levels.push_back(v);
+            //     }
 
-                auto &idx = data.index();
-                ::Rcpp::IntegerVector index;
-                for (auto &&v : idx) {
-                    if (v < 0) {
-                        index.push_back(NA_INTEGER);
-                    } else {
-                        index.push_back(v + 1);
-                    }
-                }
+            //     auto &idx = data.index();
+            //     ::Rcpp::IntegerVector index;
+            //     for (auto &&v : idx) {
+            //         if (v < 0) {
+            //             index.push_back(NA_INTEGER);
+            //         } else {
+            //             index.push_back(v + 1);
+            //         }
+            //     }
 
-                index.attr("class") = "factor";
-                index.attr("levels") = levels;
+            //     index.attr("class") = "factor";
+            //     index.attr("levels") = levels;
 
-                ret[key] = index;
-            } break;
-            case DataType::Unknown:
-                throw DataFrameException(
-                    "Unknown dtype cannot be converted to JSON");
+            //     ret[key] = index;
+        } else {
+            throw DataFrameException(
+                "Unknown dtype cannot be converted to JSON");
         }
     }
 

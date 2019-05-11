@@ -14,18 +14,18 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_VIEW_STRING_HPP
-#define DATAFRAME_ARRAY_VIEW_STRING_HPP
+#ifndef DATAFRAME_ARRAY_VIEW_BOOL_HPP
+#define DATAFRAME_ARRAY_VIEW_BOOL_HPP
 
 #include <dataframe/array/view/primitive.hpp>
 
 namespace dataframe {
 
 template <>
-class ArrayView<std::string>
+class ArrayView<bool>
 {
   public:
-    using value_type = std::string_view;
+    using value_type = bool;
 
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -36,7 +36,7 @@ class ArrayView<std::string>
     class iterator
     {
       public:
-        using value_type = std::string_view;
+        using value_type = bool;
         using reference = value_type;
         using iterator_category = std::random_access_iterator_tag;
 
@@ -73,12 +73,7 @@ class ArrayView<std::string>
     ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))
         , size_(static_cast<size_type>(data_->length()))
-        , offsets_(dynamic_cast<const ::arrow::BinaryArray &>(*data_)
-                       .raw_value_offsets())
-        , buffer_(reinterpret_cast<const char *>(
-              dynamic_cast<const ::arrow::BinaryArray &>(*data_)
-                  .value_data()
-                  ->data()))
+        , array_(&dynamic_cast<const ::arrow::BooleanArray &>(*data_))
     {
     }
 
@@ -90,8 +85,7 @@ class ArrayView<std::string>
 
     const_reference operator[](size_type pos) const noexcept
     {
-        return std::string_view(buffer_ + offsets_[pos],
-            static_cast<std::size_t>(offsets_[pos + 1] - offsets_[pos]));
+        return array_->GetView(static_cast<std::int64_t>(pos));
     }
 
     const_reference at(size_type pos) const
@@ -154,17 +148,9 @@ class ArrayView<std::string>
   private:
     std::shared_ptr<::arrow::Array> data_;
     size_type size_;
-    const std::int32_t *offsets_;
-    const char *buffer_;
-};
-
-template <>
-class ArrayView<std::string_view> : public ArrayView<std::string>
-{
-  public:
-    using ArrayView<std::string>::ArrayView;
+    const ::arrow::BooleanArray *array_;
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_VIEW_STRING_HPP
+#endif // DATAFRAME_ARRAY_VIEW_BOOL_HPP

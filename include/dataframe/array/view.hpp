@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_ARRAY_VIEW_HPP
 #define DATAFRAME_ARRAY_VIEW_HPP
 
+#include <dataframe/array/view/bool.hpp>
 #include <dataframe/array/view/list.hpp>
 #include <dataframe/array/view/primitive.hpp>
 #include <dataframe/array/view/string.hpp>

@@ -114,6 +114,34 @@ class ConstColumnProxy
         return ::dataframe::is_type<T>(data_);
     }
 
+    bool is_integer() const
+    {
+        return is_type<std::int8_t>() || is_type<std::int16_t>() ||
+            is_type<std::int32_t>() || is_type<std::int64_t>() ||
+            is_type<std::uint8_t>() || is_type<std::uint16_t>() ||
+            is_type<std::uint32_t>() || is_type<std::uint64_t>();
+    }
+
+    bool is_real() const { return is_type<float>() || is_type<double>(); }
+
+    bool is_binary() const { return is_type<std::string>(); }
+
+    bool is_timestamp() const
+    {
+        return is_type<Timestamp<TimeUnit::Second>>() ||
+            is_type<Timestamp<TimeUnit::Millisecond>>() ||
+            is_type<Timestamp<TimeUnit::Microsecond>>() ||
+            is_type<Timestamp<TimeUnit::Nanosecond>>();
+    }
+
+    bool is_time() const
+    {
+        return is_type<Time<TimeUnit::Second>>() ||
+            is_type<Time<TimeUnit::Millisecond>>() ||
+            is_type<Time<TimeUnit::Microsecond>>() ||
+            is_type<Time<TimeUnit::Nanosecond>>();
+    }
+
     /// \brief Slice the column with close-open interval `[begin, end)`
     ConstColumnProxy operator()(std::size_t begin, std::size_t end) const
     {
@@ -237,6 +265,23 @@ class ColumnProxy : public ConstColumnProxy
     ColumnProxy &operator=(const std::vector<T, Alloc> &vec)
     {
         return operator=(make_array<T>(vec));
+    }
+
+    template <typename T>
+    ColumnProxy &operator=(Repeat<T> rep)
+    {
+        if (table_ == nullptr) {
+            if (rep.size() > 0) {
+                return operator=(make_array<T>(rep.begin(), rep.end()));
+            } else {
+                throw DataFrameException(
+                    "Cannot assign a empty Repeat as the first column");
+            }
+        } else {
+            rep = repeat(
+                rep.front(), static_cast<std::size_t>(table_->num_rows()));
+            return operator=(make_array<T>(rep.begin(), rep.end()));
+        }
     }
 
     /// \brief Assign a pre-constructed Arrow array

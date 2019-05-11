@@ -14,15 +14,24 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_HPP
-#define DATAFRAME_ARRAY_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_BOOL_HPP
+#define DATAFRAME_ARRAY_MAKE_BOOL_HPP
 
-#include <dataframe/array/bind.hpp>
-#include <dataframe/array/cast.hpp>
-#include <dataframe/array/make.hpp>
-#include <dataframe/array/repeat.hpp>
-#include <dataframe/array/split.hpp>
-#include <dataframe/array/type.hpp>
-#include <dataframe/array/view.hpp>
+#include <dataframe/array/make/primitive.hpp>
 
-#endif // DATAFRAME_ARRAY_HPP
+namespace dataframe {
+
+template <>
+struct ArrayMaker<bool> {
+    template <typename Iter>
+    static void append(BuilderType<bool> *builder, Iter first, Iter last)
+    {
+        for (auto iter = first; iter != last; ++iter) {
+            DF_ARROW_ERROR_HANDLER(builder->Append(static_cast<bool>(*iter)));
+        }
+    }
+};
+
+} // namespace dataframe
+
+#endif // DATAFRAME_ARRAY_MAKE_BOOL_HPP

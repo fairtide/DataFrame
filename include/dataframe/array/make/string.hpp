@@ -31,17 +31,10 @@ struct ArrayMaker<std::string> {
             DF_ARROW_ERROR_HANDLER(builder->Append(std::string_view(*iter)));
         }
     }
+};
 
-    template <typename Iter>
-    static std::shared_ptr<::arrow::Array> make(Iter first, Iter last)
-    {
-        auto builder = make_builder<std::string>();
-        append(builder.get(), first, last);
-        std::shared_ptr<::arrow::Array> ret;
-        DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
-
-        return ret;
-    }
+template <>
+struct ArrayMaker<std::string_view> : ArrayMaker<std::string> {
 };
 
 } // namespace dataframe

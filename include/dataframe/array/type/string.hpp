@@ -38,6 +38,10 @@ struct TypeTraits<std::string> {
     using array_type = ::arrow::StringArray;
 };
 
+template <>
+struct TypeTraits<std::string_view> : TypeTraits<std::string> {
+};
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_TYPE_STRING_HPP

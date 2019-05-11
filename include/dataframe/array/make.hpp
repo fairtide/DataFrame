@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_ARRAY_MAKE_HPP
 #define DATAFRAME_ARRAY_MAKE_HPP
 
+#include <dataframe/array/make/bool.hpp>
 #include <dataframe/array/make/datetime.hpp>
 #include <dataframe/array/make/list.hpp>
 #include <dataframe/array/make/primitive.hpp>
@@ -138,7 +139,7 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
 
 template <typename T, typename Iter, typename Member>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member &&member,
+    Member member,
     std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
 {
     using R = decltype((*first).*member);
@@ -150,18 +151,18 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
 
 template <typename Iter, typename Member>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member &&member,
+    Member member,
     std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
 {
     using T =
-        std::remove_cv_t<std::remove_reference_t<decltype((*first).member)>>;
+        std::remove_cv_t<std::remove_reference_t<decltype((*first).*member)>>;
 
-    return make_array<T>(first, last, std::forward<Member>(member));
+    return make_array<T>(first, last, std::move(member));
 }
 
 template <typename T, typename Iter, typename Member>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member &&member,
+    Member member,
     std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
 {
     using R = decltype(((*first).*member)());
@@ -173,18 +174,18 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
 
 template <typename Iter, typename Member>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member &&member,
+    Member member,
     std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
 {
     using T = std::remove_cv_t<
-        std::remove_reference_t<decltype(((*first).member)())>>;
+        std::remove_reference_t<decltype(((*first).*member)())>>;
 
-    return make_array<T>(first, last, std::forward<Member>(member));
+    return make_array<T>(first, last, std::move(member));
 }
 
 template <typename T, typename Iter, typename Getter>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Getter &&getter,
+    Getter getter,
     std::enable_if_t<!std::is_member_pointer_v<Getter> &&
         std::is_invocable_v<Getter, decltype(*first)>> * = nullptr)
 {
@@ -197,14 +198,14 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
 
 template <typename Iter, typename Getter>
 inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Getter &&getter,
+    Getter getter,
     std::enable_if_t<!std::is_member_pointer_v<Getter> &&
         std::is_invocable_v<Getter, decltype(*first)>> * = nullptr)
 {
     using T =
         std::remove_cv_t<std::remove_reference_t<decltype(getter(*first))>>;
 
-    return make_array<T>(first, last, std::forward<Getter>(getter));
+    return make_array<T>(first, last, std::move(getter));
 }
 
 template <typename T, typename Iter, typename Valid, typename... Args>
@@ -259,130 +260,6 @@ inline std::shared_ptr<::arrow::Array> make_array(
     std::size_t n, const V *data, Args &&... args)
 {
     return make_array(data, data + n, std::forward<Args>(args)...);
-}
-
-template <typename T>
-class Repeat
-{
-  public:
-    using value_type = T;
-
-    using size_type = std::size_t;
-    using difference_type = std::ptrdiff_t;
-
-    using reference = const value_type &;
-    using const_reference = reference;
-
-    class iterator
-    {
-      public:
-        using value_type = T;
-        using reference = const value_type &;
-        using iterator_category = std::random_access_iterator_tag;
-
-        reference operator*() const noexcept { return ptr_; }
-
-        DF_DEFINE_ITERATOR_MEMBERS(iterator, pos_)
-
-      private:
-        friend Repeat;
-
-        iterator(pointer ptr, size_type pos)
-            : ptr_(ptr)
-            , pos_(static_cast<std::ptrdiff_t>(pos))
-        {
-        }
-
-        pointer ptr_;
-        difference_type pos_;
-    };
-
-    using pointer = iterator;
-    using const_pointer = pointer;
-
-    using const_iterator = iterator;
-
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-    Repeat(const value_type &value, size_type size)
-        : value_(value)
-        , size_(size)
-    {
-    }
-
-    Repeat(const Repeat &) = delete;
-    Repeat(Repeat &&) noexcept = delete;
-
-    Repeat &operator=(const Repeat &) = delete;
-    Repeat &operator=(Repeat &&) noexcept = delete;
-
-    const_reference operator[](size_type) const noexcept { return value_; }
-
-    const_reference at(size_type pos) const
-    {
-        if (pos >= size_) {
-            throw std::out_of_range("dataframe::Repeat::at");
-        }
-
-        return operator[](pos);
-    }
-
-    const_reference front() const noexcept { return value_; }
-
-    const_reference back() const noexcept { return value_; }
-
-    // Iterators
-
-    const_iterator begin() const noexcept { return iterator(&value_, 0); }
-    const_iterator end() const noexcept { return iterator(&value_, size_); }
-
-    const_iterator cbegin() const noexcept { return begin(); }
-    const_iterator cend() const noexcept { return end(); }
-
-    const_reverse_iterator rbegin() const noexcept
-    {
-        return const_reverse_iterator{end()};
-    }
-
-    const_reverse_iterator rend() const noexcept
-    {
-        return const_reverse_iterator{begin()};
-    }
-
-    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-    const_reverse_iterator crend() const noexcept { return rend(); }
-
-    // Capacity
-
-    bool empty() const noexcept { return size_ == 0; }
-
-    size_type size() const noexcept { return size_; }
-
-    size_type max_size() const noexcept
-    {
-        return std::numeric_limits<size_type>::max() / sizeof(value_type);
-    }
-
-    template <typename OutputIter, typename Setter>
-    OutputIter set(OutputIter out, Setter &&setter)
-    {
-        for (std::size_t i = 0; i != size_; ++i, ++out) {
-            setter(value_, out);
-        }
-
-        return out;
-    }
-
-  private:
-    value_type value_;
-    size_type size_;
-};
-
-template <typename T>
-inline Repeat<T> repeat(const T &value, std::size_t size)
-{
-    return Repeat<T>(value, size);
 }
 
 } // namespace dataframe

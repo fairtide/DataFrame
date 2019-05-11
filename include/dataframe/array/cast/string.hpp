@@ -41,6 +41,26 @@ struct CastArrayVisitor<std::string> final : ::arrow::ArrayVisitor {
     }
 };
 
+template <>
+struct CastArrayVisitor<std::string_view> final : ::arrow::ArrayVisitor {
+    std::shared_ptr<::arrow::Array> result;
+
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::StringArray &) final
+    {
+        return ::arrow::Status::OK();
+    }
+
+    ::arrow::Status Visit(const ::arrow::BinaryArray &) final
+    {
+        return ::arrow::Status::OK();
+    }
+};
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_CAST_STRING_HPP
