@@ -14,10 +14,10 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_SORT_HPP
-#define DATAFRAME_SORT_HPP
+#ifndef DATAFRAME_TABLE_SORT_HPP
+#define DATAFRAME_TABLE_SORT_HPP
 
-#include <dataframe/select.hpp>
+#include <dataframe/table/select.hpp>
 
 namespace dataframe {
 
@@ -173,4 +173,4 @@ inline DataFrame sort(
 
 } // namespace dataframe
 
-#endif // DATAFRAME_SORT_HPP
+#endif // DATAFRAME_TABLE_SORT_HPP

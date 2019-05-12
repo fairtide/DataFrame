@@ -17,6 +17,7 @@
 project(DataFrame-tests-table CXX)
 
 add_dataframe_test(data_frame)
+add_dataframe_test(sort)
 
 find_program(Rscript_EXECUTABLE Rscript)
 
