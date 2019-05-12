@@ -21,7 +21,7 @@
 #include <dataframe/table/column.hpp>
 #include <dataframe/table/data_frame.hpp>
 #include <dataframe/table/data_view.hpp>
-// #include <dataframe/table/join.hpp>
+#include <dataframe/table/join.hpp>
 #include <dataframe/table/make.hpp>
 #include <dataframe/table/select.hpp>
 #include <dataframe/table/sort.hpp>

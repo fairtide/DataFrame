@@ -14,11 +14,11 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_JOIN_HPP
-#define DATAFRAME_JOIN_HPP
+#ifndef DATAFRAME_TABLE_JOIN_HPP
+#define DATAFRAME_TABLE_JOIN_HPP
 
-#include <dataframe/concatenate.hpp>
-#include <dataframe/select.hpp>
+#include <dataframe/table/bind.hpp>
+#include <dataframe/table/select.hpp>
 #include <unordered_map>
 
 namespace dataframe {
@@ -346,4 +346,4 @@ inline DataFrame join(const DataFrame &df1, const DataFrame &df2,
 
 } // namespace dataframe
 
-#endif // DATAFRAME_JOIN_HPP
+#endif // DATAFRAME_TABLE_JOIN_HPP

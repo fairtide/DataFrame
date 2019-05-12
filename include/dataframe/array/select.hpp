@@ -22,6 +22,10 @@
 
 namespace dataframe {
 
+template <typename Iter>
+std::shared_ptr<::arrow::Array> select_array(
+    const std::shared_ptr<::arrow::Array> &array, Iter first, Iter last);
+
 namespace internal {
 
 template <typename T, typename Iter>
@@ -29,7 +33,11 @@ class SelectIterator
 {
   public:
     using value_type = typename ArrayView<T>::value_type;
-    using reference = typename ArrayView<T>::reference;
+
+    using reference = std::conditional_t<
+        std::is_reference_v<typename ArrayView<T>::reference>,
+        typename ArrayView<T>::value_type, typename ArrayView<T>::reference>;
+
     using iterator_category =
         typename std::iterator_traits<Iter>::iterator_category;
 
@@ -41,7 +49,13 @@ class SelectIterator
 
     reference operator*() const noexcept
     {
-        return view_.at(static_cast<std::size_t>(*iter_));
+        auto idx = *iter_;
+
+        if (idx < 0) {
+            return reference{};
+        } else {
+            return view_.at(static_cast<std::size_t>(idx));
+        }
     }
 
     DF_DEFINE_ITERATOR_MEMBERS(SelectIterator, iter_)
@@ -203,12 +217,10 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
 
     ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
     {
-        auto index = array.indices();
-        SelectVisitor<Iter> visitor(index, first, last);
-        DF_ARROW_ERROR_HANDLER(index->Accept(&visitor));
+        auto index = select_array(array.indices(), first, last);
 
         return ::arrow::DictionaryArray::FromArrays(
-            array.type(), visitor.result, &result);
+            array.type(), index, &result);
     }
 };
 
@@ -221,7 +233,16 @@ std::shared_ptr<::arrow::Array> select_array(
     internal::SelectVisitor<Iter> visitor(array, first, last);
     DF_ARROW_ERROR_HANDLER(array->Accept(&visitor));
 
-    return visitor.result;
+    std::vector<bool> valid;
+    bool null_count = 0;
+    for (auto iter = first; iter != last; ++iter) {
+        auto is_valid = *iter >= 0;
+        valid.push_back(is_valid);
+        null_count += !is_valid;
+    }
+
+    return null_count == 0 ? visitor.result :
+                             internal::set_mask(visitor.result, valid.begin());
 }
 
 } // namespace dataframe

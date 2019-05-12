@@ -249,6 +249,16 @@ inline std::shared_ptr<::arrow::Array> make_array(
     return make_array<T>(vec.begin(), vec.end(), std::forward<Args>(args)...);
 }
 
+template <typename T, typename V, typename Alloc, typename AllocM,
+    typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    const std::vector<V, Alloc> &vec, const std::vector<bool, AllocM> &mask,
+    Args &&... args)
+{
+    return make_array<T>(
+        vec.begin(), vec.end(), mask.begin(), std::forward<Args>(args)...);
+}
+
 template <typename T, typename V, typename... Args>
 inline std::shared_ptr<::arrow::Array> make_array(
     std::size_t n, const V *data, Args &&... args)
