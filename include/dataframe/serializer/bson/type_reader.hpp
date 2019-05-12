@@ -106,35 +106,19 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::timestamp(::arrow::TimeUnit::NANO);
     }
 
-    if (type == "time32[s]") {
+    if (type == "time[s]") {
         return ::arrow::time32(::arrow::TimeUnit::SECOND);
     }
 
-    if (type == "time32[ms]") {
+    if (type == "time[ms]") {
         return ::arrow::time32(::arrow::TimeUnit::MILLI);
     }
 
-    if (type == "time32[us]") {
-        return ::arrow::time32(::arrow::TimeUnit::MICRO);
-    }
-
-    if (type == "time32[ns]") {
-        return ::arrow::time32(::arrow::TimeUnit::NANO);
-    }
-
-    if (type == "time64[s]") {
-        return ::arrow::time64(::arrow::TimeUnit::SECOND);
-    }
-
-    if (type == "time64[ms]") {
-        return ::arrow::time64(::arrow::TimeUnit::MILLI);
-    }
-
-    if (type == "time64[us]") {
+    if (type == "time[us]") {
         return ::arrow::time64(::arrow::TimeUnit::MICRO);
     }
 
-    if (type == "time64[ns]") {
+    if (type == "time[ns]") {
         return ::arrow::time64(::arrow::TimeUnit::NANO);
     }
 

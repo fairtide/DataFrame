@@ -18,17 +18,7 @@
 #define DATAFRAME_DATAFRAME_HPP
 
 #include <dataframe/array.hpp>
-#include <dataframe/column.hpp>
-#include <dataframe/concatenate.hpp>
-#include <dataframe/data_frame.hpp>
-#include <dataframe/data_view.hpp>
-#include <dataframe/error.hpp>
-#include <dataframe/io.hpp>
-#include <dataframe/join.hpp>
-#include <dataframe/select.hpp>
 #include <dataframe/serializer.hpp>
-#include <dataframe/sort.hpp>
-#include <dataframe/splice.hpp>
-#include <dataframe/split.hpp>
+#include <dataframe/table.hpp>
 
 #endif // DATAFRAME_DATAFRAME_HPP

@@ -17,13 +17,12 @@
 #ifndef DATAFRAME_ARRAY_HPP
 #define DATAFRAME_ARRAY_HPP
 
-#include <dataframe/array/bool.hpp>
-#include <dataframe/array/categorical.hpp>
-#include <dataframe/array/date_time.hpp>
-#include <dataframe/array/make_array.hpp>
-#include <dataframe/array/primitive.hpp>
-#include <dataframe/array/string.hpp>
+#include <dataframe/array/bind.hpp>
+#include <dataframe/array/cast.hpp>
+#include <dataframe/array/make.hpp>
+#include <dataframe/array/repeat.hpp>
+#include <dataframe/array/split.hpp>
+#include <dataframe/array/type.hpp>
 #include <dataframe/array/view.hpp>
-#include <dataframe/array/list.hpp>
 
 #endif // DATAFRAME_ARRAY_HPP
