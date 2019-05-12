@@ -60,10 +60,10 @@ struct TimeType : TimeTypeBase {
 
     value_type value;
 
-    TimeType() noexcept = default;
-    TimeType(const TimeType &) noexcept = default;
+    TimeType() = default;
+    TimeType(const TimeType &) = default;
     TimeType(TimeType &&) noexcept = default;
-    TimeType &operator=(const TimeType &) noexcept = default;
+    TimeType &operator=(const TimeType &) = default;
     TimeType &operator=(TimeType &&) noexcept = default;
 
     explicit TimeType(value_type v)
@@ -77,7 +77,7 @@ struct TimeType : TimeTypeBase {
 template <typename T>
 typename T::value_type get_field(const T &dt,
     std::integral_constant<std::size_t, 0>,
-    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr) noexcept
+    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr)
 {
     return dt.value;
 }
@@ -85,9 +85,9 @@ typename T::value_type get_field(const T &dt,
 template <typename T>
 void get_field(const T &dt, typename T::value_type v,
     std::integral_constant<std::size_t, 0>,
-    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr) noexcept
+    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr)
 {
-    dt.value = v;
+    return dt.value = v;
 }
 
 template <typename T>

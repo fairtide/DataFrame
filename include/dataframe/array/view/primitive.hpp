@@ -46,7 +46,7 @@ class ArrayView
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = reverse_iterator;
 
-    ArrayView() noexcept = default;
+    ArrayView() = default;
 
     explicit ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))

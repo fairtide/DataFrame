@@ -21,13 +21,13 @@
     using difference_type = std::ptrdiff_t;                                   \
     using pointer = const value_type *;                                       \
                                                                               \
-    Iter() noexcept = default;                                                \
+    Iter() = default;                                                         \
                                                                               \
-    Iter(const Iter &) noexcept = default;                                    \
+    Iter(const Iter &) = default;                                             \
                                                                               \
     Iter(Iter &&) noexcept = default;                                         \
                                                                               \
-    Iter &operator=(const Iter &) noexcept = default;                         \
+    Iter &operator=(const Iter &) = default;                                  \
                                                                               \
     Iter &operator=(Iter &&) noexcept = default;                              \
                                                                               \

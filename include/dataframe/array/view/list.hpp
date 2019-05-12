@@ -45,7 +45,7 @@ class ArrayView<List<T>>
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = reverse_iterator;
 
-        view() noexcept = default;
+        view() = default;
 
         view(size_type size, iterator begin) noexcept
             : size_(size)
@@ -161,7 +161,7 @@ class ArrayView<List<T>>
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    ArrayView() noexcept = default;
+    ArrayView() = default;
 
     ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))

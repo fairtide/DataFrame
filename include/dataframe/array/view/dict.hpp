@@ -73,7 +73,7 @@ class ArrayView<Dict<T>>
 
     const ArrayView<T> &dictionary() const { return dictionary_; }
 
-    ArrayView() noexcept = default;
+    ArrayView() = default;
 
     ArrayView(std::shared_ptr<::arrow::Array> data)
         : data_(std::move(data))
