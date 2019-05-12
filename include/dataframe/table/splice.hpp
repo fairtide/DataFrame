@@ -17,7 +17,7 @@
 #ifndef DATAFRAME_SPLICE_HPP
 #define DATAFRAME_SPLICE_HPP
 
-#include <dataframe/data_frame.hpp>
+#include <dataframe/table/data_frame.hpp>
 
 namespace dataframe {
 
@@ -160,46 +160,52 @@ inline std::enable_if_t<std::is_arithmetic_v<T>, DataFrame> splice(
     return df.rows(visitor.begin(), visitor.end());
 }
 
-inline DataFrame splice(
-    const DataFrame &df, const std::string &name, Date mindate, Date maxdate)
+inline DataFrame splice(const DataFrame &df, const std::string &name,
+    Datestamp<DateUnit::Day> mindate, Datestamp<DateUnit::Day> maxdate)
 {
-    if (df[name].dtype() != DataType::Date) {
+    if (!df[name].is_type<Datestamp<DateUnit::Day>>()) {
         throw DataFrameException(name + " is not a Date column");
     }
 
-    Date epoch(1970, 1, 1);
-
-    return splice(
-        df, name, (mindate - epoch).days(), (maxdate - epoch).days());
+    return splice(df, name, mindate.value, maxdate.value);
 }
 
 inline DataFrame splice(const DataFrame &df, const std::string &name,
-    Timestamp mintimestamp, Timestamp maxtimestamp)
+    Datestamp<DateUnit::Millisecond> mindate,
+    Datestamp<DateUnit::Millisecond> maxdate)
 {
-    if (df[name].dtype() != DataType::Timestamp) {
+    if (!df[name].is_type<Datestamp<DateUnit::Millisecond>>()) {
+        throw DataFrameException(name + " is not a Date column");
+    }
+
+    return splice(df, name, mindate.value, maxdate.value);
+}
+
+template <TimeUnit Unit>
+inline DataFrame splice(const DataFrame &df, const std::string &name,
+    Timestamp<Unit> mintimestamp, Timestamp<Unit> maxtimestamp)
+{
+    if (!df[name].is_timestamp()) {
         throw DataFrameException(name + " is not a Timestamp column");
     }
 
-    Timestamp epoch(Date(1970, 1, 1));
+    auto time_nanos = time_unit_nanos(Unit);
 
-    auto type = std::static_pointer_cast<::arrow::TimestampType>(
-        df[name].data()->type());
+    auto data_nanos =
+        time_unit_nanos(std::static_pointer_cast<::arrow::TimestampType>(
+            df[name].data()->type())
+                            ->unit());
 
-    switch (type->unit()) {
-        case ::arrow::TimeUnit::SECOND:
-            return splice(df, name, (mintimestamp - epoch).total_seconds(),
-                (maxtimestamp - epoch).total_seconds());
-        case ::arrow::TimeUnit::MILLI:
-            return splice(df, name,
-                (mintimestamp - epoch).total_milliseconds(),
-                (maxtimestamp - epoch).total_milliseconds());
-        case ::arrow::TimeUnit::MICRO:
-            return splice(df, name,
-                (mintimestamp - epoch).total_microseconds(),
-                (maxtimestamp - epoch).total_microseconds());
-        case ::arrow::TimeUnit::NANO:
-            return splice(df, name, (mintimestamp - epoch).total_nanoseconds(),
-                (maxtimestamp - epoch).total_nanoseconds());
+    if (data_nanos > time_nanos) {
+        // data has higher resolution
+        auto ratio = data_nanos / time_nanos;
+        return splice(
+            df, name, mintimestamp.value * ratio, maxtimestamp.value * ratio);
+    } else {
+        // boundary has higher resolution
+        auto ratio = time_nanos / data_nanos;
+        return splice(
+            df, name, mintimestamp.value / ratio, maxtimestamp.value / ratio);
     }
 }
 

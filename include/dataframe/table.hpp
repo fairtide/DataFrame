@@ -25,6 +25,7 @@
 #include <dataframe/table/make.hpp>
 #include <dataframe/table/select.hpp>
 #include <dataframe/table/sort.hpp>
+#include <dataframe/table/splice.hpp>
 #include <dataframe/table/split.hpp>
 
 #endif // DATAFRAME_TABLE_HPP
