@@ -64,9 +64,10 @@ inline auto field_name(const TestStruct *, ::dataframe::field_index<0>)
     return "Test";
 }
 
-TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
-    std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
-    std::uint32_t, std::uint64_t, std::string, ::dataframe::Dict<std::string>,
+TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", void, bool,
+    std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
+    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
+    ::dataframe::Bytes, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -81,7 +82,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     (::dataframe::List<::dataframe::NamedStruct<TestStruct, double>>),
     (::dataframe::NamedStruct<TestStruct, ::dataframe::List<double>>) )
 {
-    // TODO void, bool, Dict, Decimal, FixedBinary
+    // TODO Decimal, FixedBinary
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;

@@ -14,41 +14,23 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_MAKE_STRING_HPP
-#define DATAFRAME_ARRAY_MAKE_STRING_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_NULL_HPP
+#define DATAFRAME_ARRAY_MAKE_NULL_HPP
 
 #include <dataframe/array/make/primitive.hpp>
 
 namespace dataframe {
 
 template <>
-struct ArrayMaker<std::string> {
+struct ArrayMaker<void> {
     template <typename Iter>
-    static void append(
-        BuilderType<std::string> *builder, Iter first, Iter last)
+    static void append(BuilderType<void> *builder, Iter first, Iter last)
     {
-        for (auto iter = first; iter != last; ++iter) {
-            DF_ARROW_ERROR_HANDLER(builder->Append(std::string_view(*iter)));
-        }
-    }
-};
-
-template <>
-struct ArrayMaker<std::string_view> : ArrayMaker<std::string> {
-};
-
-template <>
-struct ArrayMaker<Bytes> {
-    template <typename Iter>
-    static void append(BuilderType<Bytes> *builder, Iter first, Iter last)
-    {
-        for (auto iter = first; iter != last; ++iter) {
-            DF_ARROW_ERROR_HANDLER(builder->Append(
-                iter->data(), static_cast<std::int32_t>(iter->size())));
-        }
+        DF_ARROW_ERROR_HANDLER(builder->AppendNulls(
+            static_cast<std::int64_t>(std::distance(first, last))));
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_MAKE_STRING_HPP
+#endif // DATAFRAME_ARRAY_MAKE_BOOL_HPP

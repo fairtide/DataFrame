@@ -21,11 +21,12 @@
 
 namespace dataframe {
 
-template <>
-struct CastArrayVisitor<std::string> final : ::arrow::ArrayVisitor {
+namespace internal {
+
+struct CastStringArrayVisitor : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastStringArrayVisitor(std::shared_ptr<::arrow::Array> data)
         : result(std::move(data))
     {
     }
@@ -41,24 +42,22 @@ struct CastArrayVisitor<std::string> final : ::arrow::ArrayVisitor {
     }
 };
 
+} // namespace internal
+
 template <>
-struct CastArrayVisitor<std::string_view> final : ::arrow::ArrayVisitor {
-    std::shared_ptr<::arrow::Array> result;
+struct CastArrayVisitor<std::string> final : internal::CastStringArrayVisitor {
+    using internal::CastStringArrayVisitor::CastStringArrayVisitor;
+};
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
-        : result(std::move(data))
-    {
-    }
+template <>
+struct CastArrayVisitor<std::string_view> final
+    : internal::CastStringArrayVisitor {
+    using internal::CastStringArrayVisitor::CastStringArrayVisitor;
+};
 
-    ::arrow::Status Visit(const ::arrow::StringArray &) final
-    {
-        return ::arrow::Status::OK();
-    }
-
-    ::arrow::Status Visit(const ::arrow::BinaryArray &) final
-    {
-        return ::arrow::Status::OK();
-    }
+template <>
+struct CastArrayVisitor<Bytes> final : internal::CastStringArrayVisitor {
+    using internal::CastStringArrayVisitor::CastStringArrayVisitor;
 };
 
 } // namespace dataframe

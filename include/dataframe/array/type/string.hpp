@@ -42,6 +42,27 @@ template <>
 struct TypeTraits<std::string_view> : TypeTraits<std::string> {
 };
 
+struct Bytes {
+    using data_type = std::vector<std::uint8_t>;
+};
+
+template <>
+struct TypeTraits<Bytes> {
+    static std::shared_ptr<::arrow::BinaryType> data_type()
+    {
+        return std::make_shared<::arrow::BinaryType>();
+    }
+
+    static std::unique_ptr<::arrow::BinaryBuilder> builder()
+    {
+        return std::make_unique<::arrow::BinaryBuilder>(
+            ::arrow::default_memory_pool());
+    }
+
+    using ctype = std::vector<std::uint8_t>;
+    using array_type = ::arrow::BinaryArray;
+};
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_TYPE_STRING_HPP

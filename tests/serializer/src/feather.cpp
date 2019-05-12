@@ -20,9 +20,10 @@
 
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
-    std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
-    std::uint32_t, std::uint64_t, std::string, ::dataframe::Dict<std::string>,
+TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", bool,
+    std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
+    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
+    ::dataframe::Bytes, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
@@ -31,7 +32,7 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", std::int8_t,
     ::dataframe::Time<::dataframe::TimeUnit::Second>,
     ::dataframe::Time<::dataframe::TimeUnit::Millisecond>)
 {
-    // TODO void, bool, Dict, Decimal, FixedBinary
+    // TODO Decimal, FixedBinary
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;

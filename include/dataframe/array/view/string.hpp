@@ -165,6 +165,13 @@ class ArrayView<std::string_view> : public ArrayView<std::string>
     using ArrayView<std::string>::ArrayView;
 };
 
+template <>
+class ArrayView<Bytes> : public ArrayView<std::string>
+{
+  public:
+    using ArrayView<std::string>::ArrayView;
+};
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_VIEW_STRING_HPP

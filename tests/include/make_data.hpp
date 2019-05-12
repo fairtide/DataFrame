@@ -43,6 +43,11 @@ auto make_data(std::size_t n)
 }
 
 template <>
+struct DataMaker<void> {
+    static auto make(std::size_t n) { return std::vector<std::nullptr_t>(n); }
+};
+
+template <>
 struct DataMaker<bool> {
     static auto make(std::size_t n)
     {
@@ -74,6 +79,11 @@ struct DataMaker<std::string> {
 
         return values;
     }
+};
+
+template <>
+struct DataMaker<::dataframe::Bytes> {
+    static auto make(std::size_t n) { return make_data<std::string>(n); }
 };
 
 template <typename T>
