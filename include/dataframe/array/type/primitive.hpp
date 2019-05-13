@@ -47,7 +47,7 @@ template <typename T>
 inline std::unique_ptr<BuilderType<T>> make_builder()
 {
     return TypeTraits<T>::make_builder();
-};
+}
 
 template <typename T, typename DataType>
 struct IsType {

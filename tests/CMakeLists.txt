@@ -30,8 +30,13 @@ function(add_dataframe_test testname)
         PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
         OUTPUT_NAME ${testname})
 
-    target_link_libraries(${testname}-test ${Arrow_LINK_LIBRARIES} ${ARGN})
+    target_link_libraries(${testname}-test
+        ${Arrow_LINK_LIBRARIES}
+        ${CMAKE_THREAD_LIBS_INIT}
+        ${ARGN})
+
     add_dependencies(tests ${testname}-test)
+
     add_test(NAME ${testname} COMMAND ${testname}-test)
 endfunction(add_dataframe_test src)
 

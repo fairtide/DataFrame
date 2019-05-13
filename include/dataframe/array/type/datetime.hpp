@@ -33,15 +33,13 @@ enum class TimeUnit {
 
 inline constexpr std::int64_t time_unit_nanos(DateUnit unit)
 {
-
     switch (unit) {
         case DateUnit::Day:
             return INT64_C(24) * 3600 * 1'000'000'000;
         case DateUnit::Millisecond:
             return 1'000'000;
     }
-
-    throw DataFrameException("Unknown Date unit");
+    return 1;
 }
 
 inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
@@ -56,8 +54,7 @@ inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
         case TimeUnit::Nanosecond:
             return 1;
     }
-
-    throw DataFrameException("Unknown Time unit");
+    return 1;
 }
 
 inline constexpr std::int64_t time_unit_nanos(::arrow::TimeUnit::type unit)

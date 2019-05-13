@@ -46,6 +46,7 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
     std::size_t n = 1000;
     auto m = static_cast<std::int64_t>(n);
     auto k = m / 9;
+    auto c = static_cast<std::size_t>(m / k + (m % k == 0 ? 0 : 1));
 
     SECTION("array")
     {
@@ -53,7 +54,7 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
 
         auto chunks = ::dataframe::split_array(array, k);
 
-        CHECK(chunks.size() == m / k + (m % k == 0 ? 0 : 1));
+        CHECK(chunks.size() == c);
 
         auto ret = ::dataframe::bind_array(chunks);
 
@@ -67,7 +68,7 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
 
         auto chunks = ::dataframe::split_array(array, k);
 
-        CHECK(chunks.size() == m / k + (m % k == 0 ? 0 : 1));
+        CHECK(chunks.size() == c);
 
         auto ret = ::dataframe::bind_array(chunks);
 
