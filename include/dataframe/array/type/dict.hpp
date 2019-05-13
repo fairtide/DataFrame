@@ -18,33 +18,39 @@
 #define DATAFRAME_ARRAY_TYPE_DICT_HPP
 
 #include <dataframe/array/type/primitive.hpp>
-#include <unordered_map>
 
 namespace dataframe {
 
-struct DictBase {
-};
-
 template <typename T>
-struct Dict final : DictBase {
-    using data_type = T;
+struct Dict {
 };
 
 template <typename T>
 struct TypeTraits<Dict<T>> {
-    [[noreturn]] static std::shared_ptr<::arrow::DictionaryType> data_type()
+    using scalar_type = ScalarType<T>;
+    using data_type = ::arrow::DictionaryType;
+    using array_type = ::arrow::DictionaryArray;
+    using builder_type = ::arrow::DictionaryBuilder<DataType<T>>;
+
+    [[noreturn]] static std::shared_ptr<data_type> make_data_type()
     {
         throw DataFrameException("Dict::data_type shall never be called");
     }
 
-    static std::unique_ptr<::arrow::DictionaryBuilder<DataType<T>>> builder()
+    static std::unique_ptr<builder_type> make_builder()
     {
-        return std::make_unique<::arrow::DictionaryBuilder<DataType<T>>>(
-            make_data_type<T>(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(
+            ::dataframe::make_data_type<T>(), ::arrow::default_memory_pool());
     }
+};
 
-    using ctype = std::vector<CType<T>>;
-    using array_type = ::arrow::DictionaryArray;
+template <typename T>
+struct IsType<Dict<T>, ::arrow::DictionaryType> {
+    static bool is_type(const ::arrow::DictionaryType &type)
+    {
+        return ::dataframe::is_type<std::int32_t>(type.index_type()) &&
+            ::dataframe::is_type<T>(type.dictionary()->type());
+    }
 };
 
 } // namespace dataframe

@@ -40,7 +40,7 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
         if constexpr (std::is_same_v<T, U>) {                                 \
             return ::arrow::Status::OK();                                     \
         } else {                                                              \
-            auto builder = TypeTraits<T>::builder();                          \
+            auto builder = make_builder<T>();                                 \
                                                                               \
             if (array.null_count() == 0) {                                    \
                 ARROW_RETURN_NOT_OK(builder->AppendValues(array.raw_values(), \

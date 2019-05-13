@@ -51,7 +51,7 @@ struct ArrayMaker<Struct<Types...>> {
 
         reference operator*() const
         {
-            return get_field(*iter_, field_index<N>());
+            return get_field(*iter_, FieldIndex<N>());
         }
 
         DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
@@ -67,7 +67,7 @@ struct ArrayMaker<Struct<Types...>> {
         Iter last, std::true_type)
     {
         using T = FieldType<N, Types...>;
-        using R = decltype(get_field(*first, field_index<N>()));
+        using R = decltype(get_field(*first, FieldIndex<N>()));
         using V = std::remove_cv_t<std::remove_reference_t<R>>;
         using I = iterator<N, V, R, Iter>;
 

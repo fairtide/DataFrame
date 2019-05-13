@@ -14,45 +14,39 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_TYPE_LIST_HPP
-#define DATAFRAME_ARRAY_TYPE_LIST_HPP
+#ifndef DATAFRAME_ARRAY_TYPE_BOOL_HPP
+#define DATAFRAME_ARRAY_TYPE_BOOL_HPP
 
 #include <dataframe/array/type/primitive.hpp>
 
 namespace dataframe {
 
-template <typename T>
-struct List {
-};
-
-template <typename T>
-struct TypeTraits<List<T>> {
-    using scalar_type = std::vector<ScalarType<T>>;
-    using data_type = ::arrow::ListType;
-    using array_type = ::arrow::ListArray;
-    using builder_type = ::arrow::ListBuilder;
+template <>
+struct TypeTraits<bool> {
+    using scalar_type = bool;
+    using data_type = ::arrow::BooleanType;
+    using array_type = ::arrow::BooleanArray;
+    using builder_type = ::arrow::BooleanBuilder;
 
     static std::shared_ptr<data_type> make_data_type()
     {
-        return std::make_shared<data_type>(::dataframe::make_data_type<T>());
+        return std::make_shared<data_type>();
     }
 
     static std::unique_ptr<builder_type> make_builder()
     {
-        return std::make_unique<::arrow::ListBuilder>(
-            ::arrow::default_memory_pool(), ::dataframe::make_builder<T>(),
-            make_data_type());
+        return std::make_unique<builder_type>(::arrow::default_memory_pool());
     }
 };
 
 template <typename T>
-struct IsType<List<T>, ::arrow::ListType> {
-    static bool is_type(const ::arrow::ListType &type)
+struct IsType<T, ::arrow::BooleanType> {
+    static constexpr bool is_type(const ::arrow::BooleanType &)
     {
-        return ::dataframe::is_type<T>(type.value_type());
+        return std::is_same_v<T, bool>;
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_TYPE_LIST_HPP
+#endif // DATAFRAME_ARRAY_TYPE_BOOL_HPP

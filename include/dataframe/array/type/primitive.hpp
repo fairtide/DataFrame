@@ -26,61 +26,142 @@ template <typename T>
 struct TypeTraits;
 
 template <typename T>
-auto make_data_type()
-{
-    return TypeTraits<T>::data_type();
-}
+using ScalarType = typename TypeTraits<T>::scalar_type;
 
 template <typename T>
-auto make_builder()
-{
-    return TypeTraits<T>::builder();
-};
-
-template <typename T>
-using CType = typename TypeTraits<T>::ctype;
+using DataType = typename TypeTraits<T>::data_type;
 
 template <typename T>
 using ArrayType = typename TypeTraits<T>::array_type;
 
 template <typename T>
-using DataType = typename decltype(make_data_type<T>())::element_type;
+using BuilderType = typename TypeTraits<T>::builder_type;
 
 template <typename T>
-using BuilderType = typename decltype(make_builder<T>())::element_type;
+inline std::shared_ptr<DataType<T>> make_data_type()
+{
+    return TypeTraits<T>::make_data_type();
+}
 
-#define DF_DEFINE_TYPE_TRAITS(T, Arrow)                                       \
+template <typename T>
+inline std::unique_ptr<BuilderType<T>> make_builder()
+{
+    return TypeTraits<T>::make_builder();
+};
+
+template <typename T, typename DataType>
+struct IsType {
+    static constexpr bool is_type(const DataType &) { return false; }
+};
+
+#define DF_DEFINE_TYPE_TRAITS(Arrow)                                          \
     template <>                                                               \
-    struct TypeTraits<T> {                                                    \
-        static std::shared_ptr<::arrow::Arrow##Type> data_type()              \
+    struct TypeTraits<::arrow::Arrow##Type::c_type> {                         \
+        using scalar_type = ::arrow::Arrow##Type::c_type;                     \
+        using data_type = ::arrow::Arrow##Type;                               \
+        using array_type = ::arrow::Arrow##Array;                             \
+        using builder_type = ::arrow::Arrow##Builder;                         \
+                                                                              \
+        static std::shared_ptr<data_type> make_data_type()                    \
         {                                                                     \
-            return std::make_shared<::arrow::Arrow##Type>();                  \
+            return std::make_shared<data_type>();                             \
         }                                                                     \
                                                                               \
-        static std::unique_ptr<::arrow::Arrow##Builder> builder()             \
+        static std::unique_ptr<builder_type> make_builder()                   \
         {                                                                     \
-            return std::make_unique<::arrow::Arrow##Builder>(                 \
+            return std::make_unique<builder_type>(                            \
                 ::arrow::default_memory_pool());                              \
         }                                                                     \
+    };                                                                        \
                                                                               \
-        using ctype = T;                                                      \
-        using array_type = ::arrow::Arrow##Array;                             \
+    template <typename T>                                                     \
+    struct IsType<T, ::arrow::Arrow##Type> {                                  \
+        static constexpr bool is_type(const ::arrow::Arrow##Type &)           \
+        {                                                                     \
+            return std::is_same_v<T, ::arrow::Arrow##Type::c_type>;           \
+        }                                                                     \
     };
 
-DF_DEFINE_TYPE_TRAITS(void, Null)
-DF_DEFINE_TYPE_TRAITS(bool, Boolean)
-DF_DEFINE_TYPE_TRAITS(std::int8_t, Int8)
-DF_DEFINE_TYPE_TRAITS(std::int16_t, Int16)
-DF_DEFINE_TYPE_TRAITS(std::int32_t, Int32)
-DF_DEFINE_TYPE_TRAITS(std::int64_t, Int64)
-DF_DEFINE_TYPE_TRAITS(std::uint8_t, UInt8)
-DF_DEFINE_TYPE_TRAITS(std::uint16_t, UInt16)
-DF_DEFINE_TYPE_TRAITS(std::uint32_t, UInt32)
-DF_DEFINE_TYPE_TRAITS(std::uint64_t, UInt64)
-DF_DEFINE_TYPE_TRAITS(float, Float)
-DF_DEFINE_TYPE_TRAITS(double, Double)
+DF_DEFINE_TYPE_TRAITS(Int8)
+DF_DEFINE_TYPE_TRAITS(Int16)
+DF_DEFINE_TYPE_TRAITS(Int32)
+DF_DEFINE_TYPE_TRAITS(Int64)
+DF_DEFINE_TYPE_TRAITS(UInt8)
+DF_DEFINE_TYPE_TRAITS(UInt16)
+DF_DEFINE_TYPE_TRAITS(UInt32)
+DF_DEFINE_TYPE_TRAITS(UInt64)
+DF_DEFINE_TYPE_TRAITS(Float)
+DF_DEFINE_TYPE_TRAITS(Double)
 
 #undef DF_DEFINE_TYPE_TRAITS
+
+template <typename T>
+inline bool is_type(const ::arrow::DataType &type)
+{
+    struct Visitor final : ::arrow::TypeVisitor {
+        bool result = false;
+
+#define DF_DEFINE_VISITOR(Arrow)                                              \
+    ::arrow::Status Visit(const ::arrow::Arrow##Type &type) final             \
+    {                                                                         \
+        result = IsType<T, ::arrow::Arrow##Type>::is_type(type);              \
+        return ::arrow::Status::OK();                                         \
+    }
+
+        DF_DEFINE_VISITOR(Null)
+        DF_DEFINE_VISITOR(Boolean)
+        DF_DEFINE_VISITOR(Int8)
+        DF_DEFINE_VISITOR(Int16)
+        DF_DEFINE_VISITOR(Int32)
+        DF_DEFINE_VISITOR(Int64)
+        DF_DEFINE_VISITOR(UInt8)
+        DF_DEFINE_VISITOR(UInt16)
+        DF_DEFINE_VISITOR(UInt32)
+        DF_DEFINE_VISITOR(UInt64)
+        DF_DEFINE_VISITOR(Float)
+        DF_DEFINE_VISITOR(Double)
+        DF_DEFINE_VISITOR(HalfFloat)
+        DF_DEFINE_VISITOR(String)
+        DF_DEFINE_VISITOR(Binary)
+        DF_DEFINE_VISITOR(FixedSizeBinary)
+        DF_DEFINE_VISITOR(Date32)
+        DF_DEFINE_VISITOR(Date64)
+        DF_DEFINE_VISITOR(Timestamp)
+        DF_DEFINE_VISITOR(Time32)
+        DF_DEFINE_VISITOR(Time64)
+        DF_DEFINE_VISITOR(Interval)
+        DF_DEFINE_VISITOR(List)
+        DF_DEFINE_VISITOR(Struct)
+        DF_DEFINE_VISITOR(Decimal128)
+        DF_DEFINE_VISITOR(Union)
+        DF_DEFINE_VISITOR(Dictionary)
+
+#undef DF_DEFINE_VISITOR
+    };
+
+    Visitor visitor;
+    DF_ARROW_ERROR_HANDLER(type.Accept(&visitor));
+
+    return visitor.result;
+}
+
+template <typename T>
+inline bool is_type(const std::shared_ptr<::arrow::DataType> &type)
+{
+    return is_type<T>(*type);
+}
+
+template <typename T>
+inline bool is_type(const ::arrow::Array &array)
+{
+    return is_type<T>(array.type());
+}
+
+template <typename T>
+inline bool is_type(const std::shared_ptr<::arrow::Array> &array)
+{
+    return is_type<T>(*array);
+}
 
 } // namespace dataframe
 

@@ -28,37 +28,11 @@ struct DatetimeArrayMaker {
     template <typename Iter>
     static void append(BuilderType<T> *builder, Iter first, Iter last)
     {
-        constexpr bool is_time_type = std::is_base_of_v<TimeTypeBase,
-            typename std::iterator_traits<Iter>::value_type>;
+        using I = std::conditional_t<
+            std::is_class_v<typename std::iterator_traits<Iter>::value_type>,
+            DatetimeValueIterator<T, Iter>, Iter>;
 
-        if constexpr (is_time_type) {
-
-            class iterator
-            {
-              public:
-                using value_type = typename T::value_type;
-                using reference = value_type;
-                using iterator_category =
-                    typename std::iterator_traits<Iter>::iterator_category;
-
-                iterator(Iter iter)
-                    : iter_(iter)
-                {
-                }
-
-                reference operator*() const { return (*iter_).value; }
-
-                DF_DEFINE_ITERATOR_MEMBERS(iterator, iter_)
-
-              private:
-                Iter iter_;
-            };
-
-            DF_ARROW_ERROR_HANDLER(
-                builder->AppendValues(iterator(first), iterator(last)));
-        } else {
-            DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
-        }
+        DF_ARROW_ERROR_HANDLER(builder->AppendValues(I(first), I(last)));
     }
 };
 

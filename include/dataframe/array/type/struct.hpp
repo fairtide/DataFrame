@@ -23,64 +23,69 @@
 namespace dataframe {
 
 template <std::size_t N>
-using field_index = std::integral_constant<std::size_t, N>;
+using FieldIndex = std::integral_constant<std::size_t, N>;
+
+template <std::size_t N, typename... Types>
+using FieldType = std::tuple_element_t<N, std::tuple<Types...>>;
 
 template <typename T, std::size_t N>
-inline std::string field_name(const T *, field_index<N>)
+inline std::string field_name(const T *, FieldIndex<N>)
 {
     return "Field" + std::to_string(N);
 }
 
 template <typename... Types, std::size_t N>
 inline const std::tuple_element_t<N, std::tuple<Types...>> &get_field(
-    const std::tuple<Types...> &value, field_index<N>)
+    const std::tuple<Types...> &value, FieldIndex<N>)
 {
     return std::get<N>(value);
 }
 
-template <std::size_t N, typename V, typename... Types>
-inline void set_field(std::tuple<Types...> &value, V &&v, field_index<N>)
-{
-    std::get<N>(value) = std::forward<V>(v);
-}
-
-template <std::size_t N, typename... Types>
-using FieldType = std::tuple_element_t<N, std::tuple<Types...>>;
-
-struct StructBase {
+template <typename T, typename... Types>
+struct NamedStruct {
 };
 
 template <typename... Types>
-struct Struct final : StructBase {
-    using data_type = std::tuple<Types...>;
-};
+using Struct = NamedStruct<void, Types...>;
 
-template <typename... Types>
-struct TypeTraits<Struct<Types...>> {
-    static std::shared_ptr<::arrow::StructType> data_type()
+template <typename T, typename... Types>
+struct TypeTraits<NamedStruct<T, Types...>> {
+    using scalar_type = std::tuple<ScalarType<Types>...>;
+    using data_type = ::arrow::StructType;
+    using array_type = ::arrow::StructArray;
+    using builder_type = ::arrow::StructBuilder;
+
+    static std::shared_ptr<data_type> make_data_type()
     {
         std::vector<std::shared_ptr<::arrow::Field>> fields;
-
         set_field<0>(fields, std::integral_constant<bool, 0 < nfields>());
 
-        auto ret = ::arrow::struct_(fields);
-
-        return std::static_pointer_cast<::arrow::StructType>(ret);
+        return std::make_shared<data_type>(fields);
     }
 
-    template <typename... Args>
-    static std::unique_ptr<::arrow::StructBuilder> builder(Args &&... args)
+    static std::unique_ptr<builder_type> make_builder()
     {
-        return std::make_unique<::arrow::StructBuilder>(
-            data_type(std::forward<Args>(args)...),
-            ::arrow::default_memory_pool(), field_builders());
-    }
+        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> builders;
+        set_builder<0>(builders, std::integral_constant<bool, 0 < nfields>());
 
-    using ctype = std::tuple<CType<Types>...>;
-    using array_type = ::arrow::StructArray;
+        return std::make_unique<builder_type>(make_data_type(),
+            ::arrow::default_memory_pool(), std::move(builders));
+    }
 
   private:
     static constexpr std::size_t nfields = sizeof...(Types);
+
+    template <std::size_t N>
+    static void set_field(
+        std::vector<std::shared_ptr<::arrow::Field>> &fields, std::true_type)
+    {
+        fields.push_back(::arrow::field(
+            field_name(static_cast<const T *>(nullptr), FieldIndex<N>()),
+            ::dataframe::make_data_type<FieldType<N, Types...>>()));
+
+        set_field<N + 1>(
+            fields, std::integral_constant<bool, N + 1 < nfields>());
+    }
 
     template <std::size_t>
     static void set_field(
@@ -89,116 +94,46 @@ struct TypeTraits<Struct<Types...>> {
     }
 
     template <std::size_t N>
-    static void set_field(
-        std::vector<std::shared_ptr<::arrow::Field>> &fields, std::true_type)
+    static void set_builder(
+        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &builders,
+        std::true_type)
     {
-        using T = FieldType<N, Types...>;
-
-        fields.push_back(::arrow::field(std::string(), make_data_type<T>()));
-
-        set_field<N + 1>(
-            fields, std::integral_constant<bool, N + 1 < nfields>());
-    }
-
-    static std::vector<std::shared_ptr<::arrow::ArrayBuilder>> field_builders()
-    {
-        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> builders;
-        set_builder<0>(builders, std::integral_constant<bool, 0 < nfields>());
-
-        return builders;
+        builders.emplace_back(
+            ::dataframe::make_builder<FieldType<N, Types...>>());
+        set_builder<N + 1>(
+            builders, std::integral_constant<bool, N + 1 < nfields>());
     }
 
     template <std::size_t>
     static void set_builder(
         std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &, std::false_type)
     {
-    }
-
-    template <std::size_t N>
-    static void set_builder(
-        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &builders,
-        std::true_type)
-    {
-        builders.emplace_back(make_builder<FieldType<N, Types...>>());
-        set_builder<N + 1>(
-            builders, std::integral_constant<bool, N + 1 < nfields>());
     }
 };
 
 template <typename T, typename... Types>
-struct NamedStruct final : StructBase {
-    using data_type = std::tuple<Types...>;
-};
-
-template <typename V, typename... Types>
-struct TypeTraits<NamedStruct<V, Types...>> {
-    static std::shared_ptr<::arrow::StructType> data_type()
+struct IsType<NamedStruct<T, Types...>, ::arrow::StructType> {
+    static bool is_type(const ::arrow::StructType &type)
     {
-        std::vector<std::shared_ptr<::arrow::Field>> fields;
-
-        set_field<0>(fields, std::integral_constant<bool, 0 < nfields>());
-
-        auto ret = ::arrow::struct_(fields);
-
-        return std::static_pointer_cast<::arrow::StructType>(ret);
+        return is_type<0>(type, std::integral_constant<bool, 0 < nfields>());
     }
-
-    template <typename... Args>
-    static std::unique_ptr<::arrow::StructBuilder> builder(Args &&... args)
-    {
-        return std::make_unique<::arrow::StructBuilder>(
-            data_type(std::forward<Args>(args)...),
-            ::arrow::default_memory_pool(), field_builders());
-    }
-
-    using ctype = std::tuple<CType<Types>...>;
-    using array_type = ::arrow::StructArray;
 
   private:
     static constexpr std::size_t nfields = sizeof...(Types);
 
-    template <std::size_t>
-    static void set_field(
-        std::vector<std::shared_ptr<::arrow::Field>> &, std::false_type)
-    {
-    }
-
     template <std::size_t N>
-    static void set_field(
-        std::vector<std::shared_ptr<::arrow::Field>> &fields, std::true_type)
+    static bool is_type(const ::arrow::StructType &type, std::true_type)
     {
-        using T = FieldType<N, Types...>;
-
-        fields.push_back(::arrow::field(
-            field_name(static_cast<const V *>(nullptr), field_index<N>()),
-            make_data_type<T>()));
-
-        set_field<N + 1>(
-            fields, std::integral_constant<bool, N + 1 < nfields>());
-    }
-
-    static std::vector<std::shared_ptr<::arrow::ArrayBuilder>> field_builders()
-    {
-        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> builders;
-        set_builder<0>(builders, std::integral_constant<bool, 0 < nfields>());
-
-        return builders;
+        return ::dataframe::is_type<FieldType<N, Types...>>(
+                   type.child(N)->type()) &&
+            is_type<N + 1>(
+                type, std::integral_constant<bool, N + 1 < nfields>());
     }
 
     template <std::size_t>
-    static void set_builder(
-        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &, std::false_type)
+    static bool is_type(const ::arrow::StructType &, std::false_type)
     {
-    }
-
-    template <std::size_t N>
-    static void set_builder(
-        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &builders,
-        std::true_type)
-    {
-        builders.emplace_back(make_builder<FieldType<N, Types...>>());
-        set_builder<N + 1>(
-            builders, std::integral_constant<bool, N + 1 < nfields>());
+        return true;
     }
 };
 

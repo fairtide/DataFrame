@@ -17,11 +17,12 @@
 #ifndef DATAFRAME_ARRAY_TYPE_DATETIME_HPP
 #define DATAFRAME_ARRAY_TYPE_DATETIME_HPP
 
+#include <dataframe/array/type/iterator.hpp>
 #include <dataframe/array/type/primitive.hpp>
 
 namespace dataframe {
 
-enum class DateUnit { Day, Millisecond };
+enum class DateUnit { Day, Millisecond = ::arrow::TimeUnit::MILLI };
 
 enum class TimeUnit {
     Second = ::arrow::TimeUnit::SECOND,
@@ -29,6 +30,19 @@ enum class TimeUnit {
     Microsecond = ::arrow::TimeUnit::MICRO,
     Nanosecond = ::arrow::TimeUnit::NANO
 };
+
+inline constexpr std::int64_t time_unit_nanos(DateUnit unit)
+{
+
+    switch (unit) {
+        case DateUnit::Day:
+            return INT64_C(24) * 3600 * 1'000'000'000;
+        case DateUnit::Millisecond:
+            return 1'000'000;
+    }
+
+    throw DataFrameException("Unknown Date unit");
+}
 
 inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
 {
@@ -42,7 +56,8 @@ inline constexpr std::int64_t time_unit_nanos(TimeUnit unit)
         case TimeUnit::Nanosecond:
             return 1;
     }
-    return 1;
+
+    throw DataFrameException("Unknown Time unit");
 }
 
 inline constexpr std::int64_t time_unit_nanos(::arrow::TimeUnit::type unit)
@@ -50,13 +65,38 @@ inline constexpr std::int64_t time_unit_nanos(::arrow::TimeUnit::type unit)
     return time_unit_nanos(static_cast<TimeUnit>(unit));
 }
 
-struct TimeTypeBase {
-};
+inline constexpr std::int64_t time_unit_nanos(const ::arrow::Date32Array &)
+{
+    return time_unit_nanos(DateUnit::Day);
+}
 
-template <typename ArrowType>
-struct TimeType : TimeTypeBase {
-    using arrow_type = ArrowType;
-    using value_type = typename ArrowType::c_type;
+inline constexpr std::int64_t time_unit_nanos(const ::arrow::Date64Array &)
+{
+    return time_unit_nanos(DateUnit::Millisecond);
+}
+
+inline std::int64_t time_unit_nanos(const ::arrow::TimestampArray &array)
+{
+    return time_unit_nanos(
+        std::static_pointer_cast<::arrow::TimestampType>(array.type())
+            ->unit());
+}
+
+inline std::int64_t time_unit_nanos(const ::arrow::Time32Array &array)
+{
+    return time_unit_nanos(
+        std::static_pointer_cast<::arrow::Time32Type>(array.type())->unit());
+}
+
+inline std::int64_t time_unit_nanos(const ::arrow::Time64Array &array)
+{
+    return time_unit_nanos(
+        std::static_pointer_cast<::arrow::Time64Type>(array.type())->unit());
+}
+
+template <typename T>
+struct TimeType {
+    using value_type = T;
 
     value_type value;
 
@@ -73,22 +113,6 @@ struct TimeType : TimeTypeBase {
 
     explicit operator value_type() const noexcept { return value; }
 };
-
-template <typename T>
-typename T::value_type get_field(const T &dt,
-    std::integral_constant<std::size_t, 0>,
-    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr)
-{
-    return dt.value;
-}
-
-template <typename T>
-void get_field(const T &dt, typename T::value_type v,
-    std::integral_constant<std::size_t, 0>,
-    std::enable_if_t<std::is_base_of_v<TimeTypeBase, T>> * = nullptr)
-{
-    return dt.value = v;
-}
 
 template <typename T>
 inline bool operator==(const TimeType<T> &v1, const TimeType<T> &v2) noexcept
@@ -130,167 +154,246 @@ template <DateUnit>
 struct Datestamp;
 
 template <>
-struct Datestamp<DateUnit::Day> : TimeType<::arrow::Date32Type> {
-    using TimeType<::arrow::Date32Type>::TimeType;
+struct Datestamp<DateUnit::Day> final : TimeType<::arrow::Date32Type::c_type> {
+    static constexpr DateUnit unit = DateUnit::Day;
+    using TimeType<::arrow::Date32Type::c_type>::TimeType;
 };
 
 template <>
-struct Datestamp<DateUnit::Millisecond> : TimeType<::arrow::Date64Type> {
-    using TimeType<::arrow::Date64Type>::TimeType;
+struct Datestamp<DateUnit::Millisecond> final
+    : TimeType<::arrow::Date64Type::c_type> {
+    static constexpr DateUnit unit = DateUnit::Millisecond;
+    using TimeType<::arrow::Date64Type::c_type>::TimeType;
 };
 
 template <TimeUnit Unit>
-struct Timestamp : TimeType<::arrow::TimestampType> {
+struct Timestamp final : TimeType<::arrow::TimestampType::c_type> {
     static constexpr TimeUnit unit = Unit;
-    using TimeType<::arrow::TimestampType>::TimeType;
+    using TimeType<::arrow::TimestampType::c_type>::TimeType;
 };
 
 template <TimeUnit>
 struct Time;
 
 template <>
-struct Time<TimeUnit::Second> : TimeType<::arrow::Time32Type> {
+struct Time<TimeUnit::Second> final : TimeType<::arrow::Time32Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Second;
-    using TimeType<::arrow::Time32Type>::TimeType;
+    using TimeType<::arrow::Time32Type::c_type>::TimeType;
 };
 
 template <>
-struct Time<TimeUnit::Millisecond> : TimeType<::arrow::Time32Type> {
+struct Time<TimeUnit::Millisecond> final
+    : TimeType<::arrow::Time32Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Millisecond;
-    using TimeType<::arrow::Time32Type>::TimeType;
+    using TimeType<::arrow::Time32Type::c_type>::TimeType;
 };
 
 template <>
-struct Time<TimeUnit::Microsecond> : TimeType<::arrow::Time64Type> {
+struct Time<TimeUnit::Microsecond> final
+    : TimeType<::arrow::Time64Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Microsecond;
-    using TimeType<::arrow::Time64Type>::TimeType;
+    using TimeType<::arrow::Time64Type::c_type>::TimeType;
 };
 
 template <>
-struct Time<TimeUnit::Nanosecond> : TimeType<::arrow::Time64Type> {
+struct Time<TimeUnit::Nanosecond> final
+    : TimeType<::arrow::Time64Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Nanosecond;
-    using TimeType<::arrow::Time64Type>::TimeType;
+    using TimeType<::arrow::Time64Type::c_type>::TimeType;
 };
 
 template <>
 struct TypeTraits<Datestamp<DateUnit::Day>> {
-    static std::shared_ptr<::arrow::Date32Type> data_type()
-    {
-        return std::make_shared<::arrow::Date32Type>();
-    }
-
-    static auto builder()
-    {
-        return std::make_unique<::arrow::Date32Builder>(
-            ::arrow::default_memory_pool());
-    }
-
-    using ctype = Datestamp<DateUnit::Day>::value_type;
+    using scalar_type = ::arrow::Date32Type::c_type;
+    using data_type = ::arrow::Date32Type;
     using array_type = ::arrow::Date32Array;
+    using builder_type = ::arrow::Date32Builder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>();
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+    }
 };
 
 template <>
 struct TypeTraits<Datestamp<DateUnit::Millisecond>> {
-    static std::shared_ptr<::arrow::Date64Type> data_type()
-    {
-        return std::make_shared<::arrow::Date64Type>();
-    }
-
-    static auto builder()
-    {
-        return std::make_unique<::arrow::Date64Builder>(
-            ::arrow::default_memory_pool());
-    }
-
-    using ctype = Datestamp<DateUnit::Millisecond>::value_type;
+    using scalar_type = ::arrow::Date64Type::c_type;
+    using data_type = ::arrow::Date64Type;
     using array_type = ::arrow::Date64Array;
+    using builder_type = ::arrow::Date64Builder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>();
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+    }
 };
 
 template <TimeUnit Unit>
 struct TypeTraits<Timestamp<Unit>> {
-    static std::shared_ptr<::arrow::TimestampType> data_type()
+    using scalar_type = ::arrow::TimestampType::c_type;
+    using data_type = ::arrow::TimestampType;
+    using array_type = ::arrow::TimestampArray;
+    using builder_type = ::arrow::TimestampBuilder;
+
+    static std::shared_ptr<data_type> make_data_type()
     {
-        return std::make_shared<::arrow::TimestampType>(
+        return std::make_shared<data_type>(
             static_cast<::arrow::TimeUnit::type>(Unit));
     }
 
-    static std::unique_ptr<::arrow::TimestampBuilder> builder()
+    static std::unique_ptr<builder_type> make_builder()
     {
-        return std::make_unique<::arrow::TimestampBuilder>(
-            data_type(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(
+            make_data_type(), ::arrow::default_memory_pool());
     }
-
-    using ctype = typename Timestamp<Unit>::value_type;
-    using array_type = ::arrow::TimestampArray;
 };
 
 template <>
 struct TypeTraits<Time<TimeUnit::Second>> {
-    static std::shared_ptr<::arrow::Time32Type> data_type()
-    {
-        return std::make_shared<::arrow::Time32Type>(
-            ::arrow::TimeUnit::SECOND);
-    }
-
-    static std::unique_ptr<::arrow::Time32Builder> builder()
-    {
-        return std::make_unique<::arrow::Time32Builder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename ::arrow::Time32Type::c_type;
+    using scalar_type = ::arrow::Time32Type::c_type;
+    using data_type = ::arrow::Time32Type;
     using array_type = ::arrow::Time32Array;
+    using builder_type = ::arrow::Time32Builder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>(::arrow::TimeUnit::SECOND);
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(
+            make_data_type(), ::arrow::default_memory_pool());
+    }
 };
 
 template <>
 struct TypeTraits<Time<TimeUnit::Millisecond>> {
-    static std::shared_ptr<::arrow::Time32Type> data_type()
-    {
-        return std::make_shared<::arrow::Time32Type>(::arrow::TimeUnit::MILLI);
-    }
-
-    static std::unique_ptr<::arrow::Time32Builder> builder()
-    {
-        return std::make_unique<::arrow::Time32Builder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename ::arrow::Time32Type::c_type;
+    using scalar_type = ::arrow::Time32Type::c_type;
+    using data_type = ::arrow::Time32Type;
     using array_type = ::arrow::Time32Array;
+    using builder_type = ::arrow::Time32Builder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>(::arrow::TimeUnit::MILLI);
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(
+            make_data_type(), ::arrow::default_memory_pool());
+    }
 };
 
 template <>
 struct TypeTraits<Time<TimeUnit::Microsecond>> {
-    static std::shared_ptr<::arrow::Time64Type> data_type()
-    {
-        return std::make_shared<::arrow::Time64Type>(::arrow::TimeUnit::MICRO);
-    }
-
-    static std::unique_ptr<::arrow::Time64Builder> builder()
-    {
-        return std::make_unique<::arrow::Time64Builder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename ::arrow::Time64Type::c_type;
+    using scalar_type = ::arrow::Time64Type::c_type;
+    using data_type = ::arrow::Time64Type;
     using array_type = ::arrow::Time64Array;
+    using builder_type = ::arrow::Time64Builder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>(::arrow::TimeUnit::MICRO);
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(
+            make_data_type(), ::arrow::default_memory_pool());
+    }
 };
 
 template <>
 struct TypeTraits<Time<TimeUnit::Nanosecond>> {
-    static std::shared_ptr<::arrow::Time64Type> data_type()
-    {
-        return std::make_shared<::arrow::Time64Type>(::arrow::TimeUnit::NANO);
-    }
-
-    static std::unique_ptr<::arrow::Time64Builder> builder()
-    {
-        return std::make_unique<::arrow::Time64Builder>(
-            data_type(), ::arrow::default_memory_pool());
-    }
-
-    using ctype = typename ::arrow::Time64Type::c_type;
+    using scalar_type = ::arrow::Time64Type::c_type;
+    using data_type = ::arrow::Time64Type;
     using array_type = ::arrow::Time64Array;
+    using builder_type = ::arrow::Time64Builder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>(::arrow::TimeUnit::NANO);
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(
+            make_data_type(), ::arrow::default_memory_pool());
+    }
+};
+
+template <typename T>
+struct IsType<T, ::arrow::Date32Type> {
+    static constexpr bool is_type(const ::arrow::Date32Type &)
+    {
+        return std::is_same_v<T, Datestamp<DateUnit::Day>>;
+    }
+};
+
+template <typename T>
+struct IsType<T, ::arrow::Date64Type> {
+    static constexpr bool is_type(const ::arrow::Date64Type &)
+    {
+        return std::is_same_v<T, Datestamp<DateUnit::Millisecond>>;
+    }
+};
+
+template <TimeUnit Unit>
+struct IsType<Timestamp<Unit>, ::arrow::TimestampType> {
+    static bool is_type(const ::arrow::TimestampType &type)
+    {
+        return Unit == static_cast<TimeUnit>(type.unit());
+    }
+};
+
+template <TimeUnit Unit>
+struct IsType<Time<Unit>, ::arrow::Time32Type> {
+    static bool is_type(const ::arrow::Time32Type &type)
+    {
+        return Unit == static_cast<TimeUnit>(type.unit());
+    }
+};
+
+template <TimeUnit Unit>
+struct IsType<Time<Unit>, ::arrow::Time64Type> {
+    static bool is_type(const ::arrow::Time64Type &type)
+    {
+        return Unit == static_cast<TimeUnit>(type.unit());
+    }
+};
+
+template <typename T, typename Iter>
+class DatetimeValueIterator
+{
+  public:
+    using value_type = typename T::value_type;
+    using reference = value_type;
+    using iterator_category =
+        typename std::iterator_traits<Iter>::iterator_category;
+
+    DatetimeValueIterator(Iter iter)
+        : iter_(iter)
+    {
+    }
+
+    reference operator*() const { return (*iter_).value; }
+
+    DF_DEFINE_ITERATOR_MEMBERS(DatetimeValueIterator, iter_)
+
+  private:
+    Iter iter_;
 };
 
 } // namespace dataframe

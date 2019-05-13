@@ -21,38 +21,6 @@
 
 namespace dataframe {
 
-template <>
-struct CastArrayVisitor<Datestamp<DateUnit::Day>> final
-    : ::arrow::ArrayVisitor {
-    std::shared_ptr<::arrow::Array> result;
-
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
-        : result(std::move(data))
-    {
-    }
-
-    ::arrow::Status Visit(const ::arrow::Date32Array &) final
-    {
-        return ::arrow::Status::OK();
-    }
-};
-
-template <>
-struct CastArrayVisitor<Datestamp<DateUnit::Millisecond>> final
-    : ::arrow::ArrayVisitor {
-    std::shared_ptr<::arrow::Array> result;
-
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
-        : result(std::move(data))
-    {
-    }
-
-    ::arrow::Status Visit(const ::arrow::Date64Array &) final
-    {
-        return ::arrow::Status::OK();
-    }
-};
-
 namespace internal {
 
 template <typename T, typename Array>
@@ -61,25 +29,25 @@ template <typename T, typename Array>
 {
     using U = typename T::value_type;
 
-    auto &type = static_cast<typename T::arrow_type &>(*array.type());
-    auto unit = static_cast<TimeUnit>(type.unit());
+    auto from_nanos = time_unit_nanos(array);
+    auto to_nanos = time_unit_nanos(T::unit);
 
-    if (unit == T::unit) {
-        return ::arrow::Status::OK();
+    if (from_nanos == to_nanos) {
+        auto data = array.data()->Copy();
+        data->type = make_data_type<T>();
+        result = ::arrow::MakeArray(data);
     }
 
     auto n = array.length();
     auto v = array.raw_values();
 
-    std::unique_ptr<::arrow::Buffer> buf;
+    std::unique_ptr<::arrow::Buffer> value_buffer;
     ARROW_RETURN_NOT_OK(::arrow::AllocateBuffer(::arrow::default_memory_pool(),
-        n * static_cast<std::int64_t>(sizeof(U)), &buf));
+        n * static_cast<std::int64_t>(sizeof(typename T::value_type)),
+        &value_buffer));
 
-    auto values = reinterpret_cast<U *>(
-        dynamic_cast<::arrow::MutableBuffer &>(*buf).mutable_data());
-
-    auto from_nanos = time_unit_nanos(unit);
-    auto to_nanos = time_unit_nanos(T::unit);
+    auto values = reinterpret_cast<typename T::value_type *>(
+        dynamic_cast<::arrow::MutableBuffer &>(*value_buffer).mutable_data());
 
     if (from_nanos > to_nanos) {
         auto ratio = from_nanos / to_nanos;
@@ -93,27 +61,51 @@ template <typename T, typename Array>
         }
     }
 
-    auto builder = TypeTraits<T>::builder();
+    ::arrow::ArrayData data(
+        make_data_type<T>(), array.length(), array.null_count());
 
-    if (array.null_count() == 0) {
-        ARROW_RETURN_NOT_OK(builder->AppendValues(values, values + n));
-    } else {
-        std::vector<bool> valid;
-        valid.reserve(static_cast<std::size_t>(n));
-        for (std::int64_t i = 0; i != n; ++i) {
-            valid.push_back(array.IsValid(i));
-        }
+    data.buffers.reserve(2);
+    data.buffers.emplace_back(nullptr);
+    data.buffers.emplace_back(std::move(value_buffer));
 
-        ARROW_RETURN_NOT_OK(
-            builder->AppendValues(values, values + n, valid.begin()));
+    if (data.null_count != 0) {
+        ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(
+            ::arrow::default_memory_pool(), array.null_bitmap()->data(),
+            array.offset(), array.length(), &data.buffers[0]));
     }
 
-    ARROW_RETURN_NOT_OK(builder->Finish(&result));
+    result = ::arrow::MakeArray(
+        std::make_shared<::arrow::ArrayData>(std::move(data)));
 
     return ::arrow::Status::OK();
 }
 
 } // namespace internal
+
+template <DateUnit Unit>
+struct CastArrayVisitor<Datestamp<Unit>> final : ::arrow::ArrayVisitor {
+    std::shared_ptr<::arrow::Array> result;
+
+    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+        : result(std::move(data))
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    {
+        return internal::cast_time_array<Datestamp<Unit>>(array, result);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    {
+        return internal::cast_time_array<Datestamp<Unit>>(array, result);
+    }
+
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    {
+        return internal::cast_time_array<Datestamp<Unit>>(array, result);
+    }
+};
 
 template <TimeUnit Unit>
 struct CastArrayVisitor<Timestamp<Unit>> final : ::arrow::ArrayVisitor {
@@ -122,6 +114,16 @@ struct CastArrayVisitor<Timestamp<Unit>> final : ::arrow::ArrayVisitor {
     CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
         : result(std::move(data))
     {
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    {
+        return internal::cast_time_array<Timestamp<Unit>>(array, result);
+    }
+
+    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    {
+        return internal::cast_time_array<Timestamp<Unit>>(array, result);
     }
 
     ::arrow::Status Visit(const ::arrow::TimestampArray &array) final

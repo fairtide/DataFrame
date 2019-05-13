@@ -59,7 +59,7 @@ static Output output;
 
 struct TestStruct;
 
-inline auto field_name(const TestStruct *, ::dataframe::field_index<0>)
+inline auto field_name(const TestStruct *, ::dataframe::FieldIndex<0>)
 {
     return "Test";
 }

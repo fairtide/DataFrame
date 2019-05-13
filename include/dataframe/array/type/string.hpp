@@ -23,44 +23,63 @@ namespace dataframe {
 
 template <>
 struct TypeTraits<std::string> {
-    static std::shared_ptr<::arrow::StringType> data_type()
-    {
-        return std::make_shared<::arrow::StringType>();
-    }
-
-    static std::unique_ptr<::arrow::StringBuilder> builder()
-    {
-        return std::make_unique<::arrow::StringBuilder>(
-            ::arrow::default_memory_pool());
-    }
-
-    using ctype = std::string;
+    using scalar_type = std::string;
+    using data_type = ::arrow::StringType;
     using array_type = ::arrow::StringArray;
+    using builder_type = ::arrow::StringBuilder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>();
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+    }
 };
 
 template <>
 struct TypeTraits<std::string_view> : TypeTraits<std::string> {
 };
 
+template <typename T>
+struct IsType<T, ::arrow::StringType> {
+    static constexpr bool is_type(const ::arrow::StringType &)
+    {
+        return std::is_same_v<T, std::string> ||
+            std::is_same_v<T, std::string_view>;
+    }
+};
+
+/// \brief Type used to distinguish Binary from String
 struct Bytes {
-    using data_type = std::vector<std::uint8_t>;
 };
 
 template <>
 struct TypeTraits<Bytes> {
-    static std::shared_ptr<::arrow::BinaryType> data_type()
-    {
-        return std::make_shared<::arrow::BinaryType>();
-    }
-
-    static std::unique_ptr<::arrow::BinaryBuilder> builder()
-    {
-        return std::make_unique<::arrow::BinaryBuilder>(
-            ::arrow::default_memory_pool());
-    }
-
-    using ctype = std::vector<std::uint8_t>;
+    using scalar_type = std::string;
+    using data_type = ::arrow::BinaryType;
     using array_type = ::arrow::BinaryArray;
+    using builder_type = ::arrow::BinaryBuilder;
+
+    static std::shared_ptr<data_type> make_data_type()
+    {
+        return std::make_shared<data_type>();
+    }
+
+    static std::unique_ptr<builder_type> make_builder()
+    {
+        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+    }
+};
+
+template <typename T>
+struct IsType<T, ::arrow::BinaryType> {
+    static constexpr bool is_type(const ::arrow::BinaryType &)
+    {
+        return std::is_same_v<T, Bytes>;
+    }
 };
 
 } // namespace dataframe

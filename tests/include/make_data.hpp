@@ -20,7 +20,7 @@
 
 template <typename T>
 struct DataMaker {
-    using U = ::dataframe::CType<T>;
+    using U = ::dataframe::ScalarType<T>;
 
     static auto make(std::size_t n)
     {
@@ -93,7 +93,7 @@ struct DataMaker<::dataframe::Dict<T>> {
 
 template <typename T>
 struct DataMaker<::dataframe::List<T>> {
-    using U = ::dataframe::CType<::dataframe::List<T>>;
+    using U = ::dataframe::ScalarType<::dataframe::List<T>>;
 
     static auto make(std::size_t n)
     {
@@ -111,7 +111,7 @@ struct DataMaker<::dataframe::List<T>> {
 
 template <typename... Types>
 struct DataMaker<::dataframe::Struct<Types...>> {
-    using U = ::dataframe::CType<::dataframe::Struct<Types...>>;
+    using U = ::dataframe::ScalarType<::dataframe::Struct<Types...>>;
 
     static auto make(std::size_t n)
     {

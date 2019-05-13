@@ -104,10 +104,10 @@ struct TestData : TestDataBase<T> {
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<> rval;
-        std::vector<::dataframe::CType<T>> rawval;
+        std::vector<::dataframe::ScalarType<T>> rawval;
 
         for (std::size_t i = 0; i != n; ++i) {
-            rawval.push_back(static_cast<::dataframe::CType<T>>(rval(rng)));
+            rawval.push_back(static_cast<::dataframe::ScalarType<T>>(rval(rng)));
             this->values.emplace_back(rawval.back());
         }
 
