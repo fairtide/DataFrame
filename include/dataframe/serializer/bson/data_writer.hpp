@@ -233,6 +233,10 @@ class DataWriter final : public ::arrow::ArrayVisitor
         for (auto i = 0; i != n; ++i) {
             auto field = type.child(i);
 
+            if (field->name().empty()) {
+                throw DataFrameException("empty field name");
+            }
+
             auto field_data = array.field(i);
             if (field_data == nullptr) {
                 throw DataFrameException(

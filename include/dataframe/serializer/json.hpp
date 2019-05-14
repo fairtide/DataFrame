@@ -18,6 +18,8 @@
 #define DATAFRAME_SERIALIZER_JSON_HPP
 
 #include <dataframe/serializer/base.hpp>
+#include <boost/date_time/gregorian/gregorian.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -26,12 +28,238 @@ namespace dataframe {
 
 class JSONRowWriter : public Writer
 {
+    struct Visitor final : ::arrow::ArrayVisitor {
+        ::rapidjson::GenericStringRef<char> key;
+        std::vector<::rapidjson::Document> &rows;
+
+        Visitor(const std::string &k, std::vector<::rapidjson::Document> &r)
+            : key(k.data(), static_cast<unsigned>(k.size()))
+            , rows(r)
+        {
+        }
+
+        ::arrow::Status Visit(const ::arrow::NullArray &) final
+        {
+            for (auto &doc : rows) {
+                doc.AddMember(key, ::rapidjson::Value(), doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+        {
+            std::int64_t j = 0;
+            for (auto &doc : rows) {
+                doc.AddMember(key, array.GetView(j++), doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+#define DF_DEFINE_VISITOR(Arrow)                                              \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
+    {                                                                         \
+        auto p = array.raw_values();                                          \
+        for (auto &doc : rows) {                                              \
+            doc.AddMember(key, *p++, doc.GetAllocator());                     \
+        }                                                                     \
+                                                                              \
+        return ::arrow::Status::OK();                                         \
+    }
+
+        DF_DEFINE_VISITOR(Int8)
+        DF_DEFINE_VISITOR(Int16)
+        DF_DEFINE_VISITOR(Int32)
+        DF_DEFINE_VISITOR(Int64)
+        DF_DEFINE_VISITOR(UInt8)
+        DF_DEFINE_VISITOR(UInt16)
+        DF_DEFINE_VISITOR(UInt32)
+        DF_DEFINE_VISITOR(UInt64)
+        // DF_DEFINE_VISITOR(HalfFloat)
+        DF_DEFINE_VISITOR(Float)
+        DF_DEFINE_VISITOR(Double)
+
+#undef DF_DEFINE_VISITOR
+
+        ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+        {
+            ::boost::gregorian::date epoch(1970, 1, 1);
+
+            auto p = array.raw_values();
+
+            for (auto &doc : rows) {
+                auto v = epoch + ::boost::gregorian::days(*p++);
+                doc.AddMember(key,
+                    ::rapidjson::Value().SetString(
+                        ::boost::gregorian::to_iso_extended_string(v),
+                        doc.GetAllocator()),
+                    doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+        {
+            ::boost::gregorian::date epoch_date(1970, 1, 1);
+            ::boost::posix_time::ptime epoch(epoch_date);
+
+            auto p = array.raw_values();
+
+            for (auto &doc : rows) {
+                auto v = epoch + ::boost::posix_time::milliseconds(*p++);
+                doc.AddMember(key,
+                    ::rapidjson::Value().SetString(
+                        ::boost::posix_time::to_iso_extended_string(v) + "Z",
+                        doc.GetAllocator()),
+                    doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+        {
+            ::boost::gregorian::date epoch_date(1970, 1, 1);
+            ::boost::posix_time::ptime epoch(epoch_date);
+
+            auto p = array.raw_values();
+            auto u = static_cast<const ::arrow::TimestampType &>(*array.type())
+                         .unit();
+
+            for (auto &doc : rows) {
+                auto v = epoch;
+
+                switch (u) {
+                    case ::arrow::TimeUnit::SECOND:
+                        v += ::boost::posix_time::seconds(*p++);
+                        break;
+                    case ::arrow::TimeUnit::MILLI:
+                        v += ::boost::posix_time::milliseconds(*p++);
+                        break;
+                    case ::arrow::TimeUnit::MICRO:
+                        v += ::boost::posix_time::microseconds(*p++);
+                        break;
+                    case ::arrow::TimeUnit::NANO:
+#ifdef BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+                        v += ::boost::posix_time::nanoseconds(*p++);
+#else
+                        v += ::boost::posix_time::microseconds(*p++ / 1000);
+#endif
+                        break;
+                }
+
+                doc.AddMember(key,
+                    ::rapidjson::Value().SetString(
+                        ::boost::posix_time::to_iso_extended_string(v) + "Z",
+                        doc.GetAllocator()),
+                    doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+        {
+            auto p = array.raw_values();
+            auto u =
+                static_cast<const ::arrow::Time32Type &>(*array.type()).unit();
+
+            for (auto &doc : rows) {
+                ::boost::posix_time::time_duration v;
+
+                switch (u) {
+                    case ::arrow::TimeUnit::SECOND:
+                        v = ::boost::posix_time::seconds(*p++);
+                        break;
+                    case ::arrow::TimeUnit::MILLI:
+                        v = ::boost::posix_time::milliseconds(*p++);
+                        break;
+                    case ::arrow::TimeUnit::MICRO:
+                        throw DataFrameException("Unexpected unit for Time32");
+                    case ::arrow::TimeUnit::NANO:
+                        throw DataFrameException("Unexpected unit for Time32");
+                }
+
+                doc.AddMember(key,
+                    ::rapidjson::Value().SetString(
+                        ::boost::posix_time::to_simple_string(v),
+                        doc.GetAllocator()),
+                    doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+        {
+            auto p = array.raw_values();
+            auto u =
+                static_cast<const ::arrow::Time32Type &>(*array.type()).unit();
+
+            for (auto &doc : rows) {
+                ::boost::posix_time::time_duration v;
+
+                switch (u) {
+                    case ::arrow::TimeUnit::SECOND:
+                        throw DataFrameException("Unexpected unit for Time32");
+                    case ::arrow::TimeUnit::MILLI:
+                        throw DataFrameException("Unexpected unit for Time32");
+                    case ::arrow::TimeUnit::MICRO:
+                        v = ::boost::posix_time::microseconds(*p++);
+                        break;
+                    case ::arrow::TimeUnit::NANO:
+#ifdef BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+                        v = ::boost::posix_time::nanoseconds(*p++);
+#else
+                        v = ::boost::posix_time::microseconds(*p++ / 1000);
+#endif
+                        break;
+                }
+
+                doc.AddMember(key,
+                    ::rapidjson::Value().SetString(
+                        ::boost::posix_time::to_simple_string(v),
+                        doc.GetAllocator()),
+                    doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        // DF_DEFINE_VISITOR(Interval)
+        // DF_DEFINE_VISITOR(FixedSizeBinary)
+        // DF_DEFINE_VISITOR(Decimal128)
+        // DF_DEFINE_VISITOR(Binary)
+
+        ::arrow::Status Visit(const ::arrow::StringArray &array) final
+        {
+            std::int64_t j = 0;
+            for (auto &doc : rows) {
+                auto v = array.GetView(j++);
+                doc.AddMember(key,
+                    ::rapidjson::Value().SetString(v.data(),
+                        static_cast<unsigned>(v.size()), doc.GetAllocator()),
+                    doc.GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        // DF_DEFINE_VISITOR(List)
+        // DF_DEFINE_VISITOR(Struct)
+        // DF_DEFINE_VISITOR(Union)
+        // DF_DEFINE_VISITOR(Dictionary) // TODO
+    };
+
   public:
     JSONRowWriter(std::string root)
         : root_(std::move(root))
     {
         if (root_.empty()) {
-            throw DataFrameException("root key cannot be empty");
+            throw DataFrameException(
+                "root key cannot be empty for JSONRowWriter");
         }
     }
 
@@ -62,102 +290,8 @@ class JSONRowWriter : public Writer
 
         for (std::size_t i = 0; i != ncol; ++i) {
             auto col = df[i];
-            auto key = ::rapidjson::StringRef(keys[i].data(), keys[i].size());
-
-            auto add_number = [&](auto &&data) {
-                auto ptr = data.begin();
-                for (auto &&doc : rows) {
-                    doc.AddMember(key, *ptr++, doc.GetAllocator());
-                }
-            };
-
-            auto add_string = [&](auto &&data) {
-                auto ptr = data.data();
-                for (auto &&doc : rows) {
-                    doc.AddMember(key,
-                        ::rapidjson::Value().SetString(ptr->data(),
-                            static_cast<unsigned>(ptr->size()),
-                            doc.GetAllocator()),
-                        doc.GetAllocator());
-                    ++ptr;
-                }
-            };
-
-            auto add_string_view = [&](auto &&data) {
-                auto ptr = data.data();
-                for (auto &&doc : rows) {
-                    doc.AddMember(key,
-                        ::rapidjson::StringRef(ptr->data(), ptr->size()),
-                        doc.GetAllocator());
-                    ++ptr;
-                }
-            };
-
-            switch (col.dtype()) {
-                case DataType::Bool:
-                    add_number(col.as_view<bool>());
-                    break;
-                case DataType::UInt8:
-                    add_number(col.as_view<std::uint8_t>());
-                    break;
-                case DataType::Int8:
-                    add_number(col.as_view<std::uint8_t>());
-                    break;
-                case DataType::UInt16:
-                    add_number(col.as_view<std::int8_t>());
-                    break;
-                case DataType::Int16:
-                    add_number(col.as_view<std::uint16_t>());
-                    break;
-                case DataType::UInt32:
-                    add_number(col.as_view<std::uint32_t>());
-                    break;
-                case DataType::Int32:
-                    add_number(col.as_view<std::int32_t>());
-                    break;
-                case DataType::UInt64:
-                    add_number(col.as_view<std::uint64_t>());
-                    break;
-                case DataType::Int64:
-                    add_number(col.as_view<std::int64_t>());
-                    break;
-                case DataType::Float:
-                    add_number(col.as_view<float>());
-                    break;
-                case DataType::Double:
-                    add_number(col.as_view<double>());
-                    break;
-                case DataType::String:
-                    add_string_view(col.as_view<std::string_view>());
-                    break;
-                case DataType::Date: {
-                    auto data = col.as_view<Date>();
-                    std::vector<std::string> strs;
-                    strs.reserve(data.size());
-                    for (auto &&v : data) {
-                        strs.push_back(
-                            ::boost::gregorian::to_iso_extended_string(v));
-                    }
-                    add_string(strs);
-                } break;
-                case DataType::Timestamp: {
-                    auto data = col.as_view<Timestamp>();
-                    std::vector<std::string> strs;
-                    strs.reserve(data.size());
-                    for (auto &&v : data) {
-                        strs.push_back(
-                            ::boost::posix_time::to_iso_extended_string(v) +
-                            "Z");
-                    }
-                    add_string(strs);
-                } break;
-                case DataType::Categorical:
-                    add_string_view(col.as_view<std::string_view>());
-                    break;
-                case DataType::Unknown:
-                    throw DataFrameException(
-                        "Unknown dtype cannot be converted to JSON");
-            }
+            Visitor visitor(keys[i], rows);
+            DF_ARROW_ERROR_HANDLER(col.data()->Accept(&visitor));
         }
 
         ::rapidjson::Value data(::rapidjson::kArrayType);
@@ -179,15 +313,231 @@ class JSONRowWriter : public Writer
 
 class JSONColumnWriter : public Writer
 {
-  public:
-    JSONColumnWriter(std::string root)
-        : root_(std::move(root))
-    {
-        if (root_.empty()) {
-            throw DataFrameException("root key cannot be empty");
+    struct Visitor final : public ::arrow::ArrayVisitor {
+        ::rapidjson::Document *root;
+        ::rapidjson::Value *value;
+
+        ::arrow::Status Visit(const ::arrow::NullArray &array) final
+        {
+            auto n = array.length();
+            for (std::int64_t i = 0; i != n; ++i) {
+                value->PushBack(::rapidjson::Value(), root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
         }
+
+        ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+        {
+            auto n = array.length();
+            for (std::int64_t i = 0; i != n; ++i) {
+                value->PushBack(array.GetView(i), root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+#define DF_DEFINE_VISITOR(Arrow)                                              \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
+    {                                                                         \
+        auto n = array.length();                                              \
+        auto p = array.raw_values();                                          \
+        for (std::int64_t i = 0; i != n; ++i) {                               \
+            value->PushBack(p[i], root->GetAllocator());                      \
+        }                                                                     \
+                                                                              \
+        return ::arrow::Status::OK();                                         \
     }
 
+        DF_DEFINE_VISITOR(Int8)
+        DF_DEFINE_VISITOR(Int16)
+        DF_DEFINE_VISITOR(Int32)
+        DF_DEFINE_VISITOR(Int64)
+        DF_DEFINE_VISITOR(UInt8)
+        DF_DEFINE_VISITOR(UInt16)
+        DF_DEFINE_VISITOR(UInt32)
+        DF_DEFINE_VISITOR(UInt64)
+        // DF_DEFINE_VISITOR(HalfFloat)
+        DF_DEFINE_VISITOR(Float)
+        DF_DEFINE_VISITOR(Double)
+
+#undef DF_DEFINE_VISITOR
+
+        ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+        {
+            ::boost::gregorian::date epoch(1970, 1, 1);
+
+            auto n = array.length();
+            auto p = array.raw_values();
+
+            for (std::int64_t i = 0; i != n; ++i) {
+                auto v = epoch + ::boost::gregorian::days(p[i]);
+                value->PushBack(
+                    ::rapidjson::Value().SetString(
+                        ::boost::gregorian::to_iso_extended_string(v),
+                        root->GetAllocator()),
+                    root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+        {
+            ::boost::gregorian::date epoch_date(1970, 1, 1);
+            ::boost::posix_time::ptime epoch(epoch_date);
+
+            auto n = array.length();
+            auto p = array.raw_values();
+
+            for (std::int64_t i = 0; i != n; ++i) {
+                auto v = epoch + ::boost::posix_time::milliseconds(p[i]);
+                value->PushBack(
+                    ::rapidjson::Value().SetString(
+                        ::boost::posix_time::to_iso_extended_string(v) + "Z",
+                        root->GetAllocator()),
+                    root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+        {
+            ::boost::gregorian::date epoch_date(1970, 1, 1);
+            ::boost::posix_time::ptime epoch(epoch_date);
+
+            auto n = array.length();
+            auto p = array.raw_values();
+            auto u = static_cast<const ::arrow::TimestampType &>(*array.type())
+                         .unit();
+
+            for (std::int64_t i = 0; i != n; ++i) {
+                auto v = epoch;
+
+                switch (u) {
+                    case ::arrow::TimeUnit::SECOND:
+                        v += ::boost::posix_time::seconds(p[i]);
+                        break;
+                    case ::arrow::TimeUnit::MILLI:
+                        v += ::boost::posix_time::milliseconds(p[i]);
+                        break;
+                    case ::arrow::TimeUnit::MICRO:
+                        v += ::boost::posix_time::microseconds(p[i]);
+                        break;
+                    case ::arrow::TimeUnit::NANO:
+#ifdef BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+                        v += ::boost::posix_time::nanoseconds(p[i]);
+#else
+                        v += ::boost::posix_time::microseconds(p[i] / 1000);
+#endif
+                        break;
+                }
+
+                value->PushBack(
+                    ::rapidjson::Value().SetString(
+                        ::boost::posix_time::to_iso_extended_string(v) + "Z",
+                        root->GetAllocator()),
+                    root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+        {
+            auto n = array.length();
+            auto p = array.raw_values();
+            auto u =
+                static_cast<const ::arrow::Time32Type &>(*array.type()).unit();
+
+            for (std::int64_t i = 0; i != n; ++i) {
+                ::boost::posix_time::time_duration v;
+
+                switch (u) {
+                    case ::arrow::TimeUnit::SECOND:
+                        v = ::boost::posix_time::seconds(p[i]);
+                        break;
+                    case ::arrow::TimeUnit::MILLI:
+                        v = ::boost::posix_time::milliseconds(p[i]);
+                        break;
+                    case ::arrow::TimeUnit::MICRO:
+                        throw DataFrameException("Unexpected unit for Time32");
+                    case ::arrow::TimeUnit::NANO:
+                        throw DataFrameException("Unexpected unit for Time32");
+                }
+
+                value->PushBack(::rapidjson::Value().SetString(
+                                    ::boost::posix_time::to_simple_string(v),
+                                    root->GetAllocator()),
+                    root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+        {
+            auto n = array.length();
+            auto p = array.raw_values();
+            auto u =
+                static_cast<const ::arrow::Time32Type &>(*array.type()).unit();
+
+            for (std::int64_t i = 0; i != n; ++i) {
+                ::boost::posix_time::time_duration v;
+
+                switch (u) {
+                    case ::arrow::TimeUnit::SECOND:
+                        throw DataFrameException("Unexpected unit for Time32");
+                    case ::arrow::TimeUnit::MILLI:
+                        throw DataFrameException("Unexpected unit for Time32");
+                    case ::arrow::TimeUnit::MICRO:
+                        v = ::boost::posix_time::microseconds(p[i]);
+                        break;
+                    case ::arrow::TimeUnit::NANO:
+#ifdef BOOST_DATE_TIME_POSIX_TIME_STD_CONFIG
+                        v = ::boost::posix_time::nanoseconds(p[i]);
+#else
+                        v = ::boost::posix_time::microseconds(p[i] / 1000);
+#endif
+                        break;
+                }
+
+                value->PushBack(::rapidjson::Value().SetString(
+                                    ::boost::posix_time::to_simple_string(v),
+                                    root->GetAllocator()),
+                    root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        // DF_DEFINE_VISITOR(Interval)
+        // DF_DEFINE_VISITOR(FixedSizeBinary)
+        // DF_DEFINE_VISITOR(Decimal128)
+        // DF_DEFINE_VISITOR(Binary)
+
+        ::arrow::Status Visit(const ::arrow::StringArray &array) final
+        {
+            auto n = array.length();
+            for (std::int64_t i = 0; i != n; ++i) {
+                auto v = array.GetView(i);
+                value->PushBack(
+                    ::rapidjson::Value().SetString(v.data(),
+                        static_cast<unsigned>(v.size()), root->GetAllocator()),
+                    root->GetAllocator());
+            }
+
+            return ::arrow::Status::OK();
+        }
+
+        // DF_DEFINE_VISITOR(List)
+        // DF_DEFINE_VISITOR(Struct)
+        // DF_DEFINE_VISITOR(Union)
+        // DF_DEFINE_VISITOR(Dictionary) // TODO
+    };
+
+  public:
     std::size_t size() const final { return buffer_.GetSize(); }
 
     const std::uint8_t *data() const final
@@ -200,8 +550,6 @@ class JSONColumnWriter : public Writer
         auto ncol = df.ncol();
 
         ::rapidjson::Document root(::rapidjson::kObjectType);
-        ::rapidjson::Document cols(
-            ::rapidjson::kObjectType, &root.GetAllocator());
 
         std::vector<std::string> keys;
         for (std::size_t i = 0; i != ncol; ++i) {
@@ -211,111 +559,19 @@ class JSONColumnWriter : public Writer
         for (std::size_t i = 0; i != ncol; ++i) {
             auto col = df[i];
             auto key = ::rapidjson::StringRef(keys[i].data(), keys[i].size());
-
-            auto add_number = [&](auto &&data) {
-                ::rapidjson::Value value(::rapidjson::kArrayType);
-                for (auto v : data) {
-                    value.PushBack(v, root.GetAllocator());
-                }
-                cols.AddMember(key, value, cols.GetAllocator());
-            };
-
-            auto add_string = [&](auto &&data) {
-                ::rapidjson::Value value(::rapidjson::kArrayType);
-                for (auto &&v : data) {
-                    value.PushBack(::rapidjson::Value().SetString(v.data(),
-                                       static_cast<unsigned>(v.size()),
-                                       root.GetAllocator()),
-                        root.GetAllocator());
-                }
-                cols.AddMember(key, value, cols.GetAllocator());
-            };
-
-            auto add_string_view = [&](auto &&data) {
-                ::rapidjson::Value value(::rapidjson::kArrayType);
-                for (auto &&v : data) {
-                    value.PushBack(::rapidjson::StringRef(v.data(), v.size()),
-                        root.GetAllocator());
-                }
-                cols.AddMember(key, value, cols.GetAllocator());
-            };
-
-            switch (col.dtype()) {
-                case DataType::Bool:
-                    add_number(col.as_view<bool>());
-                    break;
-                case DataType::UInt8:
-                    add_number(col.as_view<std::uint8_t>());
-                    break;
-                case DataType::Int8:
-                    add_number(col.as_view<std::uint8_t>());
-                    break;
-                case DataType::UInt16:
-                    add_number(col.as_view<std::int8_t>());
-                    break;
-                case DataType::Int16:
-                    add_number(col.as_view<std::uint16_t>());
-                    break;
-                case DataType::UInt32:
-                    add_number(col.as_view<std::uint32_t>());
-                    break;
-                case DataType::Int32:
-                    add_number(col.as_view<std::int32_t>());
-                    break;
-                case DataType::UInt64:
-                    add_number(col.as_view<std::uint64_t>());
-                    break;
-                case DataType::Int64:
-                    add_number(col.as_view<std::int64_t>());
-                    break;
-                case DataType::Float:
-                    add_number(col.as_view<float>());
-                    break;
-                case DataType::Double:
-                    add_number(col.as_view<double>());
-                    break;
-                case DataType::String:
-                    add_string_view(col.as_view<std::string_view>());
-                    break;
-                case DataType::Date: {
-                    auto data = col.as_view<Date>();
-                    std::vector<std::string> strs;
-                    strs.reserve(data.size());
-                    for (auto &&v : data) {
-                        strs.push_back(
-                            ::boost::gregorian::to_iso_extended_string(v));
-                    }
-                    add_string(strs);
-                } break;
-                case DataType::Timestamp: {
-                    auto data = col.as_view<Timestamp>();
-                    std::vector<std::string> strs;
-                    strs.reserve(data.size());
-                    for (auto &&v : data) {
-                        strs.push_back(
-                            ::boost::posix_time::to_iso_extended_string(v) +
-                            "Z");
-                    }
-                    add_string(strs);
-                } break;
-                case DataType::Categorical:
-                    add_string_view(col.as_view<std::string_view>());
-                    break;
-                case DataType::Unknown:
-                    throw DataFrameException(
-                        "Unknown dtype cannot be converted to JSON");
-            }
+            ::rapidjson::Value value(::rapidjson::kArrayType);
+            Visitor visitor;
+            visitor.root = &root;
+            visitor.value = &value;
+            DF_ARROW_ERROR_HANDLER(col.data()->Accept(&visitor));
+            root.AddMember(key, value, root.GetAllocator());
         }
-
-        root.AddMember(::rapidjson::StringRef(root_.data(), root_.size()),
-            cols, root.GetAllocator());
 
         ::rapidjson::Writer<::rapidjson::StringBuffer> visitor(buffer_);
         root.Accept(visitor);
     }
 
   private:
-    std::string root_;
     ::rapidjson::StringBuffer buffer_;
 };
 
