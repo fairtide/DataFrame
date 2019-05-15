@@ -33,9 +33,10 @@ struct TypeTraits<bool> {
         return std::make_shared<data_type>();
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(pool);
     }
 };
 

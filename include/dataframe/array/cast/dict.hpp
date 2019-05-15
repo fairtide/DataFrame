@@ -24,16 +24,19 @@ namespace dataframe {
 template <typename T>
 struct CastArrayVisitor<Dict<T>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
     ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
     {
         auto index = array.indices();
-        auto dicts = cast_array<T>(array.dictionary());
+        auto dicts = cast_array<T>(array.dictionary(), pool);
         auto type = ::arrow::dictionary(index->type(), std::move(dicts),
             static_cast<const ::arrow::DictionaryType &>(*array.type())
                 .ordered());

@@ -44,9 +44,10 @@ inline std::shared_ptr<DataType<T>> make_data_type()
 }
 
 template <typename T>
-inline std::unique_ptr<BuilderType<T>> make_builder()
+inline std::unique_ptr<BuilderType<T>> make_builder(
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
-    return TypeTraits<T>::make_builder();
+    return TypeTraits<T>::make_builder(pool);
 }
 
 template <typename T, typename DataType>
@@ -67,10 +68,10 @@ struct IsType {
             return std::make_shared<data_type>();                             \
         }                                                                     \
                                                                               \
-        static std::unique_ptr<builder_type> make_builder()                   \
+        static std::unique_ptr<builder_type> make_builder(                    \
+            ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())       \
         {                                                                     \
-            return std::make_unique<builder_type>(                            \
-                ::arrow::default_memory_pool());                              \
+            return std::make_unique<builder_type>(pool);                      \
         }                                                                     \
     };                                                                        \
                                                                               \

@@ -67,6 +67,8 @@ class RecordBatchFileWriter : public Writer
         DF_ARROW_ERROR_HANDLER(stream->Finish(&buffer_));
     }
 
+    ::arrow::MemoryPool *memory_pool() const { return pool_; }
+
   private:
     ::arrow::MemoryPool *pool_;
     std::shared_ptr<::arrow::Buffer> buffer_;
@@ -111,6 +113,8 @@ class RecordBatchFileReader : public Reader
 
         return DataFrame(std::move(table));
     }
+
+    ::arrow::MemoryPool *memory_pool() const { return pool_; }
 
   private:
     ::arrow::MemoryPool *pool_;

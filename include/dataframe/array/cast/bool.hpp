@@ -25,7 +25,8 @@ template <>
 struct CastArrayVisitor<bool> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *)
         : result(std::move(data))
     {
     }
