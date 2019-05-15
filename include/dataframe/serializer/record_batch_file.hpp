@@ -24,6 +24,12 @@ namespace dataframe {
 class RecordBatchFileWriter : public Writer
 {
   public:
+    explicit RecordBatchFileWriter(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : pool_(pool)
+    {
+    }
+
     std::size_t size() const final
     {
         if (buffer_ == nullptr) {
@@ -50,8 +56,8 @@ class RecordBatchFileWriter : public Writer
         }
 
         std::shared_ptr<::arrow::io::BufferOutputStream> stream;
-        DF_ARROW_ERROR_HANDLER(::arrow::io::BufferOutputStream::Create(
-            0, ::arrow::default_memory_pool(), &stream));
+        DF_ARROW_ERROR_HANDLER(
+            ::arrow::io::BufferOutputStream::Create(0, pool_, &stream));
         std::shared_ptr<::arrow::ipc::RecordBatchWriter> writer;
 
         DF_ARROW_ERROR_HANDLER(::arrow::ipc::RecordBatchFileWriter::Open(
@@ -62,12 +68,19 @@ class RecordBatchFileWriter : public Writer
     }
 
   private:
+    ::arrow::MemoryPool *pool_;
     std::shared_ptr<::arrow::Buffer> buffer_;
 };
 
 class RecordBatchFileReader : public Reader
 {
   public:
+    explicit RecordBatchFileReader(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : pool_(pool)
+    {
+    }
+
     DataFrame read_buffer(
         std::size_t n, const std::uint8_t *buf, bool zero_copy) final
     {
@@ -77,7 +90,7 @@ class RecordBatchFileReader : public Reader
                 buf, static_cast<std::int64_t>(n));
         } else {
             source = std::make_unique<CopyBufferReader>(
-                buf, static_cast<std::int64_t>(n));
+                buf, static_cast<std::int64_t>(n), pool_);
         }
 
         std::shared_ptr<::arrow::ipc::RecordBatchFileReader> reader;
@@ -98,6 +111,9 @@ class RecordBatchFileReader : public Reader
 
         return DataFrame(std::move(table));
     }
+
+  private:
+    ::arrow::MemoryPool *pool_;
 };
 
 } // namespace dataframe

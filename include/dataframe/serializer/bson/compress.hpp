@@ -36,6 +36,8 @@ template <typename T>
 class Allocator : public ::arrow::stl_allocator<T>
 {
   public:
+    using ::arrow::stl_allocator<T>::stl_allocator;
+
     template <typename U>
     void construct(U *p)
     {

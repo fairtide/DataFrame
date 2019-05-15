@@ -27,8 +27,10 @@ namespace bson {
 class ColumnWriter final : public ::arrow::ArrayVisitor
 {
   public:
-    ColumnWriter(int compression_level)
+    ColumnWriter(int compression_level, ::arrow::MemoryPool *pool)
         : compression_level_(compression_level)
+        , buffer1_(Allocator<std::uint8_t>(pool))
+        , buffer2_(Allocator<std::uint8_t>(pool))
     {
     }
 

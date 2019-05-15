@@ -24,6 +24,12 @@ namespace dataframe {
 class FeatherWriter : public Writer
 {
   public:
+    explicit FeatherWriter(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : pool_(pool)
+    {
+    }
+
     std::size_t size() const final
     {
         if (buffer_ == nullptr) {
@@ -50,8 +56,8 @@ class FeatherWriter : public Writer
         }
 
         std::shared_ptr<::arrow::io::BufferOutputStream> stream;
-        DF_ARROW_ERROR_HANDLER(::arrow::io::BufferOutputStream::Create(
-            0, ::arrow::default_memory_pool(), &stream));
+        DF_ARROW_ERROR_HANDLER(
+            ::arrow::io::BufferOutputStream::Create(0, pool_, &stream));
 
         auto &table = df.table();
         std::unique_ptr<::arrow::ipc::feather::TableWriter> writer;
@@ -75,12 +81,19 @@ class FeatherWriter : public Writer
     }
 
   private:
+    ::arrow::MemoryPool *pool_;
     std::shared_ptr<::arrow::Buffer> buffer_;
 };
 
 class FeatherReader : public Reader
 {
   public:
+    explicit FeatherReader(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : pool_(pool)
+    {
+    }
+
     DataFrame read_buffer(
         std::size_t n, const std::uint8_t *buf, bool zero_copy) final
     {
@@ -90,7 +103,7 @@ class FeatherReader : public Reader
                 buf, static_cast<std::int64_t>(n));
         } else {
             source = std::make_shared<CopyBufferReader>(
-                buf, static_cast<std::int64_t>(n));
+                buf, static_cast<std::int64_t>(n), pool_);
         }
 
         std::unique_ptr<::arrow::ipc::feather::TableReader> reader;
@@ -113,6 +126,9 @@ class FeatherReader : public Reader
 
         return DataFrame(std::move(table));
     }
+
+  private:
+    ::arrow::MemoryPool *pool_;
 };
 
 } // namespace dataframe

@@ -26,8 +26,9 @@ namespace dataframe {
 class BSONWriter : public Writer
 {
   public:
-    BSONWriter(int compression_level = 0)
-        : column_writer_(compression_level)
+    BSONWriter(int compression_level = 0,
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : column_writer_(compression_level, pool)
     {
     }
 
