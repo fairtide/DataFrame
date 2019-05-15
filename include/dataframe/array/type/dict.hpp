@@ -37,10 +37,11 @@ struct TypeTraits<Dict<T>> {
         throw DataFrameException("Dict::data_type shall never be called");
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
         return std::make_unique<builder_type>(
-            ::dataframe::make_data_type<T>(), ::arrow::default_memory_pool());
+            ::dataframe::make_data_type<T>(), pool);
     }
 };
 

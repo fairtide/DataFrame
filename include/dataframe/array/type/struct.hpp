@@ -63,13 +63,15 @@ struct TypeTraits<NamedStruct<T, Types...>> {
         return std::make_shared<data_type>(fields);
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
         std::vector<std::shared_ptr<::arrow::ArrayBuilder>> builders;
-        set_builder<0>(builders, std::integral_constant<bool, 0 < nfields>());
+        set_builder<0>(
+            builders, pool, std::integral_constant<bool, 0 < nfields>());
 
-        return std::make_unique<builder_type>(make_data_type(),
-            ::arrow::default_memory_pool(), std::move(builders));
+        return std::make_unique<builder_type>(
+            make_data_type(), pool, std::move(builders));
     }
 
   private:
@@ -96,17 +98,18 @@ struct TypeTraits<NamedStruct<T, Types...>> {
     template <std::size_t N>
     static void set_builder(
         std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &builders,
-        std::true_type)
+        ::arrow::MemoryPool *pool, std::true_type)
     {
         builders.emplace_back(
-            ::dataframe::make_builder<FieldType<N, Types...>>());
+            ::dataframe::make_builder<FieldType<N, Types...>>(pool));
         set_builder<N + 1>(
-            builders, std::integral_constant<bool, N + 1 < nfields>());
+            builders, pool, std::integral_constant<bool, N + 1 < nfields>());
     }
 
     template <std::size_t>
     static void set_builder(
-        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &, std::false_type)
+        std::vector<std::shared_ptr<::arrow::ArrayBuilder>> &,
+        ::arrow::MemoryPool *, std::false_type)
     {
     }
 };

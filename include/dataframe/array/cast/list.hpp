@@ -24,9 +24,12 @@ namespace dataframe {
 template <typename T>
 struct CastArrayVisitor<List<T>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
@@ -36,7 +39,8 @@ struct CastArrayVisitor<List<T>> final : ::arrow::ArrayVisitor {
 
         auto data = array.data()->Copy();
 
-        data->child_data.at(0) = cast_array<T>(array.values())->data()->Copy();
+        data->child_data.at(0) =
+            cast_array<T>(array.values(), pool)->data()->Copy();
 
         data->type = ::arrow::list(data->child_data.at(0)->type);
 

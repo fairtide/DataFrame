@@ -26,8 +26,10 @@ namespace dataframe {
 class BSONWriter : public Writer
 {
   public:
-    BSONWriter(int compression_level = 0)
-        : column_writer_(compression_level)
+    BSONWriter(int compression_level = 0,
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : column_writer_(compression_level, pool)
+        , pool_(pool)
     {
     }
 
@@ -63,8 +65,11 @@ class BSONWriter : public Writer
         return column_writer_.compression_level();
     }
 
+    ::arrow::MemoryPool *memory_pool() const { return pool_; }
+
   protected:
     bson::ColumnWriter column_writer_;
+    ::arrow::MemoryPool *pool_;
     std::unique_ptr<::bsoncxx::document::value> data_;
 };
 
@@ -73,6 +78,7 @@ class BSONReader : public Reader
   public:
     BSONReader(::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
         : column_reader_(pool)
+        , pool_(pool)
     {
     }
 
@@ -91,8 +97,11 @@ class BSONReader : public Reader
         return data;
     }
 
+    ::arrow::MemoryPool *memory_pool() const { return pool_; }
+
   protected:
     bson::ColumnReader column_reader_;
+    ::arrow::MemoryPool *pool_;
 };
 
 } // namespace dataframe

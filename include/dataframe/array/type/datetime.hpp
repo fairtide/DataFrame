@@ -211,9 +211,10 @@ struct TypeTraits<Datestamp<DateUnit::Day>> {
         return std::make_shared<data_type>();
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(pool);
     }
 };
 
@@ -229,9 +230,10 @@ struct TypeTraits<Datestamp<DateUnit::Millisecond>> {
         return std::make_shared<data_type>();
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(pool);
     }
 };
 
@@ -248,10 +250,10 @@ struct TypeTraits<Timestamp<Unit>> {
             static_cast<::arrow::TimeUnit::type>(Unit));
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(
-            make_data_type(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(make_data_type(), pool);
     }
 };
 
@@ -267,10 +269,10 @@ struct TypeTraits<Time<TimeUnit::Second>> {
         return std::make_shared<data_type>(::arrow::TimeUnit::SECOND);
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(
-            make_data_type(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(make_data_type(), pool);
     }
 };
 
@@ -286,10 +288,10 @@ struct TypeTraits<Time<TimeUnit::Millisecond>> {
         return std::make_shared<data_type>(::arrow::TimeUnit::MILLI);
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(
-            make_data_type(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(make_data_type(), pool);
     }
 };
 
@@ -305,10 +307,10 @@ struct TypeTraits<Time<TimeUnit::Microsecond>> {
         return std::make_shared<data_type>(::arrow::TimeUnit::MICRO);
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(
-            make_data_type(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(make_data_type(), pool);
     }
 };
 
@@ -324,10 +326,10 @@ struct TypeTraits<Time<TimeUnit::Nanosecond>> {
         return std::make_shared<data_type>(::arrow::TimeUnit::NANO);
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<builder_type>(
-            make_data_type(), ::arrow::default_memory_pool());
+        return std::make_unique<builder_type>(make_data_type(), pool);
     }
 };
 

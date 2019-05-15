@@ -26,7 +26,8 @@ namespace internal {
 struct CastStringArrayVisitor : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
-    CastStringArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastStringArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *)
         : result(std::move(data))
     {
     }

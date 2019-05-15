@@ -37,11 +37,11 @@ struct TypeTraits<List<T>> {
         return std::make_shared<data_type>(::dataframe::make_data_type<T>());
     }
 
-    static std::unique_ptr<builder_type> make_builder()
+    static std::unique_ptr<builder_type> make_builder(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
         return std::make_unique<::arrow::ListBuilder>(
-            ::arrow::default_memory_pool(), ::dataframe::make_builder<T>(),
-            make_data_type());
+            pool, ::dataframe::make_builder<T>(), make_data_type());
     }
 };
 

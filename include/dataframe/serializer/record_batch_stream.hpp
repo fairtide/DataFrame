@@ -24,6 +24,12 @@ namespace dataframe {
 class RecordBatchStreamWriter : public Writer
 {
   public:
+    explicit RecordBatchStreamWriter(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : pool_(pool)
+    {
+    }
+
     std::size_t size() const final
     {
         if (buffer_ == nullptr) {
@@ -50,8 +56,8 @@ class RecordBatchStreamWriter : public Writer
         }
 
         std::shared_ptr<::arrow::io::BufferOutputStream> stream;
-        DF_ARROW_ERROR_HANDLER(::arrow::io::BufferOutputStream::Create(
-            0, ::arrow::default_memory_pool(), &stream));
+        DF_ARROW_ERROR_HANDLER(
+            ::arrow::io::BufferOutputStream::Create(0, pool_, &stream));
         std::shared_ptr<::arrow::ipc::RecordBatchWriter> writer;
 
         DF_ARROW_ERROR_HANDLER(::arrow::ipc::RecordBatchStreamWriter::Open(
@@ -61,13 +67,22 @@ class RecordBatchStreamWriter : public Writer
         DF_ARROW_ERROR_HANDLER(stream->Finish(&buffer_));
     }
 
+    ::arrow::MemoryPool *memory_pool() const { return pool_; }
+
   private:
+    ::arrow::MemoryPool *pool_;
     std::shared_ptr<::arrow::Buffer> buffer_;
 };
 
 class RecordBatchStreamReader : public Reader
 {
   public:
+    explicit RecordBatchStreamReader(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+        : pool_(pool)
+    {
+    }
+
     DataFrame read_buffer(
         std::size_t n, const std::uint8_t *buf, bool zero_copy) final
     {
@@ -77,7 +92,7 @@ class RecordBatchStreamReader : public Reader
                 buf, static_cast<std::int64_t>(n));
         } else {
             source = std::make_unique<CopyBufferReader>(
-                buf, static_cast<std::int64_t>(n));
+                buf, static_cast<std::int64_t>(n), pool_);
         }
 
         std::shared_ptr<::arrow::ipc::RecordBatchReader> reader;
@@ -100,6 +115,11 @@ class RecordBatchStreamReader : public Reader
 
         return DataFrame(std::move(table));
     }
+
+    ::arrow::MemoryPool *memory_pool() const { return pool_; }
+
+  private:
+    ::arrow::MemoryPool *pool_;
 };
 
 } // namespace dataframe

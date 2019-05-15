@@ -36,6 +36,8 @@ template <typename T>
 class Allocator : public ::arrow::stl_allocator<T>
 {
   public:
+    using ::arrow::stl_allocator<T>::stl_allocator;
+
     template <typename U>
     void construct(U *p)
     {
@@ -60,8 +62,9 @@ class Allocator : public ::arrow::stl_allocator<T>
 template <typename T>
 using Vector = std::vector<T, Allocator<T>>;
 
+template <typename Alloc>
 inline ::bsoncxx::types::b_binary compress(const ::arrow::Buffer &buffer,
-    Vector<std::uint8_t> *out, int compression_level)
+    std::vector<std::uint8_t, Alloc> *out, int compression_level)
 {
     auto n = static_cast<int>(buffer.size());
     auto src = reinterpret_cast<const char *>(buffer.data());
@@ -87,17 +90,19 @@ inline ::bsoncxx::types::b_binary compress(const ::arrow::Buffer &buffer,
     return ret;
 }
 
-inline ::bsoncxx::types::b_binary compress(const Vector<std::uint8_t> &buffer,
-    Vector<std::uint8_t> *out, int compression_level)
+template <typename Alloc>
+inline ::bsoncxx::types::b_binary compress(
+    const std::vector<std::uint8_t, Alloc> &buffer, Vector<std::uint8_t> *out,
+    int compression_level)
 {
     return compress(::arrow::Buffer(buffer.data(),
                         static_cast<std::int64_t>(buffer.size())),
         out, compression_level);
 }
 
-template <typename T>
+template <typename T, typename Alloc>
 inline ::bsoncxx::types::b_binary compress(std::int64_t n, const T *data,
-    Vector<std::uint8_t> *out, int compression_level)
+    std::vector<std::uint8_t, Alloc> *out, int compression_level)
 {
     return compress(
         ::arrow::Buffer(reinterpret_cast<const std::uint8_t *>(data),
@@ -144,9 +149,9 @@ inline std::unique_ptr<::arrow::Buffer> decompress(
     return buffer;
 }
 
-template <typename T>
+template <typename T, typename Alloc>
 inline void encode_datetime(
-    std::int64_t n, const T *values, Vector<std::uint8_t> *out)
+    std::int64_t n, const T *values, std::vector<std::uint8_t, Alloc> *out)
 {
     if (n == 0) {
         out->clear();
@@ -179,8 +184,9 @@ inline std::int64_t decode_datetime(
 /// After encoding,
 /// out[0] = 0
 /// out[i] = offsets[i] - offsets[i - 1] for i >= 1, the counts of each segment
-inline void encode_offsets(
-    std::int64_t n, const std::int32_t *offsets, Vector<std::uint8_t> *out)
+template <typename Alloc>
+inline void encode_offsets(std::int64_t n, const std::int32_t *offsets,
+    std::vector<std::uint8_t, Alloc> *out)
 {
     out->resize((static_cast<std::size_t>(n) + 1) * sizeof(std::int32_t));
     auto p = reinterpret_cast<std::int32_t *>(out->data());

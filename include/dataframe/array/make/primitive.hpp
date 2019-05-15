@@ -31,9 +31,10 @@ struct ArrayMaker {
 };
 
 template <typename T, typename Iter>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last)
+inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
-    auto builder = make_builder<T>();
+    auto builder = make_builder<T>(pool);
     ArrayMaker<T>::append(builder.get(), first, last);
     std::shared_ptr<::arrow::Array> ret;
     DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));

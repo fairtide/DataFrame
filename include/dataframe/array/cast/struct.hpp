@@ -24,9 +24,12 @@ namespace dataframe {
 template <typename... Types>
 struct CastArrayVisitor<Struct<Types...>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
@@ -64,9 +67,10 @@ struct CastArrayVisitor<Struct<Types...>> final : ::arrow::ArrayVisitor {
         std::vector<std::shared_ptr<::arrow::ArrayData>> &children,
         std::true_type)
     {
-        children.push_back(cast_array<FieldType<N, Types...>>(array.field(N))
-                               ->data()
-                               ->Copy());
+        children.push_back(
+            cast_array<FieldType<N, Types...>>(array.field(N), pool)
+                ->data()
+                ->Copy());
 
         fields.push_back(
             ::arrow::field(type.child(N)->name(), children.back()->type));

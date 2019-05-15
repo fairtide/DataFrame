@@ -24,8 +24,8 @@ namespace dataframe {
 namespace internal {
 
 template <typename T, typename Array>
-::arrow::Status cast_time_array(
-    const Array &array, std::shared_ptr<::arrow::Array> &result)
+::arrow::Status cast_time_array(const Array &array,
+    std::shared_ptr<::arrow::Array> &result, ::arrow::MemoryPool *pool)
 {
     using U = typename T::value_type;
 
@@ -42,7 +42,7 @@ template <typename T, typename Array>
     auto v = array.raw_values();
 
     std::unique_ptr<::arrow::Buffer> value_buffer;
-    ARROW_RETURN_NOT_OK(::arrow::AllocateBuffer(::arrow::default_memory_pool(),
+    ARROW_RETURN_NOT_OK(::arrow::AllocateBuffer(pool,
         n * static_cast<std::int64_t>(sizeof(typename T::value_type)),
         &value_buffer));
 
@@ -69,9 +69,9 @@ template <typename T, typename Array>
     data.buffers.emplace_back(std::move(value_buffer));
 
     if (data.null_count != 0) {
-        ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(
-            ::arrow::default_memory_pool(), array.null_bitmap()->data(),
-            array.offset(), array.length(), &data.buffers[0]));
+        ARROW_RETURN_NOT_OK(
+            ::arrow::internal::CopyBitmap(pool, array.null_bitmap()->data(),
+                array.offset(), array.length(), &data.buffers[0]));
     }
 
     result = ::arrow::MakeArray(
@@ -85,70 +85,79 @@ template <typename T, typename Array>
 template <DateUnit Unit>
 struct CastArrayVisitor<Datestamp<Unit>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
     ::arrow::Status Visit(const ::arrow::Date32Array &array) final
     {
-        return internal::cast_time_array<Datestamp<Unit>>(array, result);
+        return internal::cast_time_array<Datestamp<Unit>>(array, result, pool);
     }
 
     ::arrow::Status Visit(const ::arrow::Date64Array &array) final
     {
-        return internal::cast_time_array<Datestamp<Unit>>(array, result);
+        return internal::cast_time_array<Datestamp<Unit>>(array, result, pool);
     }
 
     ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
     {
-        return internal::cast_time_array<Datestamp<Unit>>(array, result);
+        return internal::cast_time_array<Datestamp<Unit>>(array, result, pool);
     }
 };
 
 template <TimeUnit Unit>
 struct CastArrayVisitor<Timestamp<Unit>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
     ::arrow::Status Visit(const ::arrow::Date32Array &array) final
     {
-        return internal::cast_time_array<Timestamp<Unit>>(array, result);
+        return internal::cast_time_array<Timestamp<Unit>>(array, result, pool);
     }
 
     ::arrow::Status Visit(const ::arrow::Date64Array &array) final
     {
-        return internal::cast_time_array<Timestamp<Unit>>(array, result);
+        return internal::cast_time_array<Timestamp<Unit>>(array, result, pool);
     }
 
     ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
     {
-        return internal::cast_time_array<Timestamp<Unit>>(array, result);
+        return internal::cast_time_array<Timestamp<Unit>>(array, result, pool);
     }
 };
 
 template <TimeUnit Unit>
 struct CastArrayVisitor<Time<Unit>> final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
     ::arrow::Status Visit(const ::arrow::Time32Array &array) final
     {
-        return internal::cast_time_array<Time<Unit>>(array, result);
+        return internal::cast_time_array<Time<Unit>>(array, result, pool);
     }
 
     ::arrow::Status Visit(const ::arrow::Time64Array &array) final
     {
-        return internal::cast_time_array<Time<Unit>>(array, result);
+        return internal::cast_time_array<Time<Unit>>(array, result, pool);
     }
 };
 

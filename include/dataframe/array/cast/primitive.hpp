@@ -26,9 +26,12 @@ namespace dataframe {
 template <typename T>
 struct CastArrayVisitor final : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
+    ::arrow::MemoryPool *pool;
 
-    CastArrayVisitor(std::shared_ptr<::arrow::Array> data)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *p)
         : result(std::move(data))
+        , pool(p)
     {
     }
 
@@ -40,7 +43,7 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
         if constexpr (std::is_same_v<T, U>) {                                 \
             return ::arrow::Status::OK();                                     \
         } else {                                                              \
-            auto builder = make_builder<T>();                                 \
+            auto builder = make_builder<T>(pool);                             \
                                                                               \
             if (array.null_count() == 0) {                                    \
                 ARROW_RETURN_NOT_OK(builder->AppendValues(array.raw_values(), \
@@ -78,13 +81,14 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
 
 template <typename T>
 inline std::shared_ptr<::arrow::Array> cast_array(
-    std::shared_ptr<::arrow::Array> data)
+    std::shared_ptr<::arrow::Array> data,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
     if (is_type<T>(data)) {
         return data;
     }
 
-    CastArrayVisitor<T> visitor(std::move(data));
+    CastArrayVisitor<T> visitor(std::move(data), pool);
     DF_ARROW_ERROR_HANDLER(visitor.result->Accept(&visitor));
 
     return std::move(visitor.result);

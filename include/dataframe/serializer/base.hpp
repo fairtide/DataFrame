@@ -28,7 +28,12 @@ namespace dataframe {
 class CopyBufferReader : public ::arrow::io::BufferReader
 {
   public:
-    using ::arrow::io::BufferReader::BufferReader;
+    explicit CopyBufferReader(
+        const std::uint8_t *bytes, std::int64_t len, ::arrow::MemoryPool *pool)
+        : ::arrow::io::BufferReader(bytes, len)
+        , pool_(pool)
+    {
+    }
 
     ::arrow::Status Read(
         int64_t nbytes, std::shared_ptr<::arrow::Buffer> *out) override
@@ -36,7 +41,7 @@ class CopyBufferReader : public ::arrow::io::BufferReader
         std::shared_ptr<::arrow::Buffer> ret;
         ARROW_RETURN_NOT_OK(::arrow::io::BufferReader::Read(nbytes, &ret));
 
-        return ret->Copy(0, ret->size(), out);
+        return ret->Copy(0, ret->size(), pool_, out);
     }
 
     ::arrow::Status ReadAt(std::int64_t position, std::int64_t nbytes,
@@ -46,10 +51,13 @@ class CopyBufferReader : public ::arrow::io::BufferReader
         ARROW_RETURN_NOT_OK(
             ::arrow::io::BufferReader::ReadAt(position, nbytes, &ret));
 
-        return ret->Copy(0, ret->size(), out);
+        return ret->Copy(0, ret->size(), pool_, out);
     }
 
     bool supports_zero_copy() const override { return false; }
+
+  private:
+    ::arrow::MemoryPool *pool_;
 };
 
 class Writer

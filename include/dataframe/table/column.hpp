@@ -80,14 +80,15 @@ class ConstColumnProxy
 
     /// \brief Cast the column to a given destination type
     template <typename T>
-    ArrayView<T> as() const
+    ArrayView<T> as(
+        ::arrow::MemoryPool *pool = ::arrow::default_memory_pool()) const
     {
         if (data_ == nullptr) {
             throw DataFrameException(
                 "Attempt to access an empty column '" + name_ + "'");
         }
 
-        return make_view<T>(cast_array<T>(data_));
+        return make_view<T>(cast_array<T>(data_, pool));
     }
 
     /// \brief Same as `as` but will throw if not aready of the destination
