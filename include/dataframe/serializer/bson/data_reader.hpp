@@ -38,6 +38,8 @@ class DataReader : public ::arrow::TypeVisitor
     ::arrow::Status Visit(const ::arrow::NullType &) final
     {
         data_.length = view_[Schema::DATA()].get_int64().value;
+        data_.buffers.reserve(1);
+        data_.buffers.push_back(nullptr);
 
         return ::arrow::Status::OK();
     }

@@ -29,11 +29,12 @@ class DataWriter final : public ::arrow::ArrayVisitor
   public:
     DataWriter(::bsoncxx::builder::basic::document &builder,
         Vector<std::uint8_t> &buffer1, Vector<std::uint8_t> &buffer2,
-        int compression_level)
+        int compression_level, bool ignore_float_na)
         : builder_(builder)
         , buffer1_(buffer1)
         , buffer2_(buffer2)
         , compression_level_(compression_level)
+        , ignore_float_na_(ignore_float_na)
     {
     }
 
@@ -93,13 +94,47 @@ class DataWriter final : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(UInt32)
     DF_DEFINE_VISITOR(UInt64)
     DF_DEFINE_VISITOR(HalfFloat)
-    DF_DEFINE_VISITOR(Float)
-    DF_DEFINE_VISITOR(Double)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
-    // DF_DEFINE_VISITOR(Interval)
 
 #undef DF_DEFINE_VISITOR
+
+#define DF_DEFINE_VISITOR(TypeName)                                           \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    {                                                                         \
+        if (array.null_count() == 0) {                                        \
+            builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),    \
+                compress(array.length(), array.raw_values(), &buffer2_,       \
+                    compression_level_)));                                    \
+        } else {                                                              \
+            using T = typename ::arrow::TypeName##Array::TypeClass::c_type;   \
+            auto n = array.length();                                          \
+            buffer1_.resize(sizeof(T) * static_cast<std::size_t>(n));         \
+            auto p = reinterpret_cast<T *>(buffer1_.data());                  \
+            auto v = array.raw_values();                                      \
+            for (std::int64_t i = 0; i != n; ++i) {                           \
+                p[i] = array.IsNull(i) ?                                      \
+                    std::numeric_limits<T>::quiet_NaN() :                     \
+                    v[i];                                                     \
+            }                                                                 \
+            builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),    \
+                compress(n, p, &buffer2_, compression_level_)));              \
+        }                                                                     \
+                                                                              \
+        make_mask(builder_, array);                                           \
+                                                                              \
+        TypeWriter type_writer(builder_);                                     \
+        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));           \
+                                                                              \
+        return ::arrow::Status::OK();                                         \
+    }
+
+    DF_DEFINE_VISITOR(Float)
+    DF_DEFINE_VISITOR(Double)
+
+#undef DF_DEFINE_VISITOR
+
+    // DF_DEFINE_VISITOR(Interval)
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
@@ -196,7 +231,8 @@ class DataWriter final : public ::arrow::ArrayVisitor
         auto values = array.values()->Slice(values_offset, values_length);
 
         ::bsoncxx::builder::basic::document data;
-        DataWriter writer(data, buffer1_, buffer2_, compression_level_);
+        DataWriter writer(
+            data, buffer1_, buffer2_, compression_level_, ignore_float_na_);
         DF_ARROW_ERROR_HANDLER(values->Accept(&writer));
 
         builder_.append(kvp(Schema::DATA(), data.extract()));
@@ -245,8 +281,8 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
             document field_builder;
 
-            DataWriter writer(
-                field_builder, buffer1_, buffer2_, compression_level_);
+            DataWriter writer(field_builder, buffer1_, buffer2_,
+                compression_level_, ignore_float_na_);
 
             DF_ARROW_ERROR_HANDLER(field_data->Accept(&writer));
 
@@ -282,11 +318,13 @@ class DataWriter final : public ::arrow::ArrayVisitor
         // data
 
         document index;
-        DataWriter index_writer(index, buffer1_, buffer2_, compression_level_);
+        DataWriter index_writer(
+            index, buffer1_, buffer2_, compression_level_, ignore_float_na_);
         DF_ARROW_ERROR_HANDLER(array.indices()->Accept(&index_writer));
 
         document dict;
-        DataWriter dict_writer(dict, buffer1_, buffer2_, compression_level_);
+        DataWriter dict_writer(
+            dict, buffer1_, buffer2_, compression_level_, ignore_float_na_);
         DF_ARROW_ERROR_HANDLER(array.dictionary()->Accept(&dict_writer));
 
         document data;
@@ -319,7 +357,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
             std::fill_n(buffer1_.data(), buffer1_.size(), 0);
         } else {
             if (array.null_count() != 0) {
-                throw DataFrameException("Nullable array not supported");
+                if (!ignore_float_na_ ||
+                    (array.type()->id() != ::arrow::Type::FLOAT &&
+                        array.type()->id() != ::arrow::Type::DOUBLE)) {
+                    throw DataFrameException("Nullable array not supported");
+                }
             }
 
             std::fill_n(buffer1_.data(), buffer1_.size(),
@@ -343,6 +385,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     Vector<std::uint8_t> &buffer1_;
     Vector<std::uint8_t> &buffer2_;
     int compression_level_;
+    bool ignore_float_na_;
 };
 
 } // namespace bson
