@@ -28,7 +28,7 @@ namespace dataframe {
 
 class JSONRowWriter : public Writer
 {
-    struct Visitor final : ::arrow::ArrayVisitor {
+    struct Visitor : ::arrow::ArrayVisitor {
         ::rapidjson::GenericStringRef<char> key;
         std::vector<::rapidjson::Document> &rows;
 
@@ -38,7 +38,7 @@ class JSONRowWriter : public Writer
         {
         }
 
-        ::arrow::Status Visit(const ::arrow::NullArray &) final
+        ::arrow::Status Visit(const ::arrow::NullArray &) override
         {
             for (auto &doc : rows) {
                 doc.AddMember(key, ::rapidjson::Value(), doc.GetAllocator());
@@ -47,7 +47,7 @@ class JSONRowWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+        ::arrow::Status Visit(const ::arrow::BooleanArray &array) override
         {
             std::int64_t j = 0;
             for (auto &doc : rows) {
@@ -58,7 +58,7 @@ class JSONRowWriter : public Writer
         }
 
 #define DF_DEFINE_VISITOR(Arrow)                                              \
-    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) override        \
     {                                                                         \
         auto p = array.raw_values();                                          \
         for (auto &doc : rows) {                                              \
@@ -82,7 +82,7 @@ class JSONRowWriter : public Writer
 
 #undef DF_DEFINE_VISITOR
 
-        ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+        ::arrow::Status Visit(const ::arrow::Date32Array &array) override
         {
             ::boost::gregorian::date epoch(1970, 1, 1);
 
@@ -100,7 +100,7 @@ class JSONRowWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+        ::arrow::Status Visit(const ::arrow::Date64Array &array) override
         {
             ::boost::gregorian::date epoch_date(1970, 1, 1);
             ::boost::posix_time::ptime epoch(epoch_date);
@@ -119,7 +119,7 @@ class JSONRowWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+        ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
         {
             ::boost::gregorian::date epoch_date(1970, 1, 1);
             ::boost::posix_time::ptime epoch(epoch_date);
@@ -160,7 +160,7 @@ class JSONRowWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+        ::arrow::Status Visit(const ::arrow::Time32Array &array) override
         {
             auto p = array.raw_values();
             auto u =
@@ -192,7 +192,7 @@ class JSONRowWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+        ::arrow::Status Visit(const ::arrow::Time64Array &array) override
         {
             auto p = array.raw_values();
             auto u =
@@ -233,7 +233,7 @@ class JSONRowWriter : public Writer
         // DF_DEFINE_VISITOR(Decimal128)
         // DF_DEFINE_VISITOR(Binary)
 
-        ::arrow::Status Visit(const ::arrow::StringArray &array) final
+        ::arrow::Status Visit(const ::arrow::StringArray &array) override
         {
             std::int64_t j = 0;
             for (auto &doc : rows) {
@@ -263,14 +263,14 @@ class JSONRowWriter : public Writer
         }
     }
 
-    std::size_t size() const final { return buffer_.GetSize(); }
+    std::size_t size() const override { return buffer_.GetSize(); }
 
-    const std::uint8_t *data() const final
+    const std::uint8_t *data() const override
     {
         return reinterpret_cast<const std::uint8_t *>(buffer_.GetString());
     }
 
-    void write(const DataFrame &df) final
+    void write(const DataFrame &df) override
     {
         auto nrow = df.nrow();
         auto ncol = df.ncol();
@@ -313,11 +313,11 @@ class JSONRowWriter : public Writer
 
 class JSONColumnWriter : public Writer
 {
-    struct Visitor final : public ::arrow::ArrayVisitor {
+    struct Visitor : public ::arrow::ArrayVisitor {
         ::rapidjson::Document *root;
         ::rapidjson::Value *value;
 
-        ::arrow::Status Visit(const ::arrow::NullArray &array) final
+        ::arrow::Status Visit(const ::arrow::NullArray &array) override
         {
             auto n = array.length();
             for (std::int64_t i = 0; i != n; ++i) {
@@ -327,7 +327,7 @@ class JSONColumnWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+        ::arrow::Status Visit(const ::arrow::BooleanArray &array) override
         {
             auto n = array.length();
             for (std::int64_t i = 0; i != n; ++i) {
@@ -338,7 +338,7 @@ class JSONColumnWriter : public Writer
         }
 
 #define DF_DEFINE_VISITOR(Arrow)                                              \
-    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) override        \
     {                                                                         \
         auto n = array.length();                                              \
         auto p = array.raw_values();                                          \
@@ -363,7 +363,7 @@ class JSONColumnWriter : public Writer
 
 #undef DF_DEFINE_VISITOR
 
-        ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+        ::arrow::Status Visit(const ::arrow::Date32Array &array) override
         {
             ::boost::gregorian::date epoch(1970, 1, 1);
 
@@ -382,7 +382,7 @@ class JSONColumnWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+        ::arrow::Status Visit(const ::arrow::Date64Array &array) override
         {
             ::boost::gregorian::date epoch_date(1970, 1, 1);
             ::boost::posix_time::ptime epoch(epoch_date);
@@ -402,7 +402,7 @@ class JSONColumnWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+        ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
         {
             ::boost::gregorian::date epoch_date(1970, 1, 1);
             ::boost::posix_time::ptime epoch(epoch_date);
@@ -444,7 +444,7 @@ class JSONColumnWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+        ::arrow::Status Visit(const ::arrow::Time32Array &array) override
         {
             auto n = array.length();
             auto p = array.raw_values();
@@ -476,7 +476,7 @@ class JSONColumnWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+        ::arrow::Status Visit(const ::arrow::Time64Array &array) override
         {
             auto n = array.length();
             auto p = array.raw_values();
@@ -517,7 +517,7 @@ class JSONColumnWriter : public Writer
         // DF_DEFINE_VISITOR(Decimal128)
         // DF_DEFINE_VISITOR(Binary)
 
-        ::arrow::Status Visit(const ::arrow::StringArray &array) final
+        ::arrow::Status Visit(const ::arrow::StringArray &array) override
         {
             auto n = array.length();
             for (std::int64_t i = 0; i != n; ++i) {
@@ -538,14 +538,14 @@ class JSONColumnWriter : public Writer
     };
 
   public:
-    std::size_t size() const final { return buffer_.GetSize(); }
+    std::size_t size() const override { return buffer_.GetSize(); }
 
-    const std::uint8_t *data() const final
+    const std::uint8_t *data() const override
     {
         return reinterpret_cast<const std::uint8_t *>(buffer_.GetString());
     }
 
-    void write(const DataFrame &df) final
+    void write(const DataFrame &df) override
     {
         auto ncol = df.ncol();
 

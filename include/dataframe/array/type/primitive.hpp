@@ -99,11 +99,11 @@ DF_DEFINE_TYPE_TRAITS(Double)
 template <typename T>
 inline bool is_type(const ::arrow::DataType &type)
 {
-    struct Visitor final : ::arrow::TypeVisitor {
+    struct Visitor : ::arrow::TypeVisitor {
         bool result = false;
 
 #define DF_DEFINE_VISITOR(Arrow)                                              \
-    ::arrow::Status Visit(const ::arrow::Arrow##Type &type) final             \
+    ::arrow::Status Visit(const ::arrow::Arrow##Type &type) override             \
     {                                                                         \
         result = IsType<T, ::arrow::Arrow##Type>::is_type(type);              \
         return ::arrow::Status::OK();                                         \

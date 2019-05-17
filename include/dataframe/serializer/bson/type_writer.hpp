@@ -23,7 +23,7 @@ namespace dataframe {
 
 namespace bson {
 
-class TypeWriter final : public ::arrow::TypeVisitor
+class TypeWriter : public ::arrow::TypeVisitor
 {
   public:
     TypeWriter(::bsoncxx::builder::basic::document &builder)
@@ -32,7 +32,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
     }
 
 #define DF_DEFINE_VISITOR(TypeName, type)                                     \
-    ::arrow::Status Visit(const ::arrow::TypeName##Type &) final              \
+    ::arrow::Status Visit(const ::arrow::TypeName##Type &) override              \
     {                                                                         \
         builder_.append(                                                      \
             ::bsoncxx::builder::basic::kvp(Schema::TYPE(), type));            \
@@ -60,7 +60,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::TimestampType &type) final
+    ::arrow::Status Visit(const ::arrow::TimestampType &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -82,7 +82,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Time32Type &type) final
+    ::arrow::Status Visit(const ::arrow::Time32Type &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -104,7 +104,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Time64Type &type) final
+    ::arrow::Status Visit(const ::arrow::Time64Type &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -126,7 +126,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    // ::arrow::Status Visit(const ::arrow::IntervalType &type) final
+    // ::arrow::Status Visit(const ::arrow::IntervalType &type) override
     // {
     //     using ::bsoncxx::builder::basic::kvp;
 
@@ -142,7 +142,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
     //     return ::arrow::Status::OK();
     // }
 
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) final
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -153,7 +153,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final
+    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -170,7 +170,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::ListType &type) final
+    ::arrow::Status Visit(const ::arrow::ListType &type) override
     {
         ::bsoncxx::builder::basic::document param;
         TypeWriter writer(param);
@@ -184,7 +184,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StructType &type) final
+    ::arrow::Status Visit(const ::arrow::StructType &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -213,7 +213,7 @@ class TypeWriter final : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
 

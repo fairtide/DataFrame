@@ -22,7 +22,7 @@
 namespace dataframe {
 
 template <typename T>
-struct CastArrayVisitor<Dict<T>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Dict<T>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -33,7 +33,7 @@ struct CastArrayVisitor<Dict<T>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
         auto index = array.indices();
         auto dicts = cast_array<T>(array.dictionary(), pool);

@@ -22,7 +22,7 @@
 
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", std::int8_t,
+TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", bool, std::int8_t,
     std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
     std::uint32_t, std::uint64_t, std::string, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,

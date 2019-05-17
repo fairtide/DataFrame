@@ -30,8 +30,14 @@ struct ArrayMaker {
     }
 };
 
+template <bool Cond>
+using EnableMakeArray =
+    std::enable_if_t<Cond, std::shared_ptr<::arrow::Array>>;
+
 template <typename T, typename Iter>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
+inline EnableMakeArray<
+    !std::is_same_v<typename std::iterator_traits<Iter>::value_type, void>>
+make_array(Iter first, Iter last,
     ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
     auto builder = make_builder<T>(pool);

@@ -83,7 +83,7 @@ template <typename T, typename Array>
 } // namespace internal
 
 template <DateUnit Unit>
-struct CastArrayVisitor<Datestamp<Unit>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Datestamp<Unit>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -94,24 +94,24 @@ struct CastArrayVisitor<Datestamp<Unit>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
     {
         return internal::cast_time_array<Datestamp<Unit>>(array, result, pool);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date64Array &array) override
     {
         return internal::cast_time_array<Datestamp<Unit>>(array, result, pool);
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         return internal::cast_time_array<Datestamp<Unit>>(array, result, pool);
     }
 };
 
 template <TimeUnit Unit>
-struct CastArrayVisitor<Timestamp<Unit>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Timestamp<Unit>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -122,24 +122,24 @@ struct CastArrayVisitor<Timestamp<Unit>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
     {
         return internal::cast_time_array<Timestamp<Unit>>(array, result, pool);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date64Array &array) override
     {
         return internal::cast_time_array<Timestamp<Unit>>(array, result, pool);
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         return internal::cast_time_array<Timestamp<Unit>>(array, result, pool);
     }
 };
 
 template <TimeUnit Unit>
-struct CastArrayVisitor<Time<Unit>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Time<Unit>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -150,12 +150,12 @@ struct CastArrayVisitor<Time<Unit>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Time32Array &array) override
     {
         return internal::cast_time_array<Time<Unit>>(array, result, pool);
     }
 
-    ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Time64Array &array) override
     {
         return internal::cast_time_array<Time<Unit>>(array, result, pool);
     }

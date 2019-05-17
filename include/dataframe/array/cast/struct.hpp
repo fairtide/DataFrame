@@ -22,7 +22,7 @@
 namespace dataframe {
 
 template <typename... Types>
-struct CastArrayVisitor<Struct<Types...>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<Struct<Types...>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -33,7 +33,7 @@ struct CastArrayVisitor<Struct<Types...>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::StructArray &array) final
+    ::arrow::Status Visit(const ::arrow::StructArray &array) override
     {
         auto &type = static_cast<const ::arrow::StructType &>(*array.type());
 

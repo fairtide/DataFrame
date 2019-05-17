@@ -26,19 +26,19 @@ namespace dataframe {
 class BSONWriter : public Writer
 {
   public:
-    BSONWriter(int compression_level = 0, bool ignore_float_na = true,
+    BSONWriter(int compression_level = 0,
         ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
-        : column_writer_(compression_level, ignore_float_na, pool)
+        : column_writer_(compression_level, pool)
         , pool_(pool)
     {
     }
 
-    std::size_t size() const final
+    std::size_t size() const override
     {
         return data_ == nullptr ? 0 : data_->view().length();
     }
 
-    const std::uint8_t *data() const final
+    const std::uint8_t *data() const override
     {
         return data_ == nullptr ? nullptr : data_->view().data();
     }

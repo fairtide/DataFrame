@@ -22,7 +22,7 @@
 namespace dataframe {
 
 template <typename T>
-struct CastArrayVisitor<List<T>> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<List<T>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -33,7 +33,7 @@ struct CastArrayVisitor<List<T>> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::ListArray &array) final
+    ::arrow::Status Visit(const ::arrow::ListArray &array) override
     {
         // TODO offsets and nulls
 

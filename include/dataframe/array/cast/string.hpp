@@ -32,12 +32,12 @@ struct CastStringArrayVisitor : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::StringArray &) final
+    ::arrow::Status Visit(const ::arrow::StringArray &) override
     {
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::BinaryArray &) final
+    ::arrow::Status Visit(const ::arrow::BinaryArray &) override
     {
         return ::arrow::Status::OK();
     }
@@ -46,18 +46,17 @@ struct CastStringArrayVisitor : ::arrow::ArrayVisitor {
 } // namespace internal
 
 template <>
-struct CastArrayVisitor<std::string> final : internal::CastStringArrayVisitor {
+struct CastArrayVisitor<std::string> : internal::CastStringArrayVisitor {
     using internal::CastStringArrayVisitor::CastStringArrayVisitor;
 };
 
 template <>
-struct CastArrayVisitor<std::string_view> final
-    : internal::CastStringArrayVisitor {
+struct CastArrayVisitor<std::string_view> : internal::CastStringArrayVisitor {
     using internal::CastStringArrayVisitor::CastStringArrayVisitor;
 };
 
 template <>
-struct CastArrayVisitor<Bytes> final : internal::CastStringArrayVisitor {
+struct CastArrayVisitor<Bytes> : internal::CastStringArrayVisitor {
     using internal::CastStringArrayVisitor::CastStringArrayVisitor;
 };
 

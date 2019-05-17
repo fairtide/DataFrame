@@ -151,20 +151,20 @@ template <DateUnit>
 struct Datestamp;
 
 template <>
-struct Datestamp<DateUnit::Day> final : TimeType<::arrow::Date32Type::c_type> {
+struct Datestamp<DateUnit::Day> : TimeType<::arrow::Date32Type::c_type> {
     static constexpr DateUnit unit = DateUnit::Day;
     using TimeType<::arrow::Date32Type::c_type>::TimeType;
 };
 
 template <>
-struct Datestamp<DateUnit::Millisecond> final
+struct Datestamp<DateUnit::Millisecond>
     : TimeType<::arrow::Date64Type::c_type> {
     static constexpr DateUnit unit = DateUnit::Millisecond;
     using TimeType<::arrow::Date64Type::c_type>::TimeType;
 };
 
 template <TimeUnit Unit>
-struct Timestamp final : TimeType<::arrow::TimestampType::c_type> {
+struct Timestamp : TimeType<::arrow::TimestampType::c_type> {
     static constexpr TimeUnit unit = Unit;
     using TimeType<::arrow::TimestampType::c_type>::TimeType;
 };
@@ -173,28 +173,25 @@ template <TimeUnit>
 struct Time;
 
 template <>
-struct Time<TimeUnit::Second> final : TimeType<::arrow::Time32Type::c_type> {
+struct Time<TimeUnit::Second> : TimeType<::arrow::Time32Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Second;
     using TimeType<::arrow::Time32Type::c_type>::TimeType;
 };
 
 template <>
-struct Time<TimeUnit::Millisecond> final
-    : TimeType<::arrow::Time32Type::c_type> {
+struct Time<TimeUnit::Millisecond> : TimeType<::arrow::Time32Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Millisecond;
     using TimeType<::arrow::Time32Type::c_type>::TimeType;
 };
 
 template <>
-struct Time<TimeUnit::Microsecond> final
-    : TimeType<::arrow::Time64Type::c_type> {
+struct Time<TimeUnit::Microsecond> : TimeType<::arrow::Time64Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Microsecond;
     using TimeType<::arrow::Time64Type::c_type>::TimeType;
 };
 
 template <>
-struct Time<TimeUnit::Nanosecond> final
-    : TimeType<::arrow::Time64Type::c_type> {
+struct Time<TimeUnit::Nanosecond> : TimeType<::arrow::Time64Type::c_type> {
     static constexpr TimeUnit unit = TimeUnit::Nanosecond;
     using TimeType<::arrow::Time64Type::c_type>::TimeType;
 };

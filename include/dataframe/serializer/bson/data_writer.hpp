@@ -24,21 +24,20 @@ namespace dataframe {
 
 namespace bson {
 
-class DataWriter final : public ::arrow::ArrayVisitor
+class DataWriter : public ::arrow::ArrayVisitor
 {
   public:
     DataWriter(::bsoncxx::builder::basic::document &builder,
         Vector<std::uint8_t> &buffer1, Vector<std::uint8_t> &buffer2,
-        int compression_level, bool ignore_float_na)
+        int compression_level)
         : builder_(builder)
         , buffer1_(buffer1)
         , buffer2_(buffer2)
         , compression_level_(compression_level)
-        , ignore_float_na_(ignore_float_na)
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::NullArray &array) final
+    ::arrow::Status Visit(const ::arrow::NullArray &array) override
     {
         builder_.append(::bsoncxx::builder::basic::kvp(
             Schema::DATA(), static_cast<std::int64_t>(array.length())));
@@ -51,7 +50,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+    ::arrow::Status Visit(const ::arrow::BooleanArray &array) override
     {
         auto n = array.length();
         buffer1_.resize(static_cast<std::size_t>(n));
@@ -71,7 +70,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     }
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
             compress(array.length(), array.raw_values(), &buffer2_,           \
@@ -100,26 +99,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
 #undef DF_DEFINE_VISITOR
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
-        if (array.null_count() == 0) {                                        \
-            builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),    \
-                compress(array.length(), array.raw_values(), &buffer2_,       \
-                    compression_level_)));                                    \
-        } else {                                                              \
-            using T = typename ::arrow::TypeName##Array::TypeClass::c_type;   \
-            auto n = array.length();                                          \
-            buffer1_.resize(sizeof(T) * static_cast<std::size_t>(n));         \
-            auto p = reinterpret_cast<T *>(buffer1_.data());                  \
-            auto v = array.raw_values();                                      \
-            for (std::int64_t i = 0; i != n; ++i) {                           \
-                p[i] = array.IsNull(i) ?                                      \
-                    std::numeric_limits<T>::quiet_NaN() :                     \
-                    v[i];                                                     \
-            }                                                                 \
-            builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),    \
-                compress(n, p, &buffer2_, compression_level_)));              \
-        }                                                                     \
+        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
+            compress(array.length(), array.raw_values(), &buffer2_,           \
+                compression_level_)));                                        \
                                                                               \
         make_mask(builder_, array);                                           \
                                                                               \
@@ -137,7 +121,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     // DF_DEFINE_VISITOR(Interval)
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
         encode_datetime(array.length(), array.raw_values(), &buffer1_);       \
                                                                               \
@@ -158,7 +142,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) override
     {
         auto &type =
             dynamic_cast<const ::arrow::FixedSizeBinaryType &>(*array.type());
@@ -175,13 +159,13 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) final
+    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) override
     {
         return Visit(
             static_cast<const ::arrow::FixedSizeBinaryArray &>(array));
     }
 
-    ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::BinaryArray &array) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -214,12 +198,12 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StringArray &array) final
+    ::arrow::Status Visit(const ::arrow::StringArray &array) override
     {
         return Visit(static_cast<const ::arrow::BinaryArray &>(array));
     }
 
-    ::arrow::Status Visit(const ::arrow::ListArray &array) final
+    ::arrow::Status Visit(const ::arrow::ListArray &array) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -231,8 +215,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         auto values = array.values()->Slice(values_offset, values_length);
 
         ::bsoncxx::builder::basic::document data;
-        DataWriter writer(
-            data, buffer1_, buffer2_, compression_level_, ignore_float_na_);
+        DataWriter writer(data, buffer1_, buffer2_, compression_level_);
         DF_ARROW_ERROR_HANDLER(values->Accept(&writer));
 
         builder_.append(kvp(Schema::DATA(), data.extract()));
@@ -256,7 +239,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StructArray &array) final
+    ::arrow::Status Visit(const ::arrow::StructArray &array) override
     {
         using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;
@@ -281,8 +264,8 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
             document field_builder;
 
-            DataWriter writer(field_builder, buffer1_, buffer2_,
-                compression_level_, ignore_float_na_);
+            DataWriter writer(
+                field_builder, buffer1_, buffer2_, compression_level_);
 
             DF_ARROW_ERROR_HANDLER(field_data->Accept(&writer));
 
@@ -310,7 +293,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
         using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;
@@ -318,13 +301,11 @@ class DataWriter final : public ::arrow::ArrayVisitor
         // data
 
         document index;
-        DataWriter index_writer(
-            index, buffer1_, buffer2_, compression_level_, ignore_float_na_);
+        DataWriter index_writer(index, buffer1_, buffer2_, compression_level_);
         DF_ARROW_ERROR_HANDLER(array.indices()->Accept(&index_writer));
 
         document dict;
-        DataWriter dict_writer(
-            dict, buffer1_, buffer2_, compression_level_, ignore_float_na_);
+        DataWriter dict_writer(dict, buffer1_, buffer2_, compression_level_);
         DF_ARROW_ERROR_HANDLER(array.dictionary()->Accept(&dict_writer));
 
         document data;
@@ -350,34 +331,24 @@ class DataWriter final : public ::arrow::ArrayVisitor
     void make_mask(::bsoncxx::builder::basic::document &builder,
         const ::arrow::Array &array)
     {
-        auto n = static_cast<std::size_t>(array.length());
-        buffer1_.resize((n + 7) / 8);
+        auto n = array.length();
+        auto m = ::arrow::BitUtil::BytesForBits(n);
+        buffer1_.resize(static_cast<std::size_t>(m));
 
         if (array.type()->id() == ::arrow::Type::NA) {
-            std::fill_n(buffer1_.data(), buffer1_.size(), 0);
+            std::memset(buffer1_.data(), 0, buffer1_.size());
         } else {
-            if (array.null_count() != 0) {
-                if (!ignore_float_na_ ||
-                    (array.type()->id() != ::arrow::Type::FLOAT &&
-                        array.type()->id() != ::arrow::Type::DOUBLE)) {
-                    throw DataFrameException("Nullable array not supported");
-                }
-            }
-
-            std::fill_n(buffer1_.data(), buffer1_.size(),
-                std::numeric_limits<std::uint8_t>::max());
-
-            if (!buffer1_.empty() && n % 8 != 0) {
-                auto last = buffer1_.back();
-                auto nzero = (8 - (n % 8));
-                buffer1_.back() =
-                    static_cast<std::uint8_t>((last >> nzero) << nzero);
+            buffer1_.back() = 0;
+            if (array.null_count() == 0) {
+                ::arrow::BitUtil::SetBitsTo(buffer1_.data(), 0, n, true);
+            } else {
+                ::arrow::internal::CopyBitmap(array.null_bitmap()->data(),
+                    array.offset(), n, buffer1_.data(), 0, true);
             }
         }
 
-        auto mask = compress(buffer1_, &buffer2_, compression_level_);
-
-        builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(), mask));
+        builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(),
+            compress(buffer1_, &buffer2_, compression_level_)));
     }
 
   private:
@@ -385,7 +356,6 @@ class DataWriter final : public ::arrow::ArrayVisitor
     Vector<std::uint8_t> &buffer1_;
     Vector<std::uint8_t> &buffer2_;
     int compression_level_;
-    bool ignore_float_na_;
 };
 
 } // namespace bson

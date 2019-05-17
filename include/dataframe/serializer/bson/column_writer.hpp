@@ -24,13 +24,11 @@ namespace dataframe {
 
 namespace bson {
 
-class ColumnWriter final : public ::arrow::ArrayVisitor
+class ColumnWriter : public ::arrow::ArrayVisitor
 {
   public:
-    ColumnWriter(
-        int compression_level, bool ignore_float_na, ::arrow::MemoryPool *pool)
+    ColumnWriter(int compression_level, ::arrow::MemoryPool *pool)
         : compression_level_(compression_level)
-        , ignore_float_na_(ignore_float_na)
         , buffer1_(Allocator<std::uint8_t>(pool))
         , buffer2_(Allocator<std::uint8_t>(pool))
     {
@@ -47,15 +45,14 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
 
   private:
 #define DF_DEFINE_VISITOR(Type)                                               \
-    ::arrow::Status Visit(const ::arrow::Type##Array &array) final            \
+    ::arrow::Status Visit(const ::arrow::Type##Array &array) override         \
     {                                                                         \
         using ::bsoncxx::builder::basic::document;                            \
         using ::bsoncxx::builder::basic::kvp;                                 \
                                                                               \
         document col;                                                         \
                                                                               \
-        DataWriter data(                                                      \
-            col, buffer1_, buffer2_, compression_level_, ignore_float_na_);   \
+        DataWriter data(col, buffer1_, buffer2_, compression_level_);         \
         DF_ARROW_ERROR_HANDLER(array.Accept(&data));                          \
                                                                               \
         column_ =                                                             \
@@ -96,7 +93,6 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
 
   private:
     int compression_level_;
-    bool ignore_float_na_;
     Vector<std::uint8_t> buffer1_;
     Vector<std::uint8_t> buffer2_;
     std::unique_ptr<::bsoncxx::document::value> column_;
