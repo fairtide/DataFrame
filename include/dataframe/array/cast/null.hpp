@@ -22,7 +22,7 @@
 namespace dataframe {
 
 template <>
-struct CastArrayVisitor<void> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<std::nullptr_t> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(
@@ -31,10 +31,15 @@ struct CastArrayVisitor<void> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::NullArray &) final
+    ::arrow::Status Visit(const ::arrow::NullArray &) override
     {
         return ::arrow::Status::OK();
     }
+};
+
+template <>
+struct CastArrayVisitor<void> : CastArrayVisitor<std::nullptr_t> {
+    using CastArrayVisitor<std::nullptr_t>::CastArrayVisitor;
 };
 
 } // namespace dataframe

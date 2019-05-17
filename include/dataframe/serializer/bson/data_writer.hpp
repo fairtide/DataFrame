@@ -24,7 +24,7 @@ namespace dataframe {
 
 namespace bson {
 
-class DataWriter final : public ::arrow::ArrayVisitor
+class DataWriter : public ::arrow::ArrayVisitor
 {
   public:
     DataWriter(::bsoncxx::builder::basic::document &builder,
@@ -38,7 +38,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::NullArray &array) final
+    ::arrow::Status Visit(const ::arrow::NullArray &array) override
     {
         builder_.append(::bsoncxx::builder::basic::kvp(
             Schema::DATA(), static_cast<std::int64_t>(array.length())));
@@ -51,7 +51,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+    ::arrow::Status Visit(const ::arrow::BooleanArray &array) override
     {
         auto n = array.length();
         buffer1_.resize(static_cast<std::size_t>(n));
@@ -71,7 +71,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     }
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override        \
     {                                                                         \
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
             compress(array.length(), array.raw_values(), &buffer2_,           \
@@ -100,7 +100,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
 #undef DF_DEFINE_VISITOR
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override        \
     {                                                                         \
         if (array.null_count() == 0) {                                        \
             builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),    \
@@ -137,7 +137,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
     // DF_DEFINE_VISITOR(Interval)
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) final        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override        \
     {                                                                         \
         encode_datetime(array.length(), array.raw_values(), &buffer1_);       \
                                                                               \
@@ -158,7 +158,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) override
     {
         auto &type =
             dynamic_cast<const ::arrow::FixedSizeBinaryType &>(*array.type());
@@ -175,13 +175,13 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) final
+    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) override
     {
         return Visit(
             static_cast<const ::arrow::FixedSizeBinaryArray &>(array));
     }
 
-    ::arrow::Status Visit(const ::arrow::BinaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::BinaryArray &array) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -214,12 +214,12 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StringArray &array) final
+    ::arrow::Status Visit(const ::arrow::StringArray &array) override
     {
         return Visit(static_cast<const ::arrow::BinaryArray &>(array));
     }
 
-    ::arrow::Status Visit(const ::arrow::ListArray &array) final
+    ::arrow::Status Visit(const ::arrow::ListArray &array) override
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -256,7 +256,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StructArray &array) final
+    ::arrow::Status Visit(const ::arrow::StructArray &array) override
     {
         using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;
@@ -310,7 +310,7 @@ class DataWriter final : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
         using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;

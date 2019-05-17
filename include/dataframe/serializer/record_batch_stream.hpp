@@ -30,7 +30,7 @@ class RecordBatchStreamWriter : public Writer
     {
     }
 
-    std::size_t size() const final
+    std::size_t size() const override
     {
         if (buffer_ == nullptr) {
             return 0;
@@ -39,7 +39,7 @@ class RecordBatchStreamWriter : public Writer
         return static_cast<std::size_t>(buffer_->size());
     }
 
-    const std::uint8_t *data() const final
+    const std::uint8_t *data() const override
     {
         if (buffer_ == nullptr) {
             return nullptr;
@@ -48,7 +48,7 @@ class RecordBatchStreamWriter : public Writer
         return buffer_->data();
     }
 
-    void write(const DataFrame &df) final
+    void write(const DataFrame &df) override
     {
         if (df.empty()) {
             buffer_ = nullptr;
@@ -84,7 +84,7 @@ class RecordBatchStreamReader : public Reader
     }
 
     DataFrame read_buffer(
-        std::size_t n, const std::uint8_t *buf, bool zero_copy) final
+        std::size_t n, const std::uint8_t *buf, bool zero_copy) override
     {
         std::unique_ptr<::arrow::io::BufferReader> source;
         if (zero_copy) {

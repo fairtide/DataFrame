@@ -33,12 +33,12 @@ class BSONWriter : public Writer
     {
     }
 
-    std::size_t size() const final
+    std::size_t size() const override
     {
         return data_ == nullptr ? 0 : data_->view().length();
     }
 
-    const std::uint8_t *data() const final
+    const std::uint8_t *data() const override
     {
         return data_ == nullptr ? nullptr : data_->view().data();
     }

@@ -35,7 +35,7 @@ class DataReader : public ::arrow::TypeVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::NullType &) final
+    ::arrow::Status Visit(const ::arrow::NullType &) override
     {
         data_.length = view_[Schema::DATA()].get_int64().value;
         data_.buffers.reserve(1);
@@ -44,7 +44,7 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::BooleanType &) final
+    ::arrow::Status Visit(const ::arrow::BooleanType &) override
     {
         auto buffer = decompress(view_[Schema::DATA()].get_binary(), pool_);
         auto n = buffer->size();
@@ -65,7 +65,7 @@ class DataReader : public ::arrow::TypeVisitor
     }
 
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
-    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) final             \
+    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override             \
     {                                                                         \
         using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
@@ -98,7 +98,7 @@ class DataReader : public ::arrow::TypeVisitor
 #undef DF_DEFINE_VISITOR
 
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
-    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) final             \
+    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override             \
     {                                                                         \
         using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
@@ -119,7 +119,7 @@ class DataReader : public ::arrow::TypeVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) final
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) override
     {
         auto buffer = decompress(view_[Schema::DATA()].get_binary(), pool_);
 
@@ -135,12 +135,12 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final
+    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) override
     {
         return Visit(static_cast<const ::arrow::FixedSizeBinaryType &>(type));
     }
 
-    ::arrow::Status Visit(const ::arrow::BinaryType &) final
+    ::arrow::Status Visit(const ::arrow::BinaryType &) override
     {
         auto values = decompress(view_[Schema::DATA()].get_binary(), pool_);
 
@@ -156,12 +156,12 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StringType &type) final
+    ::arrow::Status Visit(const ::arrow::StringType &type) override
     {
         return Visit(static_cast<const ::arrow::BinaryType &>(type));
     }
 
-    ::arrow::Status Visit(const ::arrow::ListType &type) final
+    ::arrow::Status Visit(const ::arrow::ListType &type) override
     {
         auto offsets = decompress<std::int32_t>(
             view_[Schema::OFFSET()].get_binary(), pool_);
@@ -183,7 +183,7 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StructType &type) final
+    ::arrow::Status Visit(const ::arrow::StructType &type) override
     {
         auto data_view = view_[Schema::DATA()].get_document().view();
         data_.length = data_view[Schema::LENGTH()].get_int64().value;
@@ -209,7 +209,7 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) override
     {
         auto data_view = view_[Schema::DATA()].get_document().view();
 

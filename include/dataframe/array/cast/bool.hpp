@@ -22,7 +22,7 @@
 namespace dataframe {
 
 template <>
-struct CastArrayVisitor<bool> final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor<bool> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
 
     CastArrayVisitor(
@@ -31,7 +31,7 @@ struct CastArrayVisitor<bool> final : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::BooleanArray &) final
+    ::arrow::Status Visit(const ::arrow::BooleanArray &) override
     {
         return ::arrow::Status::OK();
     }

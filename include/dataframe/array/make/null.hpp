@@ -22,13 +22,18 @@
 namespace dataframe {
 
 template <>
-struct ArrayMaker<void> {
+struct ArrayMaker<std::nullptr_t> {
     template <typename Iter>
-    static void append(BuilderType<void> *builder, Iter first, Iter last)
+    static void append(
+        BuilderType<std::nullptr_t> *builder, Iter first, Iter last)
     {
         DF_ARROW_ERROR_HANDLER(builder->AppendNulls(
             static_cast<std::int64_t>(std::distance(first, last))));
     }
+};
+
+template <>
+struct ArrayMaker<void> : ArrayMaker<std::nullptr_t> {
 };
 
 } // namespace dataframe

@@ -22,8 +22,8 @@
 namespace dataframe {
 
 template <>
-struct TypeTraits<void> {
-    using scalar_type = void;
+struct TypeTraits<std::nullptr_t> {
+    using scalar_type = std::nullptr_t;
     using data_type = ::arrow::NullType;
     using array_type = ::arrow::NullArray;
     using builder_type = ::arrow::NullBuilder;
@@ -40,11 +40,15 @@ struct TypeTraits<void> {
     }
 };
 
+template <>
+struct TypeTraits<void> : TypeTraits<std::nullptr_t> {
+};
+
 template <typename T>
 struct IsType<T, ::arrow::NullType> {
     static constexpr bool is_type(const ::arrow::NullType &)
     {
-        return std::is_same_v<T, void>;
+        return std::is_same_v<T, std::nullptr_t> || std::is_same_v<T, void>;
     }
 };
 
