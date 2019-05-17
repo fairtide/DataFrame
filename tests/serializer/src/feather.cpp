@@ -16,90 +16,10 @@
 
 #include <dataframe/serializer/feather.hpp>
 
-#include "make_data.hpp"
+#include "test_serializer.hpp"
 
-#include <catch2/catch.hpp>
-
-TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", bool,
-    std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
-    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
-    ::dataframe::Bytes, ::dataframe::Dict<std::string>,
-    ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Second>,
-    ::dataframe::Time<::dataframe::TimeUnit::Millisecond>)
+TEMPLATE_TEST_CASE("Feather", "[serializer][template]", BASIC_TEST_TYPES)
 {
-    // TODO Decimal, FixedBinary
-
-    ::dataframe::DataFrame dat;
-    std::size_t n = 1000;
-
-    ::dataframe::FeatherWriter writer;
-    ::dataframe::FeatherReader reader;
-
-    SECTION("Arrays")
-    {
-        dat["test"].emplace<TestType>(make_data<TestType>(n));
-
-        writer.write(dat);
-        auto str = writer.str();
-        auto ret = reader.read(str);
-        auto array1 = dat["test"].data();
-        auto array2 = ret["test"].data();
-
-        CHECK(array1->length() == array2->length());
-        if (array1->length() > 0) {
-            CHECK(array1->Equals(array2));
-        }
-
-        // slice
-        for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
-            writer.write(chunk);
-            str = writer.str();
-            ret = reader.read(str);
-
-            array1 = chunk["test"].data();
-            array2 = ret["test"].data();
-
-            CHECK(array1->length() == array2->length());
-            if (array1->length() > 0) {
-                CHECK(array1->Equals(array2));
-            }
-        }
-    }
-
-    SECTION("Nullable Arrays")
-    {
-        dat["test"].emplace<TestType>(
-            make_data<TestType>(n), make_data<bool>(n));
-
-        writer.write(dat);
-        auto str = writer.str();
-        auto ret = reader.read(str);
-        auto array1 = dat["test"].data();
-        auto array2 = ret["test"].data();
-
-        CHECK(array1->length() == array2->length());
-        if (array1->length() > 0) {
-            CHECK(array1->Equals(array2));
-        }
-
-        // slice
-        for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
-            writer.write(chunk);
-            str = writer.str();
-            ret = reader.read(str);
-
-            array1 = chunk["test"].data();
-            array2 = ret["test"].data();
-
-            CHECK(array1->length() == array2->length());
-            if (array1->length() > 0) {
-                CHECK(array1->Equals(array2));
-            }
-        }
-    }
+    TestSerializer<TestType, ::dataframe::FeatherReader,
+        ::dataframe::FeatherWriter>();
 }

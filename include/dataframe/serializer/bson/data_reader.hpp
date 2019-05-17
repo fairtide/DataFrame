@@ -50,22 +50,31 @@ class DataReader : public ::arrow::TypeVisitor
         auto n = buffer->size();
         auto p = buffer->data();
 
-        ::arrow::BooleanBuilder builder(pool_);
-        DF_ARROW_ERROR_HANDLER(builder.Reserve(n));
-        for (std::int64_t i = 0; i != n; ++i) {
-            DF_ARROW_ERROR_HANDLER(builder.Append(static_cast<bool>(p[i])));
+        std::shared_ptr<::arrow::Buffer> bitmap;
+        DF_ARROW_ERROR_HANDLER(::arrow::AllocateBuffer(
+            pool_, ::arrow::BitUtil::BytesForBits(n), &bitmap));
+
+        auto bits =
+            dynamic_cast<::arrow::MutableBuffer &>(*bitmap).mutable_data();
+
+        if (bitmap->size() != 0) {
+            bits[bitmap->size() - 1] = 0;
         }
 
-        std::shared_ptr<::arrow::Array> ret;
-        DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+        for (std::int64_t i = 0; i != n; ++i) {
+            ::arrow::BitUtil::SetBitTo(bits, i, static_cast<bool>(p[i]));
+        }
 
-        data_ = std::move(*ret->data());
+        data_.length = n;
+        data_.buffers.reserve(2);
+        data_.buffers.push_back(make_mask());
+        data_.buffers.push_back(std::move(bitmap));
 
         return ::arrow::Status::OK();
     }
 
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
-    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override             \
+    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override          \
     {                                                                         \
         using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
@@ -98,7 +107,7 @@ class DataReader : public ::arrow::TypeVisitor
 #undef DF_DEFINE_VISITOR
 
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
-    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override             \
+    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override          \
     {                                                                         \
         using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
@@ -244,11 +253,27 @@ class DataReader : public ::arrow::TypeVisitor
   private:
     std::shared_ptr<::arrow::Buffer> make_mask()
     {
-        if (!view_[Schema::MASK()]) {
-            throw DataFrameException("Mask not found");
+        if (data_.type->id() == ::arrow::Type::NA) {
+            data_.null_count = data_.length;
+            return nullptr;
         }
 
-        return nullptr;
+        auto buffer = decompress(view_[Schema::MASK()].get_binary(), pool_);
+        if (buffer->size() != ::arrow::BitUtil::BytesForBits(data_.length)) {
+            throw DataFrameException("Mask has incorrect length");
+        }
+
+        auto count =
+            ::arrow::internal::CountSetBits(buffer->data(), 0, data_.length);
+
+        if (count == data_.length) {
+            data_.null_count = 0;
+            return nullptr;
+        }
+
+        data_.null_count = data_.length - count;
+
+        return buffer;
     }
 
   private:

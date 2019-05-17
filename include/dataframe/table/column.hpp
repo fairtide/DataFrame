@@ -147,7 +147,9 @@ class ConstColumnProxy
     ConstColumnProxy operator()(std::size_t begin, std::size_t end) const
     {
         if (static_cast<std::int64_t>(end) > data_->length()) {
-            throw DataFrameException("Slicing out of range");
+            throw DataFrameException("Slicing out of range, begin: " +
+                std::to_string(begin) + ", end: " + std::to_string(end) +
+                ", length: " + std::to_string(data_->length()));
         }
 
         if (end <= begin) {

@@ -16,61 +16,10 @@
 
 #include <dataframe/serializer/record_batch_stream.hpp>
 
-#include "make_data.hpp"
+#include "test_serializer.hpp"
 
-#include <catch2/catch.hpp>
-
-TEMPLATE_TEST_CASE("RecordBatchStream Serializer", "[serializer][template]",
-    void, bool, std::int8_t, std::int16_t, std::int32_t, std::int64_t,
-    std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t, std::string,
-    ::dataframe::Bytes, ::dataframe::Dict<std::string>,
-    ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
-    ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Second>,
-    ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::List<double>, ::dataframe::Struct<double>,
-    ::dataframe::List<::dataframe::Struct<double>>,
-    ::dataframe::Struct<::dataframe::List<double>>)
+TEMPLATE_TEST_CASE("RecordBatchStream", "[serializer][template]", TEST_TYPES)
 {
-    // TODO Decimal, FixedBinary
-
-    ::dataframe::DataFrame dat;
-    std::size_t n = 1000;
-    auto values = make_data<TestType>(n);
-    dat["test"].emplace<TestType>(std::move(values));
-
-    ::dataframe::RecordBatchStreamWriter writer;
-    ::dataframe::RecordBatchStreamReader reader;
-
-    writer.write(dat);
-    auto str = writer.str();
-    auto ret = reader.read(str);
-    auto array1 = dat["test"].data();
-    auto array2 = ret["test"].data();
-
-    CHECK(array1->length() == array2->length());
-    if (array1->length() > 0) {
-        CHECK(array1->Equals(array2));
-    }
-
-    // slice
-    for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
-        writer.write(chunk);
-        str = writer.str();
-        ret = reader.read(str);
-
-        array1 = chunk["test"].data();
-        array2 = ret["test"].data();
-
-        CHECK(array1->length() == array2->length());
-        if (array1->length() > 0) {
-            CHECK(array1->Equals(array2));
-        }
-    }
+    TestSerializer<TestType, ::dataframe::RecordBatchStreamReader,
+        ::dataframe::RecordBatchStreamWriter>();
 }
