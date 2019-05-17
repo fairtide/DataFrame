@@ -24,7 +24,7 @@ namespace dataframe {
 
 namespace bson {
 
-class ColumnWriter final : public ::arrow::ArrayVisitor
+class ColumnWriter : public ::arrow::ArrayVisitor
 {
   public:
     ColumnWriter(int compression_level, ::arrow::MemoryPool *pool)
@@ -45,7 +45,7 @@ class ColumnWriter final : public ::arrow::ArrayVisitor
 
   private:
 #define DF_DEFINE_VISITOR(Type)                                               \
-    ::arrow::Status Visit(const ::arrow::Type##Array &array) final            \
+    ::arrow::Status Visit(const ::arrow::Type##Array &array) override         \
     {                                                                         \
         using ::bsoncxx::builder::basic::document;                            \
         using ::bsoncxx::builder::basic::kvp;                                 \

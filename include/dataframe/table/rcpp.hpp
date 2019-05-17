@@ -35,7 +35,7 @@ class RcppPrimitiveVisitor : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::BooleanArray &array) final
+    ::arrow::Status Visit(const ::arrow::BooleanArray &array) override
     {
         auto n = array.length();
         *out_ = T(::Rcpp::no_init(static_cast<int>(n)));
@@ -47,62 +47,62 @@ class RcppPrimitiveVisitor : public ::arrow::ArrayVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Int8Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int8Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int16Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int16Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int64Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt8Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt8Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt16Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt16Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt32Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt64Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt64Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::FloatArray &array) final
+    ::arrow::Status Visit(const ::arrow::FloatArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::DoubleArray &array) final
+    ::arrow::Status Visit(const ::arrow::DoubleArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         return visit(array);
     }
@@ -123,7 +123,7 @@ class RcppPrimitiveVisitor : public ::arrow::ArrayVisitor
     T *out_;
 };
 
-class RcppCharacterVisitor final : public ::arrow::ArrayVisitor
+class RcppCharacterVisitor : public ::arrow::ArrayVisitor
 {
   public:
     RcppCharacterVisitor(::Rcpp::CharacterVector *out)
@@ -131,7 +131,7 @@ class RcppCharacterVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::StringArray &array) final
+    ::arrow::Status Visit(const ::arrow::StringArray &array) override
     {
         auto n = array.length();
         *out_ = ::Rcpp::CharacterVector(::Rcpp::no_init(static_cast<int>(n)));
@@ -151,7 +151,7 @@ class RcppCharacterVisitor final : public ::arrow::ArrayVisitor
     ::Rcpp::CharacterVector *out_;
 };
 
-class RcppDateVisitor final : public ::arrow::ArrayVisitor
+class RcppDateVisitor : public ::arrow::ArrayVisitor
 {
   public:
     RcppDateVisitor(::Rcpp::newDateVector *out)
@@ -159,7 +159,7 @@ class RcppDateVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
     {
         auto n = array.length();
         auto v = array.raw_values();
@@ -173,7 +173,7 @@ class RcppDateVisitor final : public ::arrow::ArrayVisitor
     ::Rcpp::newDateVector *out_;
 };
 
-class RcppDatetimeVisitor final : public ::arrow::ArrayVisitor
+class RcppDatetimeVisitor : public ::arrow::ArrayVisitor
 {
   public:
     RcppDatetimeVisitor(::Rcpp::newDatetimeVector *out)
@@ -181,7 +181,7 @@ class RcppDatetimeVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         auto type =
             std::static_pointer_cast<::arrow::TimestampType>(array.type());

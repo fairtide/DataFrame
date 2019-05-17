@@ -80,7 +80,7 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::NullArray &) final
+    ::arrow::Status Visit(const ::arrow::NullArray &) override
     {
         result = std::make_shared<::arrow::NullArray>(
             static_cast<std::int64_t>(std::distance(first, last)));
@@ -89,7 +89,7 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
     }
 
 #define DF_DEFINE_VISITOR(Arrow, T)                                           \
-    ::arrow::Status Visit(const ::arrow::Arrow##Array &) final                \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &) override             \
     {                                                                         \
         using I = SelectIterator<T, Iter>;                                    \
         auto view = make_view<T>(values);                                     \
@@ -119,7 +119,7 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
     // DF_DFINE_VISITOR(HalfFloatArray &);
     // DF_DFINE_VISITOR(FixedSizeBinaryArray &);
 
-    ::arrow::Status Visit(const ::arrow::Time32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Time32Array &array) override
     {
         auto type =
             std::static_pointer_cast<::arrow::Time32Type>(array.type());
@@ -146,7 +146,7 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Time64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Time64Array &array) override
     {
         auto type =
             std::static_pointer_cast<::arrow::Time64Type>(array.type());
@@ -173,7 +173,7 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         auto type =
             std::static_pointer_cast<::arrow::TimestampType>(array.type());
@@ -215,7 +215,7 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
     // virtual Status Visit(const StructArray &type);
     // virtual Status Visit(const UnionArray &type);
 
-    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) final
+    ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
         auto index = select_array(array.indices(), first, last);
 

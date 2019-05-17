@@ -16,15 +16,13 @@
 
 #include <dataframe/serializer/bson.hpp>
 
-#include "make_data.hpp"
+#include "test_serializer.hpp"
 
 #include <bsoncxx/json.hpp>
 #include <iostream>
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
-
-#include <catch2/catch.hpp>
 
 struct Output {
     Output() = default;
@@ -33,7 +31,7 @@ struct Output {
     {
         ::dataframe::BSONWriter writer;
 
-        writer.write(data.rows(0, 6));
+        writer.write(data);
         auto bson_doc = writer.extract();
 
         auto json_str = ::bsoncxx::to_json(
@@ -57,63 +55,10 @@ struct Output {
 
 static Output output;
 
-struct TestStruct;
-
-inline auto field_name(const TestStruct *, ::dataframe::FieldIndex<0>)
+TEMPLATE_TEST_CASE("BSON", "[serializer][template]", TEST_TYPES)
 {
-    return "Test";
-}
-
-TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", void, bool,
-    std::int8_t, std::int16_t, std::int32_t, std::int64_t, std::uint8_t,
-    std::uint16_t, std::uint32_t, std::uint64_t, std::string,
-    ::dataframe::Bytes, ::dataframe::Dict<std::string>,
-    ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
-    ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Timestamp<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Second>,
-    ::dataframe::Time<::dataframe::TimeUnit::Millisecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
-    ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,
-    ::dataframe::List<double>, (::dataframe::NamedStruct<TestStruct, double>),
-    (::dataframe::List<::dataframe::NamedStruct<TestStruct, double>>),
-    (::dataframe::NamedStruct<TestStruct, ::dataframe::List<double>>) )
-{
-    // TODO Decimal, FixedBinary
-
-    ::dataframe::DataFrame dat;
-    std::size_t n = 1000;
-    dat["test"].emplace<TestType>(make_data<TestType>(n));
-    output.data[dat["test"].data()->type()->ToString()] = dat["test"].data();
-
-    ::dataframe::BSONWriter writer;
-    ::dataframe::BSONReader reader;
-
-    writer.write(dat);
-    auto str = writer.str();
-    auto ret = reader.read(str);
-    auto array1 = dat["test"].data();
-    auto array2 = ret["test"].data();
-
-    CHECK(array1->length() == array2->length());
-    if (array1->length() > 0) {
-        CHECK(array1->Equals(array2));
-    }
-
-    for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
-        writer.write(chunk);
-        str = writer.str();
-        ret = reader.read(str);
-
-        array1 = chunk["test"].data();
-        array2 = ret["test"].data();
-
-        CHECK(array1->length() == array2->length());
-        if (array1->length() > 0) {
-            CHECK(array1->Equals(array2));
-        }
-    }
+    auto array = ::dataframe::make_array<TestType>(make_data<TestType>(5));
+    output.data[array->type()->ToString()] = array;
+    TestSerializer<TestType, ::dataframe::BSONReader,
+        ::dataframe::BSONWriter>();
 }

@@ -24,7 +24,7 @@
 namespace dataframe {
 
 template <typename T>
-struct CastArrayVisitor final : ::arrow::ArrayVisitor {
+struct CastArrayVisitor : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -36,7 +36,7 @@ struct CastArrayVisitor final : ::arrow::ArrayVisitor {
     }
 
 #define DF_DEFINE_VISITOR(Arrow)                                              \
-    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) final           \
+    ::arrow::Status Visit(const ::arrow::Arrow##Array &array) override        \
     {                                                                         \
         using U = typename ::arrow::Arrow##Array::TypeClass::c_type;          \
                                                                               \

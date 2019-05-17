@@ -24,7 +24,7 @@ namespace dataframe {
 namespace internal {
 
 template <typename T>
-class SpliceVisitor final : public ::arrow::ArrayVisitor
+class SpliceVisitor : public ::arrow::ArrayVisitor
 {
   public:
     SpliceVisitor(T minval, T maxval)
@@ -33,62 +33,62 @@ class SpliceVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::Int8Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int8Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int16Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int16Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int64Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt8Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt8Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt16Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt16Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt32Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt64Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt64Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::FloatArray &array) final
+    ::arrow::Status Visit(const ::arrow::FloatArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::DoubleArray &array) final
+    ::arrow::Status Visit(const ::arrow::DoubleArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         return visit(array);
     }

@@ -27,7 +27,7 @@ enum class JoinType { Inner, Outer, Left, Right, Semi, Anti };
 
 namespace internal {
 
-class JoinVisitor final : public ::arrow::ArrayVisitor
+class JoinVisitor : public ::arrow::ArrayVisitor
 {
   public:
     std::shared_ptr<::arrow::Array> index;
@@ -40,67 +40,67 @@ class JoinVisitor final : public ::arrow::ArrayVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::Int8Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int8Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int16Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int16Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Int64Array &array) final
+    ::arrow::Status Visit(const ::arrow::Int64Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt8Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt8Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt16Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt16Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt32Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::UInt64Array &array) final
+    ::arrow::Status Visit(const ::arrow::UInt64Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::FloatArray &array) final
+    ::arrow::Status Visit(const ::arrow::FloatArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::DoubleArray &array) final
+    ::arrow::Status Visit(const ::arrow::DoubleArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) final
+    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) final
+    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
     {
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::StringArray &array1) final
+    ::arrow::Status Visit(const ::arrow::StringArray &array1) override
     {
         const auto &array2 =
             *std::static_pointer_cast<::arrow::StringArray>(array2_);

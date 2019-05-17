@@ -35,35 +35,46 @@ class DataReader : public ::arrow::TypeVisitor
     {
     }
 
-    ::arrow::Status Visit(const ::arrow::NullType &) final
+    ::arrow::Status Visit(const ::arrow::NullType &) override
     {
         data_.length = view_[Schema::DATA()].get_int64().value;
+        data_.buffers.reserve(1);
+        data_.buffers.push_back(nullptr);
 
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::BooleanType &) final
+    ::arrow::Status Visit(const ::arrow::BooleanType &) override
     {
         auto buffer = decompress(view_[Schema::DATA()].get_binary(), pool_);
         auto n = buffer->size();
         auto p = buffer->data();
 
-        ::arrow::BooleanBuilder builder(pool_);
-        DF_ARROW_ERROR_HANDLER(builder.Reserve(n));
-        for (std::int64_t i = 0; i != n; ++i) {
-            DF_ARROW_ERROR_HANDLER(builder.Append(static_cast<bool>(p[i])));
+        std::shared_ptr<::arrow::Buffer> bitmap;
+        DF_ARROW_ERROR_HANDLER(::arrow::AllocateBuffer(
+            pool_, ::arrow::BitUtil::BytesForBits(n), &bitmap));
+
+        auto bits =
+            dynamic_cast<::arrow::MutableBuffer &>(*bitmap).mutable_data();
+
+        if (bitmap->size() != 0) {
+            bits[bitmap->size() - 1] = 0;
         }
 
-        std::shared_ptr<::arrow::Array> ret;
-        DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
+        for (std::int64_t i = 0; i != n; ++i) {
+            ::arrow::BitUtil::SetBitTo(bits, i, static_cast<bool>(p[i]));
+        }
 
-        data_ = std::move(*ret->data());
+        data_.length = n;
+        data_.buffers.reserve(2);
+        data_.buffers.push_back(make_mask());
+        data_.buffers.push_back(std::move(bitmap));
 
         return ::arrow::Status::OK();
     }
 
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
-    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) final             \
+    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override          \
     {                                                                         \
         using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
@@ -96,7 +107,7 @@ class DataReader : public ::arrow::TypeVisitor
 #undef DF_DEFINE_VISITOR
 
 #define DF_DEFINE_VISITOR(TypeClass)                                          \
-    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) final             \
+    ::arrow::Status Visit(const ::arrow::TypeClass##Type &) override          \
     {                                                                         \
         using T = typename ::arrow::TypeClass##Type::c_type;                  \
                                                                               \
@@ -117,7 +128,7 @@ class DataReader : public ::arrow::TypeVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) final
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) override
     {
         auto buffer = decompress(view_[Schema::DATA()].get_binary(), pool_);
 
@@ -133,12 +144,12 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) final
+    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) override
     {
         return Visit(static_cast<const ::arrow::FixedSizeBinaryType &>(type));
     }
 
-    ::arrow::Status Visit(const ::arrow::BinaryType &) final
+    ::arrow::Status Visit(const ::arrow::BinaryType &) override
     {
         auto values = decompress(view_[Schema::DATA()].get_binary(), pool_);
 
@@ -154,12 +165,12 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StringType &type) final
+    ::arrow::Status Visit(const ::arrow::StringType &type) override
     {
         return Visit(static_cast<const ::arrow::BinaryType &>(type));
     }
 
-    ::arrow::Status Visit(const ::arrow::ListType &type) final
+    ::arrow::Status Visit(const ::arrow::ListType &type) override
     {
         auto offsets = decompress<std::int32_t>(
             view_[Schema::OFFSET()].get_binary(), pool_);
@@ -181,7 +192,7 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::StructType &type) final
+    ::arrow::Status Visit(const ::arrow::StructType &type) override
     {
         auto data_view = view_[Schema::DATA()].get_document().view();
         data_.length = data_view[Schema::LENGTH()].get_int64().value;
@@ -207,7 +218,7 @@ class DataReader : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    ::arrow::Status Visit(const ::arrow::DictionaryType &type) final
+    ::arrow::Status Visit(const ::arrow::DictionaryType &type) override
     {
         auto data_view = view_[Schema::DATA()].get_document().view();
 
@@ -242,11 +253,27 @@ class DataReader : public ::arrow::TypeVisitor
   private:
     std::shared_ptr<::arrow::Buffer> make_mask()
     {
-        if (!view_[Schema::MASK()]) {
-            throw DataFrameException("Mask not found");
+        if (data_.type->id() == ::arrow::Type::NA) {
+            data_.null_count = data_.length;
+            return nullptr;
         }
 
-        return nullptr;
+        auto buffer = decompress(view_[Schema::MASK()].get_binary(), pool_);
+        if (buffer->size() != ::arrow::BitUtil::BytesForBits(data_.length)) {
+            throw DataFrameException("Mask has incorrect length");
+        }
+
+        auto count =
+            ::arrow::internal::CountSetBits(buffer->data(), 0, data_.length);
+
+        if (count == data_.length) {
+            data_.null_count = 0;
+            return nullptr;
+        }
+
+        data_.null_count = data_.length - count;
+
+        return buffer;
     }
 
   private:
