@@ -71,7 +71,7 @@ class DataWriter : public ::arrow::ArrayVisitor
     }
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
         builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
             compress(array.length(), array.raw_values(), &buffer2_,           \
@@ -100,7 +100,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 #undef DF_DEFINE_VISITOR
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
         if (array.null_count() == 0) {                                        \
             builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),    \
@@ -137,7 +137,7 @@ class DataWriter : public ::arrow::ArrayVisitor
     // DF_DEFINE_VISITOR(Interval)
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override        \
+    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
         encode_datetime(array.length(), array.raw_values(), &buffer1_);       \
                                                                               \
@@ -350,34 +350,24 @@ class DataWriter : public ::arrow::ArrayVisitor
     void make_mask(::bsoncxx::builder::basic::document &builder,
         const ::arrow::Array &array)
     {
-        auto n = static_cast<std::size_t>(array.length());
-        buffer1_.resize((n + 7) / 8);
+        auto n = array.length();
+        auto m = ::arrow::BitUtil::BytesForBits(n);
+        buffer1_.resize(static_cast<std::size_t>(m));
 
         if (array.type()->id() == ::arrow::Type::NA) {
-            std::fill_n(buffer1_.data(), buffer1_.size(), 0);
+            std::memset(buffer1_.data(), 0, buffer1_.size());
         } else {
-            if (array.null_count() != 0) {
-                if (!ignore_float_na_ ||
-                    (array.type()->id() != ::arrow::Type::FLOAT &&
-                        array.type()->id() != ::arrow::Type::DOUBLE)) {
-                    throw DataFrameException("Nullable array not supported");
-                }
-            }
-
-            std::fill_n(buffer1_.data(), buffer1_.size(),
-                std::numeric_limits<std::uint8_t>::max());
-
-            if (!buffer1_.empty() && n % 8 != 0) {
-                auto last = buffer1_.back();
-                auto nzero = (8 - (n % 8));
-                buffer1_.back() =
-                    static_cast<std::uint8_t>((last >> nzero) << nzero);
+            buffer1_.back() = 0;
+            if (array.null_count() == 0) {
+                ::arrow::BitUtil::SetBitsTo(buffer1_.data(), 0, n, true);
+            } else {
+                ::arrow::internal::CopyBitmap(array.null_bitmap()->data(),
+                    array.offset(), n, buffer1_.data(), 0, true);
             }
         }
 
-        auto mask = compress(buffer1_, &buffer2_, compression_level_);
-
-        builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(), mask));
+        builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(),
+            compress(buffer1_, &buffer2_, compression_level_)));
     }
 
   private:

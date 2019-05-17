@@ -131,19 +131,20 @@ class MemberGetterIterator
 
 } // namespace internal
 
-template <typename Iter>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+template <typename Iter, typename... Args>
+inline EnableMakeArray<
+    !std::is_same_v<typename std::iterator_traits<Iter>::value_type, void>>
+make_array(Iter first, Iter last, Args &&... args)
 {
     using T = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
 
-    return make_array<T>(first, last, pool);
+    return make_array<T>(first, last, std::forward<Args>(args)...);
 }
 
 template <typename T, typename Iter, typename Member>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member member, ::arrow::MemoryPool *pool = ::arrow::default_memory_pool(),
-    std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
+inline EnableMakeArray<std::is_member_object_pointer_v<Member>> make_array(
+    Iter first, Iter last, Member member,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
     using R = decltype((*first).*member);
     using V = std::remove_cv_t<std::remove_reference_t<R>>;
@@ -152,21 +153,10 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
     return make_array<T>(I(first, member), I(last, member), pool);
 }
 
-template <typename Iter, typename Member>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member member, ::arrow::MemoryPool *pool = ::arrow::default_memory_pool(),
-    std::enable_if_t<std::is_member_object_pointer_v<Member>> * = nullptr)
-{
-    using T =
-        std::remove_cv_t<std::remove_reference_t<decltype((*first).*member)>>;
-
-    return make_array<T>(first, last, std::move(member), pool);
-}
-
 template <typename T, typename Iter, typename Member>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member member, ::arrow::MemoryPool *pool = ::arrow::default_memory_pool(),
-    std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
+inline EnableMakeArray<std::is_member_function_pointer_v<Member>> make_array(
+    Iter first, Iter last, Member member,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
     using R = decltype(((*first).*member)());
     using V = std::remove_cv_t<std::remove_reference_t<R>>;
@@ -175,22 +165,11 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
     return make_array<T>(I(first, member), I(last, member), pool);
 }
 
-template <typename Iter, typename Member>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Member member, ::arrow::MemoryPool *pool = ::arrow::default_memory_pool(),
-    std::enable_if_t<std::is_member_function_pointer_v<Member>> * = nullptr)
-{
-    using T = std::remove_cv_t<
-        std::remove_reference_t<decltype(((*first).*member)())>>;
-
-    return make_array<T>(first, last, std::move(member), pool);
-}
-
 template <typename T, typename Iter, typename Getter>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Getter getter, ::arrow::MemoryPool *pool = ::arrow::default_memory_pool(),
-    std::enable_if_t<!std::is_member_pointer_v<Getter> &&
-        std::is_invocable_v<Getter, decltype(*first)>> * = nullptr)
+inline EnableMakeArray<!std::is_member_pointer_v<Getter> &&
+    std::is_invocable_v<Getter, decltype(*std::declval<Iter>())>>
+make_array(Iter first, Iter last, Getter getter,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
 {
     using R = decltype(getter(*first));
     using V = std::remove_cv_t<std::remove_reference_t<R>>;
@@ -199,32 +178,12 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
     return make_array<T>(I(first, getter), I(last, getter), pool);
 }
 
-template <typename Iter, typename Getter>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    Getter getter, ::arrow::MemoryPool *pool = ::arrow::default_memory_pool(),
-    std::enable_if_t<!std::is_member_pointer_v<Getter> &&
-        std::is_invocable_v<Getter, decltype(*first)>> * = nullptr)
-{
-    using T =
-        std::remove_cv_t<std::remove_reference_t<decltype(getter(*first))>>;
-
-    return make_array<T>(first, last, std::move(getter), pool);
-}
-
 template <typename T, typename Iter, typename Valid, typename... Args>
 inline std::shared_ptr<::arrow::Array> make_array(
     Iter first, Iter last, Valid valid, Args &&... args)
 {
     return internal::set_mask(
         make_array<T>(first, last, std::forward<Args>(args)...), valid);
-}
-
-template <typename Iter, typename Valid, typename... Args>
-inline std::shared_ptr<::arrow::Array> make_array(
-    Iter first, Iter last, Valid valid, Args &&... args)
-{
-    return internal::set_mask(
-        make_array(first, last, std::forward<Args>(args)...), valid);
 }
 
 template <typename T, typename Iter, typename Alloc, typename... Args>
@@ -236,29 +195,18 @@ inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
         valid.begin());
 }
 
-template <typename Iter, typename Alloc, typename... Args>
-inline std::shared_ptr<::arrow::Array> make_array(Iter first, Iter last,
-    const std::vector<bool, Alloc> &valid, Args &&... args)
+template <typename T, typename V, typename Alloc>
+inline std::shared_ptr<::arrow::Array> make_array(
+    const std::vector<V, Alloc> &vec)
 {
-    return internal::set_mask(
-        make_array(first, last, std::forward<Args>(args)...), valid.begin());
+    return make_array<T>(vec.begin(), vec.end());
 }
 
-template <typename T, typename V, typename Alloc, typename... Args>
+template <typename T, typename V, typename Alloc, typename AllocM>
 inline std::shared_ptr<::arrow::Array> make_array(
-    const std::vector<V, Alloc> &vec, Args &&... args)
+    const std::vector<V, Alloc> &vec, const std::vector<bool, AllocM> &mask)
 {
-    return make_array<T>(vec.begin(), vec.end(), std::forward<Args>(args)...);
-}
-
-template <typename T, typename V, typename Alloc, typename AllocM,
-    typename... Args>
-inline std::shared_ptr<::arrow::Array> make_array(
-    const std::vector<V, Alloc> &vec, const std::vector<bool, AllocM> &mask,
-    Args &&... args)
-{
-    return make_array<T>(
-        vec.begin(), vec.end(), mask.begin(), std::forward<Args>(args)...);
+    return make_array<T>(vec.begin(), vec.end(), mask.begin());
 }
 
 template <typename T, typename V, typename... Args>
@@ -266,13 +214,6 @@ inline std::shared_ptr<::arrow::Array> make_array(
     std::size_t n, const V *data, Args &&... args)
 {
     return make_array<T>(data, data + n, std::forward<Args>(args)...);
-}
-
-template <typename V, typename... Args>
-inline std::shared_ptr<::arrow::Array> make_array(
-    std::size_t n, const V *data, Args &&... args)
-{
-    return make_array(data, data + n, std::forward<Args>(args)...);
 }
 
 } // namespace dataframe

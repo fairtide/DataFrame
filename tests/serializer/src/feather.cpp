@@ -36,34 +36,70 @@ TEMPLATE_TEST_CASE("BSON Serializer", "[serializer][template]", bool,
 
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
-    dat["test"].emplace<TestType>(make_data<TestType>(n));
 
     ::dataframe::FeatherWriter writer;
     ::dataframe::FeatherReader reader;
 
-    writer.write(dat);
-    auto str = writer.str();
-    auto ret = reader.read(str);
-    auto array1 = dat["test"].data();
-    auto array2 = ret["test"].data();
+    SECTION("Arrays")
+    {
+        dat["test"].emplace<TestType>(make_data<TestType>(n));
 
-    CHECK(array1->length() == array2->length());
-    if (array1->length() > 0) {
-        CHECK(array1->Equals(array2));
-    }
-
-    // slice
-    for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
-        writer.write(chunk);
-        str = writer.str();
-        ret = reader.read(str);
-
-        array1 = chunk["test"].data();
-        array2 = ret["test"].data();
+        writer.write(dat);
+        auto str = writer.str();
+        auto ret = reader.read(str);
+        auto array1 = dat["test"].data();
+        auto array2 = ret["test"].data();
 
         CHECK(array1->length() == array2->length());
         if (array1->length() > 0) {
             CHECK(array1->Equals(array2));
+        }
+
+        // slice
+        for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
+            writer.write(chunk);
+            str = writer.str();
+            ret = reader.read(str);
+
+            array1 = chunk["test"].data();
+            array2 = ret["test"].data();
+
+            CHECK(array1->length() == array2->length());
+            if (array1->length() > 0) {
+                CHECK(array1->Equals(array2));
+            }
+        }
+    }
+
+    SECTION("Nullable Arrays")
+    {
+        dat["test"].emplace<TestType>(
+            make_data<TestType>(n), make_data<bool>(n));
+
+        writer.write(dat);
+        auto str = writer.str();
+        auto ret = reader.read(str);
+        auto array1 = dat["test"].data();
+        auto array2 = ret["test"].data();
+
+        CHECK(array1->length() == array2->length());
+        if (array1->length() > 0) {
+            CHECK(array1->Equals(array2));
+        }
+
+        // slice
+        for (auto &&chunk : ::dataframe::split_rows(dat, n / 3)) {
+            writer.write(chunk);
+            str = writer.str();
+            ret = reader.read(str);
+
+            array1 = chunk["test"].data();
+            array2 = ret["test"].data();
+
+            CHECK(array1->length() == array2->length());
+            if (array1->length() > 0) {
+                CHECK(array1->Equals(array2));
+            }
         }
     }
 }
