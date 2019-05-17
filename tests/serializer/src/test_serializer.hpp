@@ -31,7 +31,7 @@
         ::dataframe::Time<::dataframe::TimeUnit::Millisecond>
 
 #define TEST_TYPES                                                            \
-    BASIC_TEST_TYPES,                                                         \
+    BASIC_TEST_TYPES, void,                                                   \
         ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,           \
         ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,                \
         ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,                 \
