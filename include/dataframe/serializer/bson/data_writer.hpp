@@ -338,13 +338,18 @@ class DataWriter : public ::arrow::ArrayVisitor
         if (array.type()->id() == ::arrow::Type::NA) {
             std::memset(buffer1_.data(), 0, buffer1_.size());
         } else {
-            buffer1_.back() = 0;
+            if (!buffer1_.empty()) {
+                buffer1_.back() = 0;
+            }
+
             if (array.null_count() == 0) {
                 ::arrow::BitUtil::SetBitsTo(buffer1_.data(), 0, n, true);
             } else {
                 ::arrow::internal::CopyBitmap(array.null_bitmap()->data(),
                     array.offset(), n, buffer1_.data(), 0, true);
             }
+
+            internal::swap_bit_order(buffer1_.size(), buffer1_.data());
         }
 
         builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(),
