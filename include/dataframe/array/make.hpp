@@ -131,16 +131,6 @@ class MemberGetterIterator
 
 } // namespace internal
 
-template <typename Iter, typename... Args>
-inline EnableMakeArray<
-    !std::is_same_v<typename std::iterator_traits<Iter>::value_type, void>>
-make_array(Iter first, Iter last, Args &&... args)
-{
-    using T = std::remove_cv_t<std::remove_reference_t<decltype(*first)>>;
-
-    return make_array<T>(first, last, std::forward<Args>(args)...);
-}
-
 template <typename T, typename Iter, typename Member>
 inline EnableMakeArray<std::is_member_object_pointer_v<Member>> make_array(
     Iter first, Iter last, Member member,
@@ -151,6 +141,18 @@ inline EnableMakeArray<std::is_member_object_pointer_v<Member>> make_array(
     using I = internal::MemberObjectIterator<V, R, Iter, Member>;
 
     return make_array<T>(I(first, member), I(last, member), pool);
+}
+
+template <typename Iter, typename Member>
+inline EnableMakeArray<std::is_member_object_pointer_v<Member>> make_array(
+    Iter first, Iter last, Member member,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+{
+    using R = decltype((*first).*member);
+    using V = std::remove_cv_t<std::remove_reference_t<R>>;
+    using I = internal::MemberObjectIterator<V, R, Iter, Member>;
+
+    return make_array<V>(I(first, member), I(last, member), pool);
 }
 
 template <typename T, typename Iter, typename Member>
@@ -165,6 +167,18 @@ inline EnableMakeArray<std::is_member_function_pointer_v<Member>> make_array(
     return make_array<T>(I(first, member), I(last, member), pool);
 }
 
+template <typename Iter, typename Member>
+inline EnableMakeArray<std::is_member_function_pointer_v<Member>> make_array(
+    Iter first, Iter last, Member member,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+{
+    using R = decltype(((*first).*member)());
+    using V = std::remove_cv_t<std::remove_reference_t<R>>;
+    using I = internal::MemberFunctionIterator<V, R, Iter, Member>;
+
+    return make_array<V>(I(first, member), I(last, member), pool);
+}
+
 template <typename T, typename Iter, typename Getter>
 inline EnableMakeArray<!std::is_member_pointer_v<Getter> &&
     std::is_invocable_v<Getter, decltype(*std::declval<Iter>())>>
@@ -176,6 +190,19 @@ make_array(Iter first, Iter last, Getter getter,
     using I = internal::MemberGetterIterator<V, R, Iter, Getter>;
 
     return make_array<T>(I(first, getter), I(last, getter), pool);
+}
+
+template <typename Iter, typename Getter>
+inline EnableMakeArray<!std::is_member_pointer_v<Getter> &&
+    std::is_invocable_v<Getter, decltype(*std::declval<Iter>())>>
+make_array(Iter first, Iter last, Getter getter,
+    ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
+{
+    using R = decltype(getter(*first));
+    using V = std::remove_cv_t<std::remove_reference_t<R>>;
+    using I = internal::MemberGetterIterator<V, R, Iter, Getter>;
+
+    return make_array<V>(I(first, getter), I(last, getter), pool);
 }
 
 template <typename T, typename Iter, typename Valid, typename... Args>
@@ -214,6 +241,13 @@ inline std::shared_ptr<::arrow::Array> make_array(
     std::size_t n, const V *data, Args &&... args)
 {
     return make_array<T>(data, data + n, std::forward<Args>(args)...);
+}
+
+template <typename V, typename... Args>
+inline std::shared_ptr<::arrow::Array> make_array(
+    std::size_t n, const V *data, Args &&... args)
+{
+    return make_array(data, data + n, std::forward<Args>(args)...);
 }
 
 } // namespace dataframe
