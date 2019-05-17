@@ -258,18 +258,30 @@ class DataReader : public ::arrow::TypeVisitor
             return nullptr;
         }
 
+        auto n = data_.length;
+        if (n == 0) {
+            data_.null_count = 0;
+            return nullptr;
+        }
+
         auto buffer = decompress(view_[Schema::MASK()].get_binary(), pool_);
-        if (buffer->size() != ::arrow::BitUtil::BytesForBits(data_.length)) {
+        auto nbytes = buffer->size();
+        auto bitmap =
+            dynamic_cast<::arrow::MutableBuffer &>(*buffer).mutable_data();
+
+        if (nbytes != ::arrow::BitUtil::BytesForBits(n)) {
             throw DataFrameException("Mask has incorrect length");
         }
 
-        auto count =
-            ::arrow::internal::CountSetBits(buffer->data(), 0, data_.length);
+        internal::swap_bit_order(bitmap[nbytes - 1]);
+        auto count = ::arrow::internal::CountSetBits(bitmap, 0, n);
 
         if (count == data_.length) {
             data_.null_count = 0;
             return nullptr;
         }
+
+        internal::swap_bit_order(static_cast<std::size_t>(nbytes - 1), bitmap);
 
         data_.null_count = data_.length - count;
 

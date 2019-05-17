@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_COMPRESS_HPP
 #define DATAFRAME_SERIALIZER_BSON_COMPRESS_HPP
 
+#include <array>
 #include <arrow/allocator.h>
 #include <arrow/api.h>
 #include <bsoncxx/builder/basic/array.hpp>
@@ -209,6 +210,38 @@ inline std::int64_t decode_offsets(
 
     return n - 1;
 }
+
+namespace internal {
+
+inline std::array<std::uint8_t, 256> swap_bit_order_table()
+{
+    std::array<std::uint8_t, 256> ret;
+    for (unsigned x = 0; x != 256; ++x) {
+        auto s = (x * 0x02020202) & 0x84422010;
+        auto t = (x * 8) & 0x00000420;
+        ret[x] = static_cast<std::uint8_t>((s + t) % 1023);
+    }
+
+    return ret;
+}
+
+inline void swap_bit_order(std::uint8_t &byte)
+{
+    static auto table = swap_bit_order_table();
+
+    byte = table[byte];
+}
+
+inline void swap_bit_order(std::size_t n, std::uint8_t *bytes)
+{
+    static auto table = swap_bit_order_table();
+
+    for (std::size_t i = 0; i != n; ++i) {
+        bytes[i] = table[bytes[i]];
+    }
+}
+
+} // namespace internal
 
 } // namespace bson
 
