@@ -49,8 +49,7 @@ template <typename T>
 struct IsType<Dict<T>, ::arrow::DictionaryType> {
     static bool is_type(const ::arrow::DictionaryType &type)
     {
-        return ::dataframe::is_type<std::int32_t>(type.index_type()) &&
-            ::dataframe::is_type<T>(type.dictionary()->type());
+        return ::dataframe::is_type<T>(type.dictionary()->type());
     }
 };
 
