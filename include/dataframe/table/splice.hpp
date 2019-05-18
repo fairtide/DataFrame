@@ -197,15 +197,15 @@ inline DataFrame splice(const DataFrame &df, const std::string &name,
                             ->unit());
 
     if (data_nanos > time_nanos) {
-        // data has higher resolution
+        // data has lower resolution
         auto ratio = data_nanos / time_nanos;
         return splice(
-            df, name, mintimestamp.value * ratio, maxtimestamp.value * ratio);
+            df, name, mintimestamp.value / ratio, maxtimestamp.value / ratio);
     } else {
-        // boundary has higher resolution
+        // data has higher resolution
         auto ratio = time_nanos / data_nanos;
         return splice(
-            df, name, mintimestamp.value / ratio, maxtimestamp.value / ratio);
+            df, name, mintimestamp.value * ratio, maxtimestamp.value * ratio);
     }
 }
 

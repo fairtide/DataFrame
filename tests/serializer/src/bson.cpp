@@ -55,6 +55,34 @@ struct Output {
 
 static Output output;
 
+TEST_CASE("BSON swap bit order", "[serializer]")
+{
+    using traits = std::numeric_limits<std::uint8_t>;
+
+    for (unsigned i = traits::min(); i <= traits::max(); ++i) {
+        auto ibyte = static_cast<std::uint8_t>(i);
+        auto jbyte = ibyte;
+
+        ::dataframe::bson::internal::swap_bit_order(jbyte);
+
+        std::bitset<8> ibits(ibyte);
+        std::bitset<8> jbits(jbyte);
+
+        std::vector<bool> iflags(8);
+        for (std::size_t k = 0; k != 8; ++k) {
+            iflags[k] = ibits[k];
+        }
+
+        std::vector<bool> jflags(8);
+        for (std::size_t k = 0; k != 8; ++k) {
+            jflags[k] = jbits[k];
+        }
+
+        CHECK(std::equal(
+            iflags.begin(), iflags.end(), jflags.rbegin(), jflags.rend()));
+    }
+}
+
 TEMPLATE_TEST_CASE("BSON", "[serializer][template]", TEST_TYPES)
 {
     auto array = ::dataframe::make_array<TestType>(make_data<TestType>(5));
