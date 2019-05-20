@@ -21,10 +21,11 @@
 
 namespace dataframe {
 
-template <typename T>
-struct ArrayMaker<Dict<T>> {
+template <typename T, typename Index, bool Ordered>
+struct ArrayMaker<Dict<T, Index, Ordered>> {
     template <typename Iter>
-    static void append(BuilderType<Dict<T>> *builder, Iter first, Iter last)
+    static void append(
+        BuilderType<Dict<T, Index, Ordered>> *builder, Iter first, Iter last)
     {
         auto array = make_array<T>(first, last);
         DF_ARROW_ERROR_HANDLER(builder->AppendArray(*array));

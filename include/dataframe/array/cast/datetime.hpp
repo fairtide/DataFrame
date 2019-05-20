@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_DATETIME_HPP
-#define DATAFRAME_ARRAY_DATETIME_HPP
+#ifndef DATAFRAME_ARRAY_CAST_DATETIME_HPP
+#define DATAFRAME_ARRAY_CAST_DATETIME_HPP
 
 #include <dataframe/array/cast/primitive.hpp>
 
@@ -163,4 +163,4 @@ struct CastArrayVisitor<Time<Unit>> : ::arrow::ArrayVisitor {
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_DATETIME_HPP
+#endif // DATAFRAME_ARRAY_CAST_DATETIME_HPP

@@ -38,4 +38,4 @@ struct ArrayMaker<void> : ArrayMaker<std::nullptr_t> {
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_MAKE_BOOL_HPP
+#endif // DATAFRAME_ARRAY_MAKE_NULL_HPP

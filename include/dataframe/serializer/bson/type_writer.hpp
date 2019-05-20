@@ -32,7 +32,7 @@ class TypeWriter : public ::arrow::TypeVisitor
     }
 
 #define DF_DEFINE_VISITOR(TypeName, type)                                     \
-    ::arrow::Status Visit(const ::arrow::TypeName##Type &) override              \
+    ::arrow::Status Visit(const ::arrow::TypeName##Type &) override           \
     {                                                                         \
         builder_.append(                                                      \
             ::bsoncxx::builder::basic::kvp(Schema::TYPE(), type));            \

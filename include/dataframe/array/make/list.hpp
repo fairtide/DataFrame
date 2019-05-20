@@ -43,4 +43,4 @@ struct ArrayMaker<List<T>> {
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_MAKE_STRUCT_HPP
+#endif // DATAFRAME_ARRAY_MAKE_LIST_HPP

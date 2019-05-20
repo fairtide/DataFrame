@@ -21,9 +21,10 @@
 
 #include <catch2/catch.hpp>
 
-TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
-    std::uint8_t, std::int8_t, std::uint16_t, std::int16_t, std::uint32_t,
-    std::int32_t, std::uint64_t, std::int64_t, float, double, std::string,
+TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]", void,
+    bool, std::uint8_t, std::int8_t, std::uint16_t, std::int16_t,
+    std::uint32_t, std::int32_t, std::uint64_t, std::int64_t, float, double,
+    std::string, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
@@ -47,6 +48,7 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
         auto data = ::dataframe::make_array<TestType>(values);
         auto view = ::dataframe::make_view<TestType>(data);
 
+        CHECK(::dataframe::is_type<TestType>(data->type()));
         CHECK(data->length() == static_cast<std::int64_t>(n));
         CHECK(data->null_count() == 0);
         CHECK(std::equal(
@@ -62,6 +64,7 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]",
         auto data = ::dataframe::make_array<TestType>(values, valids);
         auto view = ::dataframe::make_view<TestType>(data);
 
+        CHECK(::dataframe::is_type<TestType>(data->type()));
         CHECK(data->length() == static_cast<std::int64_t>(n));
         CHECK(data->null_count() == null_count);
         CHECK(std::equal(

@@ -14,6 +14,9 @@
 // limitations under the License.
 // ============================================================================
 
+#ifndef DATAFRAME_TESTS_MAKE_DATA_HPP
+#define DATAFRAME_TESTS_MAKE_DATA_HPP
+
 #include <dataframe/array/type.hpp>
 #include <dataframe/array/view.hpp>
 #include <random>
@@ -183,3 +186,5 @@ inline bool operator==(const std::vector<T> &v1, V v2)
 }
 
 } // namespace dataframe
+
+#endif // DATAFRAME_TESTS_MAKE_DATA_HPP
