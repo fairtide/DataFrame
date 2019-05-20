@@ -32,7 +32,7 @@ sub update
 {
     my $dir = shift;
 
-    return if $dir =~ /googletest/;
+    return if $dir =~ /Catch2/;
 
     my @ls = `ls $dir`;
     for (@ls) {
@@ -77,7 +77,7 @@ sub filename
         $guard =~ s/\//_/g;
         $guard =~ s/\./_/g;
         $guard =~ s/^DATAFRAME_include_//;
-        $guard =~ s/^DATAFRAME_example_.*_include/DATAFRAME_EXAMPLE/;
+        $guard =~ s/^DATAFRAME_tests_.*_include/DATAFRAME_TESTS/;
         $guard = "\U$guard";
         my @found = grep { /$guard/ } @lines;
         say "Incorrect header guard: $file: $guard" unless @found == 3;

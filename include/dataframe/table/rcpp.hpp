@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_RCPP_HPP
-#define DATAFRAME_RCPP_HPP
+#ifndef DATAFRAME_TABLE_RCPP_HPP
+#define DATAFRAME_TABLE_RCPP_HPP
 
 #include <Rcpp.h>
 #undef Free
@@ -478,11 +478,12 @@ inline void cast_dataframe(const DataFrame &df, ::Rcpp::List *out)
             ::Rcpp::newDatetimeVector vec(0);
             cast_array(*col.data(), &vec);
             ret[key] = vec;
-        } else if (col.is_type<Dict<std::string>>()) {
+        } else if (col.data()->type()->id() == ::arrow::Type::DICTIONARY) {
+
             ::Rcpp::CharacterVector levels;
             ::Rcpp::IntegerVector index;
 
-            auto data = col.data();
+            auto data = cast_array<Dict<std::string>>(col.data());
             auto view = col.as<Dict<std::string>>();
             auto length = data->length();
             auto indices = view.indices();
@@ -493,14 +494,20 @@ inline void cast_dataframe(const DataFrame &df, ::Rcpp::List *out)
 
             for (std::int64_t j = 0; j != length; ++j) {
                 if (data->IsValid(j)) {
-                    index.push_back(static_cast<int>(
-                        indices[static_cast<std::size_t>(j)] + 1));
+                    index.push_back(indices[static_cast<std::size_t>(j)] + 1);
                 } else {
                     index.push_back(NA_INTEGER);
                 }
             }
 
-            index.attr("class") = "factor";
+            if (std::static_pointer_cast<::arrow::DictionaryType>(
+                    col.data()->type())
+                    ->ordered()) {
+                index.attr("class") = "ordered";
+            } else {
+                index.attr("class") = "factor";
+            }
+
             index.attr("levels") = levels;
 
             ret[key] = index;
@@ -515,4 +522,4 @@ inline void cast_dataframe(const DataFrame &df, ::Rcpp::List *out)
 
 } // namespace dataframe
 
-#endif // DATAFRAME_RCPP_HPP
+#endif // DATAFRAME_TABLE_RCPP_HPP

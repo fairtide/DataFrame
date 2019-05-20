@@ -14,8 +14,8 @@
 // limitations under the License.
 //============================================================================
 
-#ifndef DATAFRAME_SERIALIZER_BSON_READER_HPP
-#define DATAFRAME_SERIALIZER_BSON_READER_HPP
+#ifndef DATAFRAME_SERIALIZER_BSON_COLUMN_READER_HPP
+#define DATAFRAME_SERIALIZER_BSON_COLUMN_READER_HPP
 
 #include <dataframe/serializer/bson/data_reader.hpp>
 #include <dataframe/serializer/bson/type_reader.hpp>
@@ -51,4 +51,4 @@ class ColumnReader
 
 } // namespace dataframe
 
-#endif // DATAFRAME_SERIALIZER_BSON_READER_HPP
+#endif // DATAFRAME_SERIALIZER_BSON_COLUMN_READER_HPP

@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_SPLICE_HPP
-#define DATAFRAME_SPLICE_HPP
+#ifndef DATAFRAME_TABLE_SPLICE_HPP
+#define DATAFRAME_TABLE_SPLICE_HPP
 
 #include <dataframe/table/data_frame.hpp>
 
@@ -211,4 +211,4 @@ inline DataFrame splice(const DataFrame &df, const std::string &name,
 
 } // namespace dataframe
 
-#endif // DATAFRAME_SPLICE_HPP
+#endif // DATAFRAME_TABLE_SPLICE_HPP

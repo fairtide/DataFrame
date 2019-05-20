@@ -22,8 +22,8 @@
 
 namespace dataframe {
 
-template <typename T>
-class ArrayView<Dict<T>>
+template <typename T, typename Index, bool Ordered>
+class ArrayView<Dict<T, Index, Ordered>>
 {
   public:
     using value_type = typename ArrayView<T>::value_type;
@@ -69,21 +69,21 @@ class ArrayView<Dict<T>>
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-    const ArrayView<std::int64_t> &indices() const { return indices_; }
+    const ArrayView<Index> &indices() const { return indices_; }
 
     const ArrayView<T> &dictionary() const { return dictionary_; }
 
     ArrayView() = default;
 
     ArrayView(std::shared_ptr<::arrow::Array> data)
-        : data_(std::move(data))
+        : data_(cast_array<Dict<T, Index, Ordered>>(data))
         , size_(static_cast<size_type>(data_->length()))
         , dictionary_(make_view<T>(
               dynamic_cast<const ::arrow::DictionaryArray &>(*data_)
                   .dictionary()))
-        , indices_(make_view<std::int64_t>(cast_array<std::int64_t>(
+        , indices_(make_view<Index>(
               dynamic_cast<const ::arrow::DictionaryArray &>(*data_)
-                  .indices())))
+                  .indices()))
     {
     }
 
@@ -163,7 +163,7 @@ class ArrayView<Dict<T>>
     std::shared_ptr<::arrow::Array> data_;
     size_type size_;
     ArrayView<T> dictionary_;
-    ArrayView<std::int64_t> indices_;
+    ArrayView<Index> indices_;
     value_type null_{};
 };
 

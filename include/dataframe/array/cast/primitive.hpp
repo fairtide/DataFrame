@@ -45,21 +45,20 @@ struct CastArrayVisitor : ::arrow::ArrayVisitor {
         } else {                                                              \
             auto builder = make_builder<T>(pool);                             \
                                                                               \
-            if (array.null_count() == 0) {                                    \
-                ARROW_RETURN_NOT_OK(builder->AppendValues(array.raw_values(), \
-                    array.raw_values() + array.length()));                    \
-            } else {                                                          \
-                auto n = array.length();                                      \
-                std::vector<bool> valid;                                      \
-                valid.reserve(static_cast<std::size_t>(n));                   \
-                for (std::int64_t i = 0; i != n; ++i) {                       \
-                    valid.push_back(array.IsValid(i));                        \
-                }                                                             \
+            ARROW_RETURN_NOT_OK(builder->AppendValues(                        \
+                array.raw_values(), array.raw_values() + array.length()));    \
                                                                               \
-                ARROW_RETURN_NOT_OK(builder->AppendValues(array.raw_values(), \
-                    array.raw_values() + array.length(), valid.begin()));     \
-            }                                                                 \
             ARROW_RETURN_NOT_OK(builder->Finish(&result));                    \
+                                                                              \
+            if (array.null_count() != 0) {                                    \
+                auto data = result->data()->Copy();                           \
+                                                                              \
+                ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(pool,       \
+                    array.null_bitmap()->data(), array.offset(),              \
+                    array.length(), &data->buffers[0]));                      \
+                                                                              \
+                result = ::arrow::MakeArray(std::move(data));                 \
+            }                                                                 \
         }                                                                     \
                                                                               \
         return ::arrow::Status::OK();                                         \

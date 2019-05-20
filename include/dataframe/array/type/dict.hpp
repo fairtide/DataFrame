@@ -21,12 +21,12 @@
 
 namespace dataframe {
 
-template <typename T>
+template <typename T, typename Index = std::int32_t, bool Ordered = false>
 struct Dict {
 };
 
-template <typename T>
-struct TypeTraits<Dict<T>> {
+template <typename T, typename Index, bool Ordered>
+struct TypeTraits<Dict<T, Index, Ordered>> {
     using scalar_type = ScalarType<T>;
     using data_type = ::arrow::DictionaryType;
     using array_type = ::arrow::DictionaryArray;
@@ -45,11 +45,13 @@ struct TypeTraits<Dict<T>> {
     }
 };
 
-template <typename T>
-struct IsType<Dict<T>, ::arrow::DictionaryType> {
+template <typename T, typename Index, bool Ordered>
+struct IsType<Dict<T, Index, Ordered>, ::arrow::DictionaryType> {
     static bool is_type(const ::arrow::DictionaryType &type)
     {
-        return ::dataframe::is_type<T>(type.dictionary()->type());
+        return ::dataframe::is_type<T>(type.dictionary()->type()) &&
+            ::dataframe::is_type<Index>(type.index_type()) &&
+            Ordered == type.ordered();
     }
 };
 

@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_ARRAY_MAKE_PRIMITIVE_HPP
 #define DATAFRAME_ARRAY_MAKE_PRIMITIVE_HPP
 
+#include <dataframe/array/cast.hpp>
 #include <dataframe/array/type.hpp>
 
 namespace dataframe {
@@ -45,7 +46,7 @@ make_array(Iter first, Iter last,
     std::shared_ptr<::arrow::Array> ret;
     DF_ARROW_ERROR_HANDLER(builder->Finish(&ret));
 
-    return ret;
+    return cast_array<T>(ret, pool);
 }
 
 } // namespace dataframe

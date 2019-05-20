@@ -87,6 +87,12 @@ struct CastArrayVisitor<Struct<Types...>> : ::arrow::ArrayVisitor {
     }
 };
 
+template <typename T, typename... Types>
+struct CastArrayVisitor<NamedStruct<T, Types...>>
+    : CastArrayVisitor<Struct<Types...>> {
+    using CastArrayVisitor<Struct<Types...>>::CastArrayVisitor;
+};
+
 } // namespace dataframe
 
 #endif // DATAFRAME_ARRAY_CAST_STRUCT_HPP
