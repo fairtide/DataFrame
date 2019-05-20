@@ -35,19 +35,19 @@ struct CastArrayVisitor<Dict<T, Index, Ordered>> : ::arrow::ArrayVisitor {
 
     ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
-        auto index = cast_array<Index>(array.indices());
-        auto index_type = index->type();
-
+        auto index = cast_array<Index>(array.indices(), pool);
         auto dicts = cast_array<T>(array.dictionary(), pool);
 
-        auto type = ::arrow::dictionary(
-            std::move(index_type), std::move(dicts), Ordered);
+        auto type =
+            ::arrow::dictionary(index->type(), std::move(dicts), Ordered);
 
         result = std::make_shared<::arrow::DictionaryArray>(
             std::move(type), std::move(index));
 
         if (array.null_count() != 0) {
             auto data = result->data()->Copy();
+
+            data->null_count = array.null_count();
 
             ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(pool,
                 array.null_bitmap()->data(), array.offset(), array.length(),
