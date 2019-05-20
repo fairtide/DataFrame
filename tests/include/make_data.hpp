@@ -17,8 +17,7 @@
 #ifndef DATAFRAME_TESTS_MAKE_DATA_HPP
 #define DATAFRAME_TESTS_MAKE_DATA_HPP
 
-#include <dataframe/array/type.hpp>
-#include <dataframe/array/view.hpp>
+#include <dataframe/array.hpp>
 #include <random>
 
 template <typename T>

@@ -46,6 +46,16 @@ struct CastArrayVisitor<Dict<T, Index, Ordered>> : ::arrow::ArrayVisitor {
         result = std::make_shared<::arrow::DictionaryArray>(
             std::move(type), std::move(index));
 
+        if (array.null_count() != 0) {
+            auto data = result->data()->Copy();
+
+            ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(pool,
+                array.null_bitmap()->data(), array.offset(), array.length(),
+                &data->buffers[0]));
+
+            result = ::arrow::MakeArray(std::move(data));
+        }
+
         return ::arrow::Status::OK();
     }
 };

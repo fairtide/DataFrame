@@ -50,7 +50,13 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]", void,
 
         CHECK(::dataframe::is_type<TestType>(data->type()));
         CHECK(data->length() == static_cast<std::int64_t>(n));
-        CHECK(data->null_count() == 0);
+
+        if constexpr (std::is_same_v<TestType, void>) {
+            CHECK(data->null_count() == data->length());
+        } else {
+            CHECK(data->null_count() == 0);
+        }
+
         CHECK(std::equal(
             values.begin(), values.end(), view.begin(), view.end()));
     }
@@ -66,8 +72,17 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]", void,
 
         CHECK(::dataframe::is_type<TestType>(data->type()));
         CHECK(data->length() == static_cast<std::int64_t>(n));
-        CHECK(data->null_count() == null_count);
-        CHECK(std::equal(
-            values.begin(), values.end(), view.begin(), view.end()));
+
+        if constexpr (std::is_same_v<TestType, void>) {
+            CHECK(data->null_count() == data->length());
+        } else {
+            CHECK(data->null_count() == null_count);
+        }
+
+        bool pass = true;
+        for (std::size_t i = 0; i != n; ++i) {
+            pass = !valids[i] || values[i] == view[i];
+        }
+        CHECK(pass);
     }
 }
