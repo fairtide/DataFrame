@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_CONCATENATE_HPP
-#define DATAFRAME_CONCATENATE_HPP
+#ifndef DATAFRAME_TABLE_BIND_HPP
+#define DATAFRAME_TABLE_BIND_HPP
 
 #include <dataframe/table/data_frame.hpp>
 #include <map>
@@ -129,4 +129,4 @@ inline DataFrame bind_cols(const std::vector<DataFrame> &dfs)
 
 } // namespace dataframe
 
-#endif // DATAFRAME_CONCATENATE_HPP
+#endif // DATAFRAME_TABLE_BIND_HPP

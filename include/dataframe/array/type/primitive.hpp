@@ -103,7 +103,7 @@ inline bool is_type(const ::arrow::DataType &type)
         bool result = false;
 
 #define DF_DEFINE_VISITOR(Arrow)                                              \
-    ::arrow::Status Visit(const ::arrow::Arrow##Type &type) override             \
+    ::arrow::Status Visit(const ::arrow::Arrow##Type &type) override          \
     {                                                                         \
         result = IsType<T, ::arrow::Arrow##Type>::is_type(type);              \
         return ::arrow::Status::OK();                                         \

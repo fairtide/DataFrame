@@ -21,8 +21,8 @@
 
 namespace dataframe {
 
-template <typename T>
-struct CastArrayVisitor<Dict<T>> : ::arrow::ArrayVisitor {
+template <typename T, typename Index, bool Ordered>
+struct CastArrayVisitor<Dict<T, Index, Ordered>> : ::arrow::ArrayVisitor {
     std::shared_ptr<::arrow::Array> result;
     ::arrow::MemoryPool *pool;
 
@@ -35,13 +35,26 @@ struct CastArrayVisitor<Dict<T>> : ::arrow::ArrayVisitor {
 
     ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
-        auto index = array.indices();
+        auto index = cast_array<Index>(array.indices(), pool);
         auto dicts = cast_array<T>(array.dictionary(), pool);
-        auto type = ::arrow::dictionary(index->type(), std::move(dicts),
-            static_cast<const ::arrow::DictionaryType &>(*array.type())
-                .ordered());
 
-        result = std::make_shared<::arrow::DictionaryArray>(type, index);
+        auto type =
+            ::arrow::dictionary(index->type(), std::move(dicts), Ordered);
+
+        result = std::make_shared<::arrow::DictionaryArray>(
+            std::move(type), std::move(index));
+
+        if (array.null_count() != 0) {
+            auto data = result->data()->Copy();
+
+            data->null_count = array.null_count();
+
+            ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(pool,
+                array.null_bitmap()->data(), array.offset(), array.length(),
+                &data->buffers[0]));
+
+            result = ::arrow::MakeArray(std::move(data));
+        }
 
         return ::arrow::Status::OK();
     }

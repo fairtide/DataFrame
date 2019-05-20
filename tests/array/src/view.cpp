@@ -107,7 +107,8 @@ struct TestData : TestDataBase<T> {
         std::vector<::dataframe::ScalarType<T>> rawval;
 
         for (std::size_t i = 0; i != n; ++i) {
-            rawval.push_back(static_cast<::dataframe::ScalarType<T>>(rval(rng)));
+            rawval.push_back(
+                static_cast<::dataframe::ScalarType<T>>(rval(rng)));
             this->values.emplace_back(rawval.back());
         }
 

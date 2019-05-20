@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_CAST_BOOL_HPP
-#define DATAFRAME_ARRAY_CAST_BOOL_HPP
+#ifndef DATAFRAME_ARRAY_CAST_NULL_HPP
+#define DATAFRAME_ARRAY_CAST_NULL_HPP
 
 #include <dataframe/array/cast/primitive.hpp>
 
@@ -44,4 +44,4 @@ struct CastArrayVisitor<void> : CastArrayVisitor<std::nullptr_t> {
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_CAST_BOOL_HPP
+#endif // DATAFRAME_ARRAY_CAST_NULL_HPP
