@@ -53,6 +53,8 @@ struct CastArrayVisitor : ::arrow::ArrayVisitor {
             if (array.null_count() != 0) {                                    \
                 auto data = result->data()->Copy();                           \
                                                                               \
+                data->null_count = array.null_count();                        \
+                                                                              \
                 ARROW_RETURN_NOT_OK(::arrow::internal::CopyBitmap(pool,       \
                     array.null_bitmap()->data(), array.offset(),              \
                     array.length(), &data->buffers[0]));                      \
