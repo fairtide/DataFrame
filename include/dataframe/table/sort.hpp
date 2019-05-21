@@ -156,7 +156,7 @@ class SortVisitor : public ::arrow::ArrayVisitor
 
 } // namespace internal
 
-inline DataFrame sort(
+inline std::vector<std::int64_t> sort_index(
     const DataFrame &df, const std::string &by, bool rev = false)
 {
     if (!df[by]) {
@@ -166,11 +166,19 @@ inline DataFrame sort(
     internal::SortVisitor visitor(rev);
     DF_ARROW_ERROR_HANDLER(df[by].data()->Accept(&visitor));
 
-    if (std::is_sorted(visitor.index.begin(), visitor.index.end())) {
+    return std::move(visitor.index);
+}
+
+inline DataFrame sort(
+    const DataFrame &df, const std::string &by, bool rev = false)
+{
+    auto index = sort_index(df, by, rev);
+
+    if (std::is_sorted(index.begin(), index.end())) {
         return df;
     }
 
-    return select(df, visitor.index.begin(), visitor.index.end());
+    return select(df, index.begin(), index.end());
 }
 
 } // namespace dataframe
