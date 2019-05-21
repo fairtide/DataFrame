@@ -21,6 +21,7 @@
 #include <boost/date_time/gregorian/gregorian.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
@@ -254,8 +255,9 @@ class JSONRowWriter : public Writer
     };
 
   public:
-    JSONRowWriter(std::string root)
+    JSONRowWriter(std::string root, bool pretty = false)
         : root_(std::move(root))
+        , pretty_(pretty)
     {
         if (root_.empty()) {
             throw DataFrameException(
@@ -302,12 +304,20 @@ class JSONRowWriter : public Writer
         root.AddMember(::rapidjson::StringRef(root_.data(), root_.size()),
             data, root.GetAllocator());
 
-        ::rapidjson::Writer<::rapidjson::StringBuffer> visitor(buffer_);
-        root.Accept(visitor);
+        buffer_.Clear();
+        if (pretty_) {
+            ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> visitor(
+                buffer_);
+            root.Accept(visitor);
+        } else {
+            ::rapidjson::Writer<::rapidjson::StringBuffer> visitor(buffer_);
+            root.Accept(visitor);
+        }
     }
 
   private:
     std::string root_;
+    bool pretty_;
     ::rapidjson::StringBuffer buffer_;
 };
 
@@ -538,6 +548,11 @@ class JSONColumnWriter : public Writer
     };
 
   public:
+    JSONColumnWriter(bool pretty = false)
+        : pretty_(pretty)
+    {
+    }
+
     std::size_t size() const override { return buffer_.GetSize(); }
 
     const std::uint8_t *data() const override
@@ -567,11 +582,19 @@ class JSONColumnWriter : public Writer
             root.AddMember(key, value, root.GetAllocator());
         }
 
-        ::rapidjson::Writer<::rapidjson::StringBuffer> visitor(buffer_);
-        root.Accept(visitor);
+        buffer_.Clear();
+        if (pretty_) {
+            ::rapidjson::PrettyWriter<::rapidjson::StringBuffer> visitor(
+                buffer_);
+            root.Accept(visitor);
+        } else {
+            ::rapidjson::Writer<::rapidjson::StringBuffer> visitor(buffer_);
+            root.Accept(visitor);
+        }
     }
 
   private:
+    bool pretty_;
     ::rapidjson::StringBuffer buffer_;
 };
 
