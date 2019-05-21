@@ -108,13 +108,15 @@ class SortVisitor : public ::arrow::ArrayVisitor
         }
 
         if (rev_) {
-            std::sort(index.begin(), index.end(), [&](auto &&i1, auto &&i2) {
-                return array.GetView(i1) > array.GetView(i2);
-            });
+            std::stable_sort(
+                index.begin(), index.end(), [&](auto &&i1, auto &&i2) {
+                    return array.GetView(i1) > array.GetView(i2);
+                });
         } else {
-            std::sort(index.begin(), index.end(), [&](auto &&i1, auto &&i2) {
-                return array.GetView(i1) < array.GetView(i2);
-            });
+            std::stable_sort(
+                index.begin(), index.end(), [&](auto &&i1, auto &&i2) {
+                    return array.GetView(i1) < array.GetView(i2);
+                });
         }
 
         return ::arrow::Status::OK();
@@ -138,10 +140,10 @@ class SortVisitor : public ::arrow::ArrayVisitor
         }
 
         if (rev_) {
-            std::sort(index.begin(), index.end(),
+            std::stable_sort(index.begin(), index.end(),
                 [&](auto &&i1, auto &&i2) { return v[i1] > v[i2]; });
         } else {
-            std::sort(index.begin(), index.end(),
+            std::stable_sort(index.begin(), index.end(),
                 [&](auto &&i1, auto &&i2) { return v[i1] < v[i2]; });
         }
 

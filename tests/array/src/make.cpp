@@ -64,8 +64,6 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]", void,
     SECTION("Make nullable array")
     {
         auto valids = make_data<bool>(n);
-        auto null_count = static_cast<std::int64_t>(n) -
-            std::accumulate(valids.begin(), valids.end(), INT64_C(0));
 
         auto data = ::dataframe::make_array<TestType>(values, valids);
         auto view = ::dataframe::make_view<TestType>(data);
@@ -76,6 +74,8 @@ TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]", void,
         if constexpr (std::is_same_v<TestType, void>) {
             CHECK(data->null_count() == data->length());
         } else {
+            auto null_count = static_cast<std::int64_t>(n) -
+                std::accumulate(valids.begin(), valids.end(), INT64_C(0));
             CHECK(data->null_count() == null_count);
         }
 
