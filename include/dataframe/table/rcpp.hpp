@@ -97,16 +97,6 @@ class RcppPrimitiveVisitor : public ::arrow::ArrayVisitor
         return visit(array);
     }
 
-    ::arrow::Status Visit(const ::arrow::Date32Array &array) override
-    {
-        return visit(array);
-    }
-
-    ::arrow::Status Visit(const ::arrow::TimestampArray &array) override
-    {
-        return visit(array);
-    }
-
   private:
     template <typename ArrayType>
     ::arrow::Status visit(const ArrayType &array)
@@ -297,7 +287,6 @@ inline std::shared_ptr<::arrow::Array> make_array(
             auto dictionary = make_array<std::string>(lvls);
 
             ::arrow::StringDictionaryBuilder builder(
-                ::arrow::dictionary(index_type, dictionary),
                 ::arrow::default_memory_pool());
 
             for (auto i : values) {
@@ -312,7 +301,9 @@ inline std::shared_ptr<::arrow::Array> make_array(
             std::shared_ptr<::arrow::Array> ret;
             DF_ARROW_ERROR_HANDLER(builder.Finish(&ret));
 
-            return ret;
+            return clsname == "ordered" ?
+                cast_array<Dict<std::string, std::int32_t, true>>(ret) :
+                cast_array<Dict<std::string, std::int32_t, false>>(ret);
         }
     }
 
@@ -347,7 +338,7 @@ inline std::shared_ptr<::arrow::Array> make_array(
             auto v = values.begin();
             std::vector<double> t(n);
             for (std::size_t i = 0; i != n; ++i) {
-                t[i] = v[i] * 1e6;
+                t[i] = std::round(v[i] * 1e6);
             }
 
             return make_array<Timestamp<TimeUnit::Microsecond>>(
