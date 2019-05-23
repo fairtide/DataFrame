@@ -77,9 +77,12 @@ inline ::bsoncxx::types::b_binary compress(const ::arrow::Buffer &buffer,
     *reinterpret_cast<std::int32_t *>(dst) = n;
     dst += sizeof(std::int32_t);
 
-    auto len = compression_level <= 0 ?
-        ::LZ4_compress_default(src, dst, n, m) :
-        ::LZ4_compress_HC(src, dst, n, m, compression_level);
+    auto len = n;
+    if (n != 0) {
+        len = compression_level <= 0 ?
+            ::LZ4_compress_default(src, dst, n, m) :
+            ::LZ4_compress_HC(src, dst, n, m, compression_level);
+    }
 
     out->resize(static_cast<std::size_t>(len) + sizeof(std::int32_t));
 
@@ -126,7 +129,10 @@ inline std::unique_ptr<::arrow::Buffer> decompress(
     auto &buf = dynamic_cast<::arrow::MutableBuffer &>(*ret);
     auto dst = reinterpret_cast<char *>(buf.mutable_data());
 
-    auto k = ::LZ4_decompress_safe(src, dst, n, m);
+    auto k = m;
+    if (m != 0) {
+        k = ::LZ4_decompress_safe(src, dst, n, m);
+    }
 
     if (k != m) {
         throw DataFrameException("Decompress failed");
