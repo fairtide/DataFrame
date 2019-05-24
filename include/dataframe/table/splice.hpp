@@ -174,8 +174,8 @@ inline DataFrame splice_datetime(
     } else if (df[name].is_type<Datestamp<DateUnit::Millisecond>>()) {
         data_nanos = time_unit_nanos(DateUnit::Millisecond);
     } else {
-        auto &type =
-            dynamic_cast<const ::arrow::TimestampType &>(*col.data()->type());
+        auto &type = dynamic_cast<const ::arrow::TimestampType &>(
+            df[name].data()->type());
         data_nanos = time_unit_nanos(type.unit());
     }
 
