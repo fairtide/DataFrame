@@ -160,53 +160,50 @@ inline std::enable_if_t<std::is_arithmetic_v<T>, DataFrame> splice(
     return df.rows(visitor.begin(), visitor.end());
 }
 
-inline DataFrame splice(const DataFrame &df, const std::string &name,
-    Datestamp<DateUnit::Day> mindate, Datestamp<DateUnit::Day> maxdate)
+namespace internal {
+
+template <typename Index>
+inline DataFrame splice_datetime(
+    const DataFrame &df, const std::string &name, Index minval, Index maxval)
 {
-    if (!df[name].is_type<Datestamp<DateUnit::Day>>()) {
-        throw DataFrameException(name + " is not a Date column");
+    auto time_nanos = time_unit_nanos(Index::unit);
+
+    auto data_nanos = time_nanos;
+    if (df[name].is_type<Datestamp<DateUnit::Day>>()) {
+        data_nanos = time_unit_nanos(DateUnit::Day);
+    } else if (df[name].is_type<Datestamp<DateUnit::Millisecond>>()) {
+        data_nanos = time_unit_nanos(DateUnit::Millisecond);
+    } else {
+        auto &type = dynamic_cast<const ::arrow::TimestampType &>(
+            *df[name].data()->type());
+        data_nanos = time_unit_nanos(type.unit());
     }
-
-    return splice(df, name, mindate.value, maxdate.value);
-}
-
-inline DataFrame splice(const DataFrame &df, const std::string &name,
-    Datestamp<DateUnit::Millisecond> mindate,
-    Datestamp<DateUnit::Millisecond> maxdate)
-{
-    if (!df[name].is_type<Datestamp<DateUnit::Millisecond>>()) {
-        throw DataFrameException(name + " is not a Date column");
-    }
-
-    return splice(df, name, mindate.value, maxdate.value);
-}
-
-template <TimeUnit Unit>
-inline DataFrame splice(const DataFrame &df, const std::string &name,
-    Timestamp<Unit> mintimestamp, Timestamp<Unit> maxtimestamp)
-{
-    if (!df[name].is_timestamp()) {
-        throw DataFrameException(name + " is not a Timestamp column");
-    }
-
-    auto time_nanos = time_unit_nanos(Unit);
-
-    auto data_nanos =
-        time_unit_nanos(std::static_pointer_cast<::arrow::TimestampType>(
-            df[name].data()->type())
-                            ->unit());
 
     if (data_nanos > time_nanos) {
         // data has lower resolution
         auto ratio = data_nanos / time_nanos;
-        return splice(
-            df, name, mintimestamp.value / ratio, maxtimestamp.value / ratio);
+        return splice(df, name, minval.value / ratio, maxval.value / ratio);
     } else {
         // data has higher resolution
         auto ratio = time_nanos / data_nanos;
-        return splice(
-            df, name, mintimestamp.value * ratio, maxtimestamp.value * ratio);
+        return splice(df, name, minval.value * ratio, maxval.value * ratio);
     }
+}
+
+} // namespace internal
+
+template <DateUnit Unit>
+inline DataFrame splice(const DataFrame &df, const std::string &name,
+    Datestamp<Unit> mindate, Datestamp<Unit> maxdate)
+{
+    return internal::splice_datetime(df, name, mindate, maxdate);
+}
+
+template <TimeUnit Unit>
+inline DataFrame splice(const DataFrame &df, const std::string &name,
+    Timestamp<Unit> mintime, Timestamp<Unit> maxtime)
+{
+    return internal::splice_datetime(df, name, mintime, maxtime);
 }
 
 } // namespace dataframe

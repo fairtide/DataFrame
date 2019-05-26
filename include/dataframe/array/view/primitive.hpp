@@ -55,6 +55,9 @@ class ArrayView
               dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
         , end_(begin_ + size_)
     {
+        if (!is_type<T>(data_)) {
+            throw DataFrameException("Mismatch type for view type");
+        }
     }
 
     ArrayView(const ArrayView &) = default;

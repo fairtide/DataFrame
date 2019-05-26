@@ -171,13 +171,16 @@ class DataWriter : public ::arrow::ArrayVisitor
 
         // data
 
-        auto data = array.value_data()->data();
         auto data_offset = array.value_offset(0);
         auto data_length = array.value_offset(array.length()) - data_offset;
 
+        const std::uint8_t *data = nullptr;
+        if (data_length != 0) {
+            data = array.value_data()->data() + data_offset;
+        }
+
         builder_.append(kvp(Schema::DATA(),
-            compress(data_length, data + data_offset, &buffer2_,
-                compression_level_)));
+            compress(data_length, data, &buffer2_, compression_level_)));
 
         // mask
 
