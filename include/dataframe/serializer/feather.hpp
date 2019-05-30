@@ -59,7 +59,7 @@ class FeatherWriter : public Writer
         DF_ARROW_ERROR_HANDLER(
             ::arrow::io::BufferOutputStream::Create(0, pool_, &stream));
 
-        auto &table = *df.table();
+        auto &table = df.table();
         std::unique_ptr<::arrow::ipc::feather::TableWriter> writer;
         DF_ARROW_ERROR_HANDLER(
             ::arrow::ipc::feather::TableWriter::Open(stream, &writer));

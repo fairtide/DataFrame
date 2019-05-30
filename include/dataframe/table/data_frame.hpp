@@ -93,7 +93,7 @@ class DataFrame
         return operator[](j);
     }
 
-    const std::shared_ptr<::arrow::Table> &table() const { return table_; }
+    const ::arrow::Table &table() const { return *table_; }
 
     size_type nrow() const
     {

@@ -26,12 +26,12 @@ TEST_CASE("Copy on write", "[table]")
 
     ::dataframe::DataFrame other = people;
 
-    CHECK(other.table() == people.table());
+    CHECK(&other.table() == &people.table());
 
     SECTION("Muable column")
     {
         people["ID"] = ::dataframe::repeat(30);
-        CHECK(other.table() != people.table());
+        CHECK(&other.table() != &people.table());
         CHECK(people["ID"].view<int>().front() == 30);
         CHECK(people["ID"].view<int>().back() == 30);
         CHECK(other["ID"].view<int>().front() == 20);
@@ -41,7 +41,7 @@ TEST_CASE("Copy on write", "[table]")
     SECTION("Add column")
     {
         people["Count"] = ::dataframe::repeat(30);
-        CHECK(other.table() != people.table());
+        CHECK(&other.table() != &people.table());
         CHECK(people.ncol() == 3);
         CHECK(other.ncol() == 2);
     }
@@ -49,7 +49,7 @@ TEST_CASE("Copy on write", "[table]")
     SECTION("Remove column")
     {
         people["ID"].remove();
-        CHECK(other.table() != people.table());
+        CHECK(&other.table() != &people.table());
         CHECK(people.ncol() == 1);
         CHECK(other.ncol() == 2);
     }
@@ -57,7 +57,7 @@ TEST_CASE("Copy on write", "[table]")
     SECTION("Rename column")
     {
         people["ID"].rename("Count");
-        CHECK(other.table() != people.table());
+        CHECK(&other.table() != &people.table());
         CHECK(people[0].name() == "Count");
         CHECK(other[0].name() == "ID");
     }

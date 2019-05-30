@@ -75,7 +75,7 @@ inline std::vector<DataFrame> split_rows(
     }
 
     auto tables =
-        internal::split_rows(*df.table(), static_cast<std::int64_t>(nrows));
+        internal::split_rows(df.table(), static_cast<std::int64_t>(nrows));
 
     std::vector<DataFrame> ret;
     ret.reserve(tables.size());
