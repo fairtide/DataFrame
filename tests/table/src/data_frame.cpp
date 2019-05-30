@@ -17,3 +17,46 @@
 #include <dataframe/table/data_frame.hpp>
 
 #include <catch2/catch.hpp>
+
+TEST_CASE("Copy on write", "[table]")
+{
+    ::dataframe::DataFrame people;
+    people["ID"] = std::vector<int>{20, 40};
+    people["Name"] = std::vector<std::string>{"John Doe", "Jane Doe"};
+
+    ::dataframe::DataFrame other = people;
+
+    CHECK(other.table() == people.table());
+
+    SECTION("Muable column")
+    {
+        people["ID"] = ::dataframe::repeat(30);
+        CHECK(other.table() != people.table());
+        CHECK(other["ID"].view<int>().front() == 20);
+        CHECK(other["ID"].view<int>().back() == 40);
+    }
+
+    SECTION("Add column")
+    {
+        people["Count"] = ::dataframe::repeat(30);
+        CHECK(other.table() != people.table());
+        CHECK(other["ID"].view<int>().front() == 20);
+        CHECK(other["ID"].view<int>().back() == 40);
+    }
+
+    SECTION("Remove column")
+    {
+        people["ID"].remove();
+        CHECK(other.table() != people.table());
+        CHECK(other["ID"].view<int>().front() == 20);
+        CHECK(other["ID"].view<int>().back() == 40);
+    }
+
+    SECTION("Rename column")
+    {
+        people["ID"].rename("Count");
+        CHECK(other.table() != people.table());
+        CHECK(other["ID"].view<int>().front() == 20);
+        CHECK(other["ID"].view<int>().back() == 40);
+    }
+}

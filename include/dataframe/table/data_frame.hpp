@@ -30,29 +30,8 @@ class DataFrame
     DataFrame() = default;
     DataFrame(DataFrame &&) noexcept = default;
     DataFrame &operator=(DataFrame &&) noexcept = default;
-
-    DataFrame(const DataFrame &other)
-    {
-        auto ncol = other.ncol();
-        for (size_type i = 0; i != ncol; ++i) {
-            auto col = other[i];
-            operator[](col.name()) = col;
-        }
-    }
-
-    DataFrame &operator=(const DataFrame &other)
-    {
-        if (this != &other) {
-            clear();
-            auto ncol = other.ncol();
-            for (size_type i = 0; i != ncol; ++i) {
-                auto col = other[i];
-                operator[](col.name()) = col;
-            }
-        }
-
-        return *this;
-    }
+    DataFrame(const DataFrame &) = default;
+    DataFrame &operator=(const DataFrame &) = default;
 
     explicit DataFrame(std::shared_ptr<::arrow::Table> &&table)
         : table_(std::move(table))
@@ -114,7 +93,7 @@ class DataFrame
         return operator[](j);
     }
 
-    const ::arrow::Table &table() const { return *table_; }
+    const std::shared_ptr<::arrow::Table> &table() const { return table_; }
 
     size_type nrow() const
     {
@@ -172,7 +151,7 @@ class DataFrame
         DataFrame ret;
         for (size_type k = begin; k != end; ++k) {
             auto col = operator[](k);
-            ret[col.name()] = col;
+            ret[col.name()] = col.data();
         }
 
         return ret;

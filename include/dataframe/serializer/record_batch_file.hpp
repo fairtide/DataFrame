@@ -61,8 +61,8 @@ class RecordBatchFileWriter : public Writer
         std::shared_ptr<::arrow::ipc::RecordBatchWriter> writer;
 
         DF_ARROW_ERROR_HANDLER(::arrow::ipc::RecordBatchFileWriter::Open(
-            stream.get(), df.table().schema(), &writer));
-        DF_ARROW_ERROR_HANDLER(writer->WriteTable(df.table()));
+            stream.get(), df.table()->schema(), &writer));
+        DF_ARROW_ERROR_HANDLER(writer->WriteTable(*df.table()));
         DF_ARROW_ERROR_HANDLER(writer->Close());
         DF_ARROW_ERROR_HANDLER(stream->Finish(&buffer_));
     }
