@@ -17,6 +17,7 @@
 #ifndef DATAFRAME_SERIALIZER_BSON_COMPRESS_HPP
 #define DATAFRAME_SERIALIZER_BSON_COMPRESS_HPP
 
+#include <dataframe/error.hpp>
 #include <array>
 #include <arrow/allocator.h>
 #include <arrow/api.h>
@@ -154,6 +155,30 @@ inline std::unique_ptr<::arrow::Buffer> decompress(
     }
 
     return buffer;
+}
+
+template <typename Alloc>
+inline void decompress(std::int64_t nbytes, const uint8_t *buf,
+    std::vector<std::uint8_t, Alloc> *out)
+{
+    auto n = static_cast<int>(nbytes);
+    auto src = reinterpret_cast<const char *>(buf);
+
+    auto m = *reinterpret_cast<const std::int32_t *>(src);
+    n -= sizeof(std::int32_t);
+    src += sizeof(std::int32_t);
+
+    out->resize(static_cast<std::size_t>(m));
+    auto dst = reinterpret_cast<char *>(out->data());
+
+    auto k = m;
+    if (m != 0) {
+        k = ::LZ4_decompress_safe(src, dst, n, m);
+    }
+
+    if (k != m) {
+        throw DataFrameException("Decompress failed");
+    }
 }
 
 template <typename T, typename Alloc>
