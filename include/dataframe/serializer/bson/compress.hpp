@@ -157,9 +157,9 @@ inline std::unique_ptr<::arrow::Buffer> decompress(
     return buffer;
 }
 
-template <typename Alloc>
-inline void decompress(std::int64_t nbytes, const uint8_t *buf,
-    std::vector<std::uint8_t, Alloc> *out)
+template <typename T, typename Alloc>
+inline void decompress(
+    std::int64_t nbytes, const uint8_t *buf, std::vector<T, Alloc> *out)
 {
     auto n = static_cast<int>(nbytes);
     auto src = reinterpret_cast<const char *>(buf);
@@ -168,7 +168,12 @@ inline void decompress(std::int64_t nbytes, const uint8_t *buf,
     n -= sizeof(std::int32_t);
     src += sizeof(std::int32_t);
 
-    out->resize(static_cast<std::size_t>(m));
+    if (m % sizeof(T) != 0) {
+        throw DataFrameException("Incorrect buffer size " + std::to_string(m) +
+            " byte width " + std::to_string(sizeof(T)));
+    }
+
+    out->resize(static_cast<std::size_t>(m) / sizeof(T));
     auto dst = reinterpret_cast<char *>(out->data());
 
     auto k = m;
