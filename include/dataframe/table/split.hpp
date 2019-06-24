@@ -74,6 +74,10 @@ inline std::vector<DataFrame> split_rows(
         return std::vector{df};
     }
 
+    if (nrows <= 0) {
+        throw DataFrameException("Non-positive split chunk size");
+    }
+
     auto tables =
         internal::split_rows(df.table(), static_cast<std::int64_t>(nrows));
 
