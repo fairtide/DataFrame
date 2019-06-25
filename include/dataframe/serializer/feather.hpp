@@ -75,7 +75,6 @@ class FeatherWriter : public Writer
             }
         }
 
-        std::shared_ptr<::arrow::Buffer> ret;
         DF_ARROW_ERROR_HANDLER(writer->Finalize());
         DF_ARROW_ERROR_HANDLER(stream->Finish(&buffer_));
     }
