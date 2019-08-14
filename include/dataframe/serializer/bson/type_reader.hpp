@@ -141,11 +141,19 @@ inline std::shared_ptr<::arrow::DataType> read_type(
     }
 
     if (type == "factor") {
+#if ARROW_VERSION >= 14000
         return ::arrow::dictionary(::arrow::int32(), ::arrow::utf8(), false);
+#else
+        return ::arrow::dictionary(nullptr, nullptr, false);
+#endif
     }
 
     if (type == "ordered") {
+#if ARROW_VERSION >= 14000
         return ::arrow::dictionary(::arrow::int32(), ::arrow::utf8(), true);
+#else
+        return ::arrow::dictionary(nullptr, nullptr, true);
+#endif
     }
 
     auto tp = view[Schema::PARAM()];
