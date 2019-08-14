@@ -38,6 +38,11 @@ class CopyBufferReader : public ::arrow::io::BufferReader
     ::arrow::Status Read(
         int64_t nbytes, std::shared_ptr<::arrow::Buffer> *out) override
     {
+        if (nbytes == 0) {
+            *out = std::make_shared<::arrow::Buffer>(nullptr, 0);
+            return ::arrow::Status::OK();
+        }
+
         std::shared_ptr<::arrow::Buffer> ret;
         ARROW_RETURN_NOT_OK(::arrow::io::BufferReader::Read(nbytes, &ret));
 
@@ -47,6 +52,11 @@ class CopyBufferReader : public ::arrow::io::BufferReader
     ::arrow::Status ReadAt(std::int64_t position, std::int64_t nbytes,
         std::shared_ptr<::arrow::Buffer> *out) override
     {
+        if (nbytes == 0) {
+            *out = std::make_shared<::arrow::Buffer>(nullptr, 0);
+            return ::arrow::Status::OK();
+        }
+
         std::shared_ptr<::arrow::Buffer> ret;
         ARROW_RETURN_NOT_OK(
             ::arrow::io::BufferReader::ReadAt(position, nbytes, &ret));
