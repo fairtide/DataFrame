@@ -38,11 +38,14 @@ struct CastArrayVisitor<Dict<T, Index, Ordered>> : ::arrow::ArrayVisitor {
         auto index = cast_array<Index>(array.indices(), pool);
         auto dicts = cast_array<T>(array.dictionary(), pool);
 
-        auto type =
-            ::arrow::dictionary(index->type(), std::move(dicts), Ordered);
-
-        result = std::make_shared<::arrow::DictionaryArray>(
-            std::move(type), std::move(index));
+#if ARROW_VERSION >= 14000
+        auto type = ::arrow::dictionary(index->type(), dicts->type(), Ordered);
+        result =
+            std::make_shared<::arrow::DictionaryArray>(type, index, dicts);
+#else
+        auto type = ::arrow::dictionary(index->type(), dicts, Ordered);
+        result = std::make_shared<::arrow::DictionaryArray>(type, index);
+#endif
 
         if (array.null_count() != 0) {
             auto data = result->data()->Copy();

@@ -18,7 +18,12 @@
 #define DATAFRAME_ARRAY_BIND_HPP
 
 #include <dataframe/array/type.hpp>
+
+#if ARROW_VERSION >= 14000
+#include <arrow/array/concatenate.h>
+#else
 #include <arrow/util/concatenate.h>
+#endif
 
 namespace dataframe {
 

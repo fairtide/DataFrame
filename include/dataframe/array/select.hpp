@@ -219,8 +219,13 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
     {
         auto index = select_array(array.indices(), first, last);
 
+#if ARROW_VERSION >= 14000
+        return ::arrow::DictionaryArray::FromArrays(
+            array.type(), index, array.dictionary(), &result);
+#else
         return ::arrow::DictionaryArray::FromArrays(
             array.type(), index, &result);
+#endif
     }
 };
 
