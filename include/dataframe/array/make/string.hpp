@@ -28,7 +28,9 @@ struct ArrayMaker<std::string> {
         BuilderType<std::string> *builder, Iter first, Iter last)
     {
         for (auto iter = first; iter != last; ++iter) {
-            DF_ARROW_ERROR_HANDLER(builder->Append(std::string_view(*iter)));
+            std::string_view v(*iter);
+            DF_ARROW_ERROR_HANDLER(builder->Append(
+                v.data(), static_cast<std::int32_t>(v.size())));
         }
     }
 };

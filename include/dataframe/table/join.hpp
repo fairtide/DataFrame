@@ -111,7 +111,9 @@ class JoinVisitor : public ::arrow::ArrayVisitor
 
         auto view = [](auto &&array) {
             auto n = array.length();
-            std::vector<std::string_view> ret;
+            std::vector<std::remove_cv_t<
+                std::remove_reference_t<decltype(array.GetView(0))>>>
+                ret;
             ret.reserve(static_cast<std::size_t>(n));
             for (std::int64_t i = 0; i != n; ++i) {
                 ret.emplace_back(array.GetView(i));

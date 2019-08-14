@@ -18,6 +18,8 @@
 #define DATAFRAME_ARRAY_VIEW_STRUCT_HPP
 
 #include <dataframe/array/view/primitive.hpp>
+#include <array>
+#include <string_view>
 
 namespace dataframe {
 
