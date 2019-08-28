@@ -27,7 +27,7 @@ struct DataMaker {
     static auto make(std::size_t n)
     {
         std::mt19937_64 rng;
-        std::uniform_int_distribution<> rval(-1000, 1000);
+        std::uniform_int_distribution<> rval(1000, 2000);
         std::vector<T> values;
 
         for (std::size_t i = 0; i != n; ++i) {
@@ -59,6 +59,22 @@ struct DataMaker<bool> {
 
         for (std::size_t i = 0; i != n; ++i) {
             values.push_back(rbit(rng));
+        }
+
+        return values;
+    }
+};
+
+template <>
+struct DataMaker<std::uint8_t> {
+    static auto make(std::size_t n)
+    {
+        std::mt19937_64 rng;
+        std::uniform_int_distribution<std::uint8_t> rval(32, 126);
+        std::vector<std::uint8_t> values;
+
+        for (std::size_t i = 0; i != n; ++i) {
+            values.emplace_back(rval(rng));
         }
 
         return values;
