@@ -20,8 +20,9 @@
 
 #define BASIC_TEST_TYPES                                                      \
     bool, std::int8_t, std::int16_t, std::int32_t, std::int64_t,              \
-        std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t,            \
-        std::string, ::dataframe::Bytes, ::dataframe::Dict<std::string>,      \
+        std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t, float,     \
+        double, std::string, ::dataframe::Bytes,                              \
+        ::dataframe::Dict<std::string>,                                       \
         ::dataframe::Datestamp<::dataframe::DateUnit::Day>,                   \
         ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,                \
         ::dataframe::Timestamp<::dataframe::TimeUnit::Millisecond>,           \
