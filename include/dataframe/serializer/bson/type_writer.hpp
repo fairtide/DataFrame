@@ -63,6 +63,7 @@ class TypeWriter : public ::arrow::TypeVisitor
 
     ::arrow::Status Visit(const ::arrow::TimestampType &type) override
     {
+        using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;
 
         switch (type.unit()) {
@@ -78,6 +79,12 @@ class TypeWriter : public ::arrow::TypeVisitor
             case ::arrow::TimeUnit::NANO:
                 builder_.append(kvp(Schema::TYPE(), "timestamp[ns]"));
                 break;
+        }
+
+        if (!type.timezone().empty()) {
+            document param;
+            param.append(kvp(Schema::ZONE(), type.timezone()));
+            builder_.append(kvp(Schema::PARAM(), param.extract()));
         }
 
         return ::arrow::Status::OK();

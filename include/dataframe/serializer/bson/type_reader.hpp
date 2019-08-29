@@ -31,6 +31,28 @@ inline std::shared_ptr<::arrow::DataType> read_type(
 
     std::string_view type(b_type.data(), b_type.size());
 
+    auto read_timestamp_type = [&tp](auto unit) {
+        return ::arrow::timestamp(unit,
+            tp ? std::string(tp[Schema::ZONE()].get_utf8().value.data()) :
+                 std::string());
+    };
+
+    auto read_dict_type = [&tp](auto ordered) {
+        auto index_type = tp ?
+            read_type(tp[Schema::INDEX()].get_document().view()) :
+            ::arrow::int32();
+
+        auto dict_type = tp ?
+            read_type(tp[Schema::DICT()].get_document().view()) :
+            ::arrow::utf8();
+
+#if ARROW_VERSION >= 14000
+        return ::arrow::dictionary(index_type, dict_type, ordered);
+#else
+        return ::arrow::dictionary(index_type, nullptr, ordered);
+#endif
+    };
+
     if (type == "null") {
         return ::arrow::null();
     }
@@ -92,19 +114,19 @@ inline std::shared_ptr<::arrow::DataType> read_type(
     }
 
     if (type == "timestamp[s]") {
-        return ::arrow::timestamp(::arrow::TimeUnit::SECOND);
+        return read_timestamp_type(::arrow::TimeUnit::SECOND);
     }
 
     if (type == "timestamp[ms]") {
-        return ::arrow::timestamp(::arrow::TimeUnit::MILLI);
+        return read_timestamp_type(::arrow::TimeUnit::MILLI);
     }
 
     if (type == "timestamp[us]") {
-        return ::arrow::timestamp(::arrow::TimeUnit::MICRO);
+        return read_timestamp_type(::arrow::TimeUnit::MICRO);
     }
 
     if (type == "timestamp[ns]") {
-        return ::arrow::timestamp(::arrow::TimeUnit::NANO);
+        return read_timestamp_type(::arrow::TimeUnit::NANO);
     }
 
     if (type == "time[s]") {
@@ -123,16 +145,6 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::time64(::arrow::TimeUnit::NANO);
     }
 
-    // if (type == "interval[ym]") {
-    //     std::make_shared<::arrow::IntervalType>(
-    //         ::arrow::IntervalType::Unit::YEAR_MONTH);
-    // }
-
-    // if (type == "interval[dt]") {
-    //     std::make_shared<::arrow::IntervalType>(
-    //         ::arrow::IntervalType::Unit::DAY_TIME);
-    // }
-
     if (type == "utf8") {
         return ::arrow::utf8();
     }
@@ -142,31 +154,11 @@ inline std::shared_ptr<::arrow::DataType> read_type(
     }
 
     if (type == "factor") {
-#if ARROW_VERSION >= 14000
-        auto index_type = tp ?
-            read_type(tp[Schema::INDEX()].get_document().view()) :
-            ::arrow::int32();
-        auto dict_type = tp ?
-            read_type(tp[Schema::DICT()].get_document().view()) :
-            ::arrow::utf8();
-        return ::arrow::dictionary(index_type, dict_type, false);
-#else
-        return ::arrow::dictionary(nullptr, nullptr, false);
-#endif
+        return read_dict_type(false);
     }
 
     if (type == "ordered") {
-#if ARROW_VERSION >= 14000
-        auto index_type = tp ?
-            read_type(tp[Schema::INDEX()].get_document().view()) :
-            ::arrow::int32();
-        auto dict_type = tp ?
-            read_type(tp[Schema::DICT()].get_document().view()) :
-            ::arrow::utf8();
-        return ::arrow::dictionary(index_type, dict_type, true);
-#else
-        return ::arrow::dictionary(nullptr, nullptr, true);
-#endif
+        return read_dict_type(true);
     }
 
     if (type == "pod") {
