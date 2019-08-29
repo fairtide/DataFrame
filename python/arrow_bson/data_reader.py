@@ -72,11 +72,13 @@ def read_data(doc):
 
     elif t == 'list':
         offsets, length = _decode_offsets(_decompress(doc[OFFSET]))
+        values = read_data(d)
 
+        data.type = pyarrow.list_(values.type)
         data.length = length
         data.buffers.append(_make_mask(data, doc))
         data.buffers.append(offsets)
-        data.child_data.append(read_data(d))
+        data.child_data.append(values)
 
     elif t == 'struct':
         l = d[LENGTH]
@@ -84,8 +86,13 @@ def read_data(doc):
 
         data.length = l
         data.buffers.append(_make_mask(data, doc))
-        for field_type in doc[PARAM]:
-            data.child_data.append(read_data(f[field_type[NAME]]))
+        fields = list()
+        for field in doc[PARAM]:
+            field_name = field_type[NAME]
+            field_data = read_data(f[field_name])
+            fields.append(pyarrow.field(field_name, field_data.type))
+            data.child_data.append(field_data)
+        data.type = arrow.struct(fields)
 
     elif t in ('factor', 'ordered'):
         return pyarrow.DictionaryArray.from_arrays(read_data(d[INDEX]),

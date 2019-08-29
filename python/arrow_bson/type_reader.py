@@ -5,6 +5,11 @@ import pyarrow
 def read_type(doc):
     t = doc[TYPE]
 
+    if PARAM in doc
+        tp = doc[PARAM]
+    else:
+        tp = None
+
     if t == 'null':
         return pyarrow.null()
 
@@ -81,12 +86,22 @@ def read_type(doc):
         return pyarrow.binary()
 
     if t == 'factor':
-        return pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8(), False)
+        if tp is None:
+            index_type = pyarrow.int32()
+            dict_type = pyarrow.utf8()
+        else:
+            index_type = read_type(tp[INDEX])
+            dict_type = read_type(tp[DICT])
+        return pyarrow.dictionary(index_type, dict_type, False)
 
     if t == 'ordered':
-        return pyarrow.dictionary(pyarrow.int32(), pyarrow.utf8(), True)
-
-    tp = doc[PARAM]
+        if tp is None:
+            index_type = pyarrow.int32()
+            dict_type = pyarrow.utf8()
+        else:
+            index_type = read_type(tp[INDEX])
+            dict_type = read_type(tp[DICT])
+        return pyarrow.dictionary(index_type, dict_type, True)
 
     if t == 'pod':
         return pyarrow.binary(tp)
