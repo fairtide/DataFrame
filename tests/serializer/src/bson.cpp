@@ -48,6 +48,11 @@ struct Output {
         std::ofstream out("BSONWriter.json");
         out << json_buffer.GetString() << std::endl;
         out.close();
+
+        std::ofstream bin("BSONWriter.bson", std::ios::out | std::ios::binary);
+        bin.write(reinterpret_cast<const char *>(bson_doc.view().data()),
+            static_cast<std::streamsize>(bson_doc.view().length()));
+        bin.close();
     }
 
     ::dataframe::DataFrame data;

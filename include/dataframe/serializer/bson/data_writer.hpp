@@ -39,8 +39,10 @@ class DataWriter : public ::arrow::ArrayVisitor
 
     ::arrow::Status Visit(const ::arrow::NullArray &array) override
     {
-        builder_.append(::bsoncxx::builder::basic::kvp(
-            Schema::DATA(), static_cast<std::int64_t>(array.length())));
+        using ::bsoncxx::builder::basic::kvp;
+
+        builder_.append(
+            kvp(Schema::DATA(), static_cast<std::int64_t>(array.length())));
 
         make_mask(builder_, array);
 
@@ -52,13 +54,15 @@ class DataWriter : public ::arrow::ArrayVisitor
 
     ::arrow::Status Visit(const ::arrow::BooleanArray &array) override
     {
+        using ::bsoncxx::builder::basic::kvp;
+
         auto n = array.length();
         buffer1_.resize(static_cast<std::size_t>(n));
         for (std::int64_t i = 0; i != n; ++i) {
             buffer1_[static_cast<std::size_t>(i)] = array.GetView(i);
         }
 
-        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
+        builder_.append(kvp(Schema::DATA(),
             compress(buffer1_, &buffer2_, compression_level_)));
 
         make_mask(builder_, array);
@@ -72,7 +76,9 @@ class DataWriter : public ::arrow::ArrayVisitor
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
-        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
+        using ::bsoncxx::builder::basic::kvp;                                 \
+                                                                              \
+        builder_.append(kvp(Schema::DATA(),                                   \
             compress(array.length(), array.raw_values(), &buffer2_,           \
                 compression_level_)));                                        \
                                                                               \
@@ -101,7 +107,9 @@ class DataWriter : public ::arrow::ArrayVisitor
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
-        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
+        using ::bsoncxx::builder::basic::kvp;                                 \
+                                                                              \
+        builder_.append(kvp(Schema::DATA(),                                   \
             compress(array.length(), array.raw_values(), &buffer2_,           \
                 compression_level_)));                                        \
                                                                               \
@@ -123,9 +131,11 @@ class DataWriter : public ::arrow::ArrayVisitor
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
+        using ::bsoncxx::builder::basic::kvp;                                 \
+                                                                              \
         encode_datetime(array.length(), array.raw_values(), &buffer1_);       \
                                                                               \
-        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),        \
+        builder_.append(kvp(Schema::DATA(),                                   \
             compress(buffer1_, &buffer2_, compression_level_)));              \
                                                                               \
         make_mask(builder_, array);                                           \
@@ -144,10 +154,12 @@ class DataWriter : public ::arrow::ArrayVisitor
 
     ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) override
     {
+        using ::bsoncxx::builder::basic::kvp;
+
         auto &type =
             dynamic_cast<const ::arrow::FixedSizeBinaryType &>(*array.type());
 
-        builder_.append(::bsoncxx::builder::basic::kvp(Schema::DATA(),
+        builder_.append(kvp(Schema::DATA(),
             compress(array.length() * type.byte_width(), array.raw_values(),
                 &buffer2_, compression_level_)));
 
@@ -208,6 +220,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 
     ::arrow::Status Visit(const ::arrow::ListArray &array) override
     {
+        using ::bsoncxx::builder::basic::document;
         using ::bsoncxx::builder::basic::kvp;
 
         // data
@@ -217,7 +230,7 @@ class DataWriter : public ::arrow::ArrayVisitor
             array.value_offset(array.length()) - values_offset;
         auto values = array.values()->Slice(values_offset, values_length);
 
-        ::bsoncxx::builder::basic::document data;
+        document data;
         DataWriter writer(data, buffer1_, buffer2_, compression_level_);
         DF_ARROW_ERROR_HANDLER(values->Accept(&writer));
 
@@ -272,8 +285,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 
             DF_ARROW_ERROR_HANDLER(field_data->Accept(&writer));
 
-            fields.append(::bsoncxx::builder::basic::kvp(
-                field->name(), field_builder.extract()));
+            fields.append(kvp(field->name(), field_builder.extract()));
         }
 
         document data;
@@ -281,8 +293,7 @@ class DataWriter : public ::arrow::ArrayVisitor
             kvp(Schema::LENGTH(), static_cast<std::int64_t>(array.length())));
         data.append(kvp(Schema::FIELDS(), fields.extract()));
 
-        builder_.append(
-            ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));
+        builder_.append(kvp(Schema::DATA(), data.extract()));
 
         // mask
 
@@ -315,8 +326,7 @@ class DataWriter : public ::arrow::ArrayVisitor
         data.append(kvp(Schema::INDEX(), index.extract()));
         data.append(kvp(Schema::DICT(), dict.extract()));
 
-        builder_.append(
-            ::bsoncxx::builder::basic::kvp(Schema::DATA(), data.extract()));
+        builder_.append(kvp(Schema::DATA(), data.extract()));
 
         // mask
 
@@ -334,6 +344,8 @@ class DataWriter : public ::arrow::ArrayVisitor
     void make_mask(::bsoncxx::builder::basic::document &builder,
         const ::arrow::Array &array)
     {
+        using ::bsoncxx::builder::basic::kvp;
+
         auto n = array.length();
         auto m = ::arrow::BitUtil::BytesForBits(n);
         buffer1_.resize(static_cast<std::size_t>(m));
@@ -355,7 +367,7 @@ class DataWriter : public ::arrow::ArrayVisitor
             internal::swap_bit_order(buffer1_.size(), buffer1_.data());
         }
 
-        builder.append(::bsoncxx::builder::basic::kvp(Schema::MASK(),
+        builder.append(kvp(Schema::MASK(),
             compress(buffer1_, &buffer2_, compression_level_)));
     }
 

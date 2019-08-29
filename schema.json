@@ -1,0 +1,407 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "DataFrame",
+    "description": "DataFrame BSON serializer schema",
+    "type": "object",
+
+    "definitions": {
+        "bson_binary": {
+            "type": "object",
+            "required": ["$binary"],
+            "properites": {
+                "$binary": {
+                    "type": "object",
+                    "required": ["base64", "subType"],
+                    "properties": {
+                        "base64": {
+                            "type": "string"
+                        },
+                        "subType": {
+                            "type": "string",
+                            "const": "00"
+                        }
+                    }
+                }
+            }
+        },
+
+        "bson_numberLong": {
+            "type": "object",
+            "required": ["$numberLong"],
+            "properties": {
+                "$numberLong": {
+                    "type": "string",
+                    "pattern": "-?[0-9]+"
+                }
+            }
+        },
+
+        "array": {
+            "oneOf": [{
+                "$ref": "#definitions/null"
+            }, {
+                "$ref": "#definitions/bool"
+            }, {
+                "$ref": "#definitions/signed"
+            }, {
+                "$ref": "#definitions/unsigned"
+            }, {
+                "$ref": "#definitions/float"
+            }, {
+                "$ref": "#definitions/datetime"
+            }, {
+                "$ref": "#definitions/binary"
+            }, {
+                "$ref": "#definitions/dictionary"
+            }, {
+                "$ref": "#definitions/list"
+            }, {
+                "$ref": "#definitions/struct"
+            }]
+        },
+
+        "data_type": {
+            "oneOf": [{
+                "$ref": "#definitions/plain_type"
+            }, {
+                "$ref": "#definitions/list_type"
+            }, {
+                "$ref": "#definitions/struct_type"
+            }]
+        },
+
+        "plain_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "null",
+                        "bool",
+                        "int8",
+                        "int16",
+                        "int32",
+                        "int64",
+                        "uint8",
+                        "uint16",
+                        "uint32",
+                        "uint64",
+                        "float16",
+                        "float32",
+                        "float64",
+                        "date[d]",
+                        "date[ms]",
+                        "timestamp[s]",
+                        "timestamp[ms]",
+                        "timestamp[us]",
+                        "timestamp[ns]",
+                        "time[s]",
+                        "time[ms]",
+                        "time[us]",
+                        "time[ns]",
+                        "factor",
+                        "ordered"
+                    ]
+                }
+            }
+        },
+
+        "list_type": {
+            "type": "object",
+            "required": ["t", "p"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "const": "list"
+                },
+                "p": {
+                    "$ref": "#definitions/data_type"
+                }
+            }
+        },
+
+        "struct_type": {
+            "type": "object",
+            "required": ["t", "p"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "const": "struct"
+                },
+                "p": {
+                    "type": "array",
+                    "minItems": 1,
+                    "item": {
+                        "type": "object",
+                        "required": ["n", "t"],
+                        "properties": {
+                            "n": {
+                                "type": "string"
+                            },
+                            "t": {
+                                "$ref": "#definitions/data_type"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        "null": {
+            "type": "object",
+            "required": ["d", "m"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_numberLong"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "const": "null"
+                }
+            }
+        },
+
+        "bool": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "const": "bool"
+                }
+            }
+        },
+
+        "signed": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "int8",
+                        "int16",
+                        "int32",
+                        "int64"
+                    ]
+                }
+            }
+        },
+
+        "unsigned": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "uint8",
+                        "uint16",
+                        "uint32",
+                        "uint64"
+                    ]
+                }
+            }
+        },
+
+        "float": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "float16",
+                        "float32",
+                        "float64"
+                    ]
+                }
+            }
+        },
+
+        "datetime": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "date[d]",
+                        "date[ms]",
+                        "timestamp[s]",
+                        "timestamp[ms]",
+                        "timestamp[us]",
+                        "timestamp[ns]",
+                        "time[s]",
+                        "time[ms]",
+                        "time[us]",
+                        "time[ns]"
+                    ]
+                }
+            }
+        },
+
+        "binary": {
+            "type": "object",
+            "required": ["d", "m", "t", "o"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "o": {
+                    "description": "Offset array of int32",
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": ["utf8", "bytes"]
+                }
+            }
+        },
+
+        "dictionary": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "type": "object",
+                    "required": ["i", "d"],
+                    "properties": {
+                        "i": {
+                            "$ref": "#/definitions/signed"
+                        },
+                        "d": {
+                            "$ref": "#/definitions/array"
+                        }
+                    }
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": ["factor", "ordered"]
+                }
+            }
+        },
+
+        "list": {
+            "type": "object",
+            "required": ["d", "m", "t", "p", "o"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/array"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "const": "list"
+                },
+                "p": {
+                    "$ref": "#/definitions/data_type"
+                },
+                "o": {
+                    "description": "Offset array of int32",
+                    "$ref": "#/definitions/bson_binary"
+                }
+            }
+        },
+
+        "struct": {
+            "type": "object",
+            "required": ["d", "m", "t", "p"],
+            "properties": {
+                "d": {
+                    "type": "object",
+                    "required": ["l", "f"],
+                    "properties": {
+                        "l": {
+                            "$ref": "#definitions/bson_numberLong"
+                        },
+                        "f": {
+                            "type": "object",
+                            "minProperties": 1,
+                            "patternProperties": {
+                                ".*": {
+                                    "$ref": "#definitions/array"
+                                }
+                            }
+                        }
+                    }
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "const": "struct"
+                },
+                "p": {
+                    "type": "array",
+                    "minItems": 1,
+                    "item": {
+                        "type": "object",
+                        "required": ["n", "t"],
+                        "properties": {
+                            "n": {
+                                "type": "string"
+                            },
+                            "t": {
+                                "$ref": "#/definitions/data_type"
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+
+    },
+
+    "minProperties": 1,
+
+    "patternProperties": {
+        ".*": {
+            "$ref": "#definitions/array"
+        }
+    }
+}
