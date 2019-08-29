@@ -186,6 +186,9 @@ class DataReader : public ::arrow::TypeVisitor
         DataReader reader(
             data, view_[Schema::DATA()].get_document().view(), pool_);
         DF_ARROW_ERROR_HANDLER(data.type->Accept(&reader));
+
+        data_.type = ::arrow::list(data.type);
+
         data_.child_data.push_back(
             std::make_shared<::arrow::ArrayData>(std::move(data)));
 
@@ -201,6 +204,8 @@ class DataReader : public ::arrow::TypeVisitor
 
         auto n = type.num_children();
         auto field_view = data_view[Schema::FIELDS()].get_document().view();
+        std::vector<std::shared_ptr<::arrow::Field>> fields;
+
         for (auto i = 0; i != n; ++i) {
             auto field = type.child(i);
 
@@ -211,9 +216,13 @@ class DataReader : public ::arrow::TypeVisitor
                 field_view[field->name()].get_document().view(), pool_);
             DF_ARROW_ERROR_HANDLER(field_data.type->Accept(&reader));
 
+            fields.push_back(::arrow::field(field->name(), field_data.type));
+
             data_.child_data.push_back(
                 std::make_shared<::arrow::ArrayData>(std::move(field_data)));
         }
+
+        data_.type = ::arrow::struct_(fields);
 
         return ::arrow::Status::OK();
     }
