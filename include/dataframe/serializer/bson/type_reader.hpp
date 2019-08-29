@@ -27,6 +27,7 @@ inline std::shared_ptr<::arrow::DataType> read_type(
     const ::bsoncxx::document::view &view)
 {
     auto b_type = view[Schema::TYPE()].get_utf8().value;
+    auto tp = view[Schema::PARAM()];
 
     std::string_view type(b_type.data(), b_type.size());
 
@@ -142,7 +143,13 @@ inline std::shared_ptr<::arrow::DataType> read_type(
 
     if (type == "factor") {
 #if ARROW_VERSION >= 14000
-        return ::arrow::dictionary(::arrow::int32(), ::arrow::utf8(), false);
+        auto index_type = tp ?
+            read_type(tp[Schema::INDEX()].get_document().view()) :
+            ::arrow::int32();
+        auto dict_type = tp ?
+            read_type(tp[Schema::DICT()].get_document().view()) :
+            ::arrow::utf8();
+        return ::arrow::dictionary(index_type, dict_type, false);
 #else
         return ::arrow::dictionary(nullptr, nullptr, false);
 #endif
@@ -150,13 +157,17 @@ inline std::shared_ptr<::arrow::DataType> read_type(
 
     if (type == "ordered") {
 #if ARROW_VERSION >= 14000
-        return ::arrow::dictionary(::arrow::int32(), ::arrow::utf8(), true);
+        auto index_type = tp ?
+            read_type(tp[Schema::INDEX()].get_document().view()) :
+            ::arrow::int32();
+        auto dict_type = tp ?
+            read_type(tp[Schema::DICT()].get_document().view()) :
+            ::arrow::utf8();
+        return ::arrow::dictionary(index_type, dict_type, true);
 #else
         return ::arrow::dictionary(nullptr, nullptr, true);
 #endif
     }
-
-    auto tp = view[Schema::PARAM()];
 
     if (type == "pod") {
         return ::arrow::fixed_size_binary(tp.get_int32().value);
