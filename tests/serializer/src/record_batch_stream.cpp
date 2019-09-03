@@ -18,8 +18,29 @@
 
 #include "test_serializer.hpp"
 
+struct Output {
+    Output() = default;
+
+    ~Output()
+    {
+        ::dataframe::RecordBatchStreamWriter writer;
+
+        writer.write(data);
+
+        std::ofstream bin(
+            "RecordBatchStreamWriter", std::ios::out | std::ios::binary);
+        bin.write(reinterpret_cast<const char *>(writer.data()),
+            static_cast<std::streamsize>(writer.size()));
+        bin.close();
+    }
+
+    ::dataframe::DataFrame data;
+};
+
+static Output output;
+
 TEMPLATE_TEST_CASE("RecordBatchStream", "[serializer][template]", TEST_TYPES)
 {
     TestSerializer<TestType, ::dataframe::RecordBatchStreamReader,
-        ::dataframe::RecordBatchStreamWriter>();
+        ::dataframe::RecordBatchStreamWriter>(output.data);
 }

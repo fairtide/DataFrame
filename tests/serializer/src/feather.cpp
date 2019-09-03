@@ -18,8 +18,28 @@
 
 #include "test_serializer.hpp"
 
+struct Output {
+    Output() = default;
+
+    ~Output()
+    {
+        ::dataframe::FeatherWriter writer;
+
+        writer.write(data);
+
+        std::ofstream bin("FeatherWriter", std::ios::out | std::ios::binary);
+        bin.write(reinterpret_cast<const char *>(writer.data()),
+            static_cast<std::streamsize>(writer.size()));
+        bin.close();
+    }
+
+    ::dataframe::DataFrame data;
+};
+
+static Output output;
+
 TEMPLATE_TEST_CASE("Feather", "[serializer][template]", BASIC_TEST_TYPES)
 {
     TestSerializer<TestType, ::dataframe::FeatherReader,
-        ::dataframe::FeatherWriter>();
+        ::dataframe::FeatherWriter>(output.data);
 }

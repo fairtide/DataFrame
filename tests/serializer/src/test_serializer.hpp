@@ -51,7 +51,7 @@ inline auto field_name(const TestStruct *, ::dataframe::FieldIndex<0>)
 }
 
 template <typename T, typename Reader, typename Writer>
-inline void TestSerializer()
+inline void TestSerializer(::dataframe::DataFrame &out)
 {
     Reader reader;
     Writer writer;
@@ -61,6 +61,10 @@ inline void TestSerializer()
 
     dat["data"].emplace<T>(make_data<T>(n));
     dat["null"].emplace<T>(make_data<T>(n), make_data<bool>(n));
+
+    auto outname = dat["data"].data()->type()->ToString();
+    out[outname] = dat["data"].data();
+    out[outname + " (null)"] = dat["null"].data();
 
     writer.write(dat);
     auto str = writer.str();
