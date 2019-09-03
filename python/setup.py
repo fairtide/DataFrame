@@ -6,9 +6,9 @@ setup(name='arrow_bson',
       packages=[
           'arrow_bson',
       ],
-      requires=[
+      install_requires=[
           'bson',
           'lz4',
-          'numpy',
-          'pyarrow',
+          'numpy>=1.17.0',
+          'pyarrow>=0.14.1',
       ])
