@@ -49,15 +49,9 @@ template <typename T, typename Index, bool Ordered>
 struct IsType<Dict<T, Index, Ordered>, ::arrow::DictionaryType> {
     static bool is_type(const ::arrow::DictionaryType &type)
     {
-#if ARROW_VERSION >= 14000
         return ::dataframe::is_type<T>(type.value_type()) &&
             ::dataframe::is_type<Index>(type.index_type()) &&
             Ordered == type.ordered();
-#else
-        return ::dataframe::is_type<T>(type.dictionary()->type()) &&
-            ::dataframe::is_type<Index>(type.index_type()) &&
-            Ordered == type.ordered();
-#endif
     }
 };
 

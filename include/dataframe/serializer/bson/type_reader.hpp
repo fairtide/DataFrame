@@ -46,11 +46,7 @@ inline std::shared_ptr<::arrow::DataType> read_type(
             read_type(tp[Schema::DICT()].get_document().view()) :
             ::arrow::utf8();
 
-#if ARROW_VERSION >= 14000
         return ::arrow::dictionary(index_type, dict_type, ordered);
-#else
-        return ::arrow::dictionary(index_type, nullptr, ordered);
-#endif
     };
 
     if (type == "null") {

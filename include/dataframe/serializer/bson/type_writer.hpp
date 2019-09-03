@@ -234,12 +234,7 @@ class TypeWriter : public ::arrow::TypeVisitor
 
         document dict_builder;
         TypeWriter dict_writer(dict_builder);
-#if ARROW_VERSION >= 14000
         DF_ARROW_ERROR_HANDLER(type.value_type()->Accept(&dict_writer));
-#else
-        DF_ARROW_ERROR_HANDLER(
-            type.dictionary()->type()->Accept(&dict_writer));
-#endif
 
         document param;
         param.append(kvp(Schema::INDEX(), index_builder.extract()));

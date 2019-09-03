@@ -243,7 +243,6 @@ class DataReader : public ::arrow::TypeVisitor
         DataReader dict_reader(dict_data, dict_view, pool_);
         DF_ARROW_ERROR_HANDLER(dict_data.type->Accept(&dict_reader));
 
-#if ARROW_VERSION >= 14000
         auto dict_type = ::arrow::dictionary(
             index_data.type, dict_data.type, type.ordered());
 
@@ -254,18 +253,6 @@ class DataReader : public ::arrow::TypeVisitor
             ::arrow::MakeArray(
                 std::make_shared<::arrow::ArrayData>(std::move(dict_data))),
             &dict_array));
-#else
-        auto dict_type = ::arrow::dictionary(index_data.type,
-            ::arrow::MakeArray(
-                std::make_shared<::arrow::ArrayData>(std::move(dict_data))),
-            type.ordered());
-
-        std::shared_ptr<::arrow::Array> dict_array;
-        DF_ARROW_ERROR_HANDLER(::arrow::DictionaryArray::FromArrays(dict_type,
-            ::arrow::MakeArray(
-                std::make_shared<::arrow::ArrayData>(std::move(index_data))),
-            &dict_array));
-#endif
 
         data_ = std::move(*dict_array->data());
 
