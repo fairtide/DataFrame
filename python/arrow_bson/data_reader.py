@@ -1,120 +1,206 @@
-from .schema import *
 from .array_data import *
+from .compress import *
+from .schema import *
 from .type_reader import *
-import lz4.block
+from .visitor import *
 import numpy
 import pyarrow
 
 
-def _decompress(data):
-    return lz4.block.decompress(data)
+class DataReader(TypeVisitor):
+    def __init__(self, data, doc):
+        assert data.type is not None
+        assert data.length is None
+        assert data.null_count is None
+        assert len(data.buffers) == 0
+        assert len(data.children) == 0
+        assert data.dictionary is None
 
+        self.data = data
+        self._doc = doc
 
-def _decode_offsets(data):
-    t = numpy.int32()
-    n = len(data) // t.nbytes
-    v = numpy.cumsum(numpy.ndarray(n, t, data), dtype=t)
+    def visit_null(self, typ):
+        self.data.length = self._doc[DATA]
+        self.data.buffers.append(self._make_mask())
 
-    return v.data.tobytes(), n - 1
-
-
-def _decode_datetime(data, dtype):
-    n = len(data) // dtype.nbytes
-    v = numpy.cumsum(numpy.ndarray(n, dtype, data), dtype=dtype)
-
-    return v.data.tobytes()
-
-
-def _make_mask(data, doc):
-    if data.length == 0:
-        data.null_count = 0
-        return None
-
-    bits = _decompress(doc[MASK])
-    vals = numpy.unpackbits(numpy.ndarray(len(bits), numpy.uint8, bits))
-    data.null_count = data.length - numpy.sum(vals)
-
-    if data.null_count == 0:
-        return None
-
-    return numpy.packbits(vals, bitorder='little').data.tobytes()
-
-
-def read_data(doc):
-    d = doc[DATA]
-    t = doc[TYPE]
-
-    data = ArrayData()
-    data.type = read_type(doc)
-
-    if t == 'null':
-        data.length = d
-        data.null_count = data.length
-        data.buffers.append(None)
-
-    elif t == 'bool':
-        vals = _decompress(d)
-        n = len(vals)
-        p = numpy.ndarray(n, numpy.uint8, vals)
+    def visit_bool(self, typ):
+        buf = decompress(self._doc[DATA])
+        n = len(buf)
+        p = numpy.ndarray(n, numpy.uint8, buf)
         bits = numpy.packbits(p, bitorder='little')
+        bitmap = pyarrow.py_buffer(bits.tobytes())
 
-        data.length = n
-        data.buffers.append(_make_mask(data, doc))
-        data.buffers.append(bits)
+        self.data.length = n
+        self.data.buffers.append(self._make_mask())
+        self.data.buffers.append(bitmap)
 
-    elif t in ('utf8', 'bytes'):
-        offsets, length = _decode_offsets(_decompress(doc[OFFSET]))
+    def _visit_numeric(self, typ):
+        buf = decompress(self._doc[DATA])
 
-        data.length = length
-        data.buffers.append(_make_mask(data, doc))
-        data.buffers.append(offsets)
-        data.buffers.append(_decompress(d))
+        assert (len(buf) * 8) % typ.bit_width == 0
 
-    elif t == 'list':
-        offsets, length = _decode_offsets(_decompress(doc[OFFSET]))
-        values = read_data(d)
+        self.data.length = len(buf) * 8 // typ.bit_width
+        self.data.buffers.append(self._make_mask())
+        self.data.buffers.append(buf)
 
-        data.type = pyarrow.list_(values.type)
-        data.length = length
-        data.buffers.append(_make_mask(data, doc))
-        data.buffers.append(offsets)
-        data.child_data.append(values)
+    def visit_int8(self, typ):
+        self._visit_numeric(typ)
 
-    elif t == 'struct':
-        l = d[LENGTH]
-        f = d[FIELDS]
+    def visit_int16(self, typ):
+        self._visit_numeric(typ)
 
-        data.length = l
-        data.buffers.append(_make_mask(data, doc))
+    def visit_int32(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_int64(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_uint8(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_uint16(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_uint32(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_uint64(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_float16(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_float32(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_float64(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_time32(self, typ):
+        self._visit_numeric(typ)
+
+    def visit_time64(self, typ):
+        self._visit_numeric(typ)
+
+    def _visit_datetime(self, typ, dtype):
+        buf, length = decode_datetime(decompress(self._doc[DATA]), dtype)
+
+        self.data.length = length
+        self.data.buffers.append(self._make_mask())
+        self.data.buffers.append(buf)
+
+    def visit_date32(self, typ):
+        self._visit_datetime(typ, numpy.int32())
+
+    def visit_date64(self, typ):
+        self._visit_datetime(typ, numpy.int64())
+
+    def visit_timestamp(self, typ):
+        self._visit_datetime(typ, numpy.int64())
+
+    def visit_binary(self, typ):
+        offsets, length = decode_offsets(decompress(self._doc[OFFSET]))
+
+        self.data.length = length
+        self.data.buffers.append(self._make_mask())
+        self.data.buffers.append(offsets)
+        self.data.buffers.append(decompress(self._doc[DATA]))
+
+    def visit_utf8(self, typ):
+        self.visit_binary(typ)
+
+    def visit_fixed_size_binary(self, typ):
+        buf = decompress(self._doc[DATA])
+
+        assert len(buf) % typ.byte_width == 0
+
+        self.data.length = len(buf) // typ.byte_width
+        self.data.buffers.append(self._make_mask())
+        self.data.buffers.append(buf)
+
+    def visit_decimal(self, typ):
+        self.visit_fixed_size_binary(typ)
+
+    def visit_list(self, typ):
+        offsets, length = decode_offsets(decompress(self._doc[OFFSET]))
+
+        self.data.length = length
+        self.data.buffers.append(self._make_mask())
+        self.data.buffers.append(offsets)
+
+        data = ArrayData()
+        data.type = typ.value_type
+
+        reader = DataReader(data, self._doc[DATA])
+        reader.accept(data.type)
+
+        self.data.type = pyarrow.list_(data.type)
+        self.data.children.append(data.make_array())
+
+    def visit_struct(self, typ):
+        data_doc = self._doc[DATA]
+
+        self.data.length = data_doc[LENGTH]
+        self.data.buffers.append(self._make_mask())
+
+        n = typ.num_children
+        field_docs = data_doc[FIELDS]
         fields = list()
-        for field in doc[PARAM]:
-            field_name = field_type[NAME]
-            field_data = read_data(f[field_name])
+
+        for field in self._doc[PARAM]:
+            field_name = field[NAME]
+            field_doc = field_docs[field_name]
+
+            field_data = ArrayData()
+            field_data.type = read_type(field_doc)  # TODO
+
+            reader = DataReader(field_data, field_doc)
+            reader.accept(field_data.type)
+
             fields.append(pyarrow.field(field_name, field_data.type))
-            data.child_data.append(field_data)
-        data.type = arrow.struct(fields)
 
-    elif t in ('factor', 'ordered'):
-        return pyarrow.DictionaryArray.from_arrays(read_data(d[INDEX]),
-                                                   read_data(d[DICT]),
-                                                   ordered=data.type.ordered)
-    else:  # only flat types shall remain here
-        values = _decompress(doc[DATA])
-        if t == 'date[d]':
-            values = _decode_datetime(values, numpy.int32())
-        elif t == 'date[ms]' or isinstance(data.type, pyarrow.TimestampType):
-            values = _decode_datetime(values, numpy.int64())
+            self.data.children.append(field_data.make_array())
 
-        data.length = len(values) // (data.type.bit_width // 8)
-        data.buffers.append(_make_mask(data, doc))
-        data.buffers.append(values)
+        self.data.type = pyarrow.struct(fields)
 
-    data.buffers = [
-        x if x is None else pyarrow.py_buffer(x) for x in data.buffers
-    ]
+    def visit_dictionary(self, typ):
+        data_doc = self._doc[DATA]
 
-    return pyarrow.Array.from_buffers(data.type,
-                                      data.length,
-                                      data.buffers,
-                                      data.null_count,
-                                      children=data.child_data)
+        index_doc = data_doc[INDEX]
+        self.data.type = read_type(index_doc)
+        index_reader = DataReader(self.data, index_doc)
+        index_reader.accept(self.data.type)
+
+        dict_doc = data_doc[DICT]
+        self.data.dictionary = ArrayData()
+        self.data.dictionary.type = read_type(dict_doc)
+        dict_reader = DataReader(self.data.dictionary, dict_doc)
+        dict_reader.accept(self.data.dictionary.type)
+
+        self.data.type = pyarrow.dictionary(self.data.type,
+                                            self.data.dictionary.type,
+                                            typ.ordered)
+
+    def _make_mask(self):
+        assert self.data.length is not None
+
+        if self.data.type.equals(pyarrow.null()):
+            self.data.null_count = self.data.length
+            return None
+
+        if self.data.length == 0:
+            self.data.null_count = 0
+            return None
+
+        bits = decompress(self._doc[MASK])
+        vals = numpy.unpackbits(numpy.ndarray(len(bits), numpy.uint8, bits))
+
+        assert len(vals) % self.data.length < 8
+
+        self.data.null_count = self.data.length - numpy.sum(vals)
+        if self.data.null_count == 0:
+            return None
+
+        mask = numpy.packbits(vals, bitorder='little')
+
+        return pyarrow.py_buffer(mask.tobytes())

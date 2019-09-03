@@ -1,12 +1,12 @@
-from .data_reader import *
-import collections
+from .column_reader import *
 import bson.raw_bson
+import pyarrow
 
 
 def read_table(buf):
     doc = bson.raw_bson.RawBSONDocument(buf)
-    data = collections.OrderedDict()
+    data = list()
     for k, v in doc.items():
-        data[k] = read_data(v)
+        data.append(pyarrow.column(k, read_column(v)))
 
-    return pyarrow.table(data)
+    return pyarrow.Table.from_arrays(data)
