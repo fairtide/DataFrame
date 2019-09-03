@@ -90,8 +90,6 @@ TEST_CASE("BSON swap bit order", "[serializer]")
 
 TEMPLATE_TEST_CASE("BSON", "[serializer][template]", TEST_TYPES)
 {
-    auto array = ::dataframe::make_array<TestType>(make_data<TestType>(5));
-    output.data[array->type()->ToString()] = array;
-    TestSerializer<TestType, ::dataframe::BSONReader,
-        ::dataframe::BSONWriter>();
+    TestSerializer<TestType, ::dataframe::BSONReader, ::dataframe::BSONWriter>(
+        output.data);
 }

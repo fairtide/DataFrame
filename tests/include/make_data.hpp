@@ -24,7 +24,8 @@ template <typename T>
 struct DataMaker {
     using U = ::dataframe::ScalarType<T>;
 
-    static auto make(std::size_t n)
+    template <typename Iter>
+    static auto make(std::size_t n, Iter)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<> rval(1000, 2000);
@@ -38,20 +39,32 @@ struct DataMaker {
     }
 };
 
+template <typename T, typename Iter>
+auto make_data(std::size_t n, Iter mask)
+{
+    return DataMaker<T>::make(n, mask);
+}
+
 template <typename T>
 auto make_data(std::size_t n)
 {
-    return DataMaker<T>::make(n);
+    auto mask = ::dataframe::repeat(true, n);
+    return make_data<T>(n, mask.begin());
 }
 
 template <>
 struct DataMaker<void> {
-    static auto make(std::size_t n) { return std::vector<std::nullptr_t>(n); }
+    template <typename Iter>
+    static auto make(std::size_t n, Iter)
+    {
+        return std::vector<std::nullptr_t>(n);
+    }
 };
 
 template <>
 struct DataMaker<bool> {
-    static auto make(std::size_t n)
+    template <typename Iter>
+    static auto make(std::size_t n, Iter)
     {
         std::mt19937_64 rng;
         std::bernoulli_distribution rbit;
@@ -67,7 +80,8 @@ struct DataMaker<bool> {
 
 template <>
 struct DataMaker<std::uint8_t> {
-    static auto make(std::size_t n)
+    template <typename Iter>
+    static auto make(std::size_t n, Iter)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<std::uint8_t> rval(32, 126);
@@ -83,16 +97,21 @@ struct DataMaker<std::uint8_t> {
 
 template <>
 struct DataMaker<std::string> {
-    static auto make(std::size_t n)
+    template <typename Iter>
+    static auto make(std::size_t n, Iter mask)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<std::size_t> rsize(1, 10);
         std::vector<std::string> values;
 
-        for (std::size_t i = 0; i != n; ++i) {
-            auto buf = make_data<std::uint8_t>(rsize(rng));
-            values.emplace_back(
-                reinterpret_cast<const char *>(buf.data()), buf.size());
+        for (std::size_t i = 0; i != n; ++i, ++mask) {
+            if (*mask) {
+                auto buf = make_data<std::uint8_t>(rsize(rng));
+                values.emplace_back(
+                    reinterpret_cast<const char *>(buf.data()), buf.size());
+            } else {
+                values.emplace_back();
+            }
         }
 
         return values;
@@ -101,26 +120,39 @@ struct DataMaker<std::string> {
 
 template <>
 struct DataMaker<::dataframe::Bytes> {
-    static auto make(std::size_t n) { return make_data<std::string>(n); }
+    template <typename Iter>
+    static auto make(std::size_t n, Iter mask)
+    {
+        return make_data<std::string>(n, mask);
+    }
 };
 
 template <typename T>
 struct DataMaker<::dataframe::Dict<T>> {
-    static auto make(std::size_t n) { return make_data<T>(n); }
+    template <typename Iter>
+    static auto make(std::size_t n, Iter mask)
+    {
+        return make_data<T>(n, mask);
+    }
 };
 
 template <typename T>
 struct DataMaker<::dataframe::List<T>> {
     using U = ::dataframe::ScalarType<::dataframe::List<T>>;
 
-    static auto make(std::size_t n)
+    template <typename Iter>
+    static auto make(std::size_t n, Iter mask)
     {
         std::mt19937_64 rng;
         std::uniform_int_distribution<std::size_t> rsize(1, 10);
         std::vector<U> values;
 
-        for (std::size_t i = 0; i != n; ++i) {
-            values.emplace_back(make_data<T>(rsize(rng)));
+        for (std::size_t i = 0; i != n; ++i, ++mask) {
+            if (*mask) {
+                values.emplace_back(make_data<T>(rsize(rng)));
+            } else {
+                values.emplace_back();
+            }
         }
 
         return values;
@@ -131,10 +163,11 @@ template <typename... Types>
 struct DataMaker<::dataframe::Struct<Types...>> {
     using U = ::dataframe::ScalarType<::dataframe::Struct<Types...>>;
 
-    static auto make(std::size_t n)
+    template <typename Iter>
+    static auto make(std::size_t n, Iter mask)
     {
         std::vector<U> values(n);
-        make<0>(values, std::integral_constant<bool, 0 < nfields>());
+        make<0>(values, mask, std::integral_constant<bool, 0 < nfields>());
 
         return values;
     }
@@ -142,20 +175,22 @@ struct DataMaker<::dataframe::Struct<Types...>> {
   private:
     static constexpr std::size_t nfields = sizeof...(Types);
 
-    template <std::size_t N>
-    static void make(std::vector<U> &values, std::true_type)
+    template <std::size_t N, typename Iter>
+    static void make(std::vector<U> &values, Iter mask, std::true_type)
     {
-        auto v = make_data<::dataframe::FieldType<N, Types...>>(values.size());
+        auto v = make_data<::dataframe::FieldType<N, Types...>>(
+            values.size(), mask);
 
         for (std::size_t i = 0; i != v.size(); ++i) {
             std::get<N>(values[i]) = std::move(v[i]);
         }
 
-        make<N + 1>(values, std::integral_constant<bool, N + 1 < nfields>());
+        make<N + 1>(
+            values, mask, std::integral_constant<bool, N + 1 < nfields>());
     }
 
-    template <std::size_t>
-    static void make(std::vector<U> &, std::false_type)
+    template <std::size_t, typename Iter>
+    static void make(std::vector<U> &, Iter, std::false_type)
     {
     }
 };

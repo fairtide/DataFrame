@@ -39,8 +39,12 @@ class ColumnReader
         DataReader reader(data, view, pool_);
         DF_ARROW_ERROR_HANDLER(data.type->Accept(&reader));
 
-        return ::arrow::MakeArray(
+        auto ret = ::arrow::MakeArray(
             std::make_shared<::arrow::ArrayData>(std::move(data)));
+
+        DF_ARROW_ERROR_HANDLER(::arrow::ValidateArray(*ret));
+
+        return ret;
     }
 
   private:

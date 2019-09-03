@@ -5,7 +5,7 @@ import pyarrow
 def read_type(doc):
     t = doc[TYPE]
 
-    if PARAM in doc
+    if PARAM in doc:
         tp = doc[PARAM]
     else:
         tp = None
