@@ -34,24 +34,16 @@ class DataFrame
     DataFrame &operator=(const DataFrame &) = default;
 
     explicit DataFrame(std::shared_ptr<::arrow::Table> &&table)
-        : table_(std::move(table))
+        : table_(table == nullptr ?
+                  nullptr :
+                  (is_single_chunk(*table) ? std::move(table) :
+                                             copy_table(*table)))
     {
     }
 
     explicit DataFrame(const ::arrow::Table &table)
+        : table_(copy_table(table))
     {
-        auto nrows = table.num_rows();
-        std::vector<std::shared_ptr<::arrow::Column>> columns;
-        std::vector<std::shared_ptr<::arrow::Field>> fields;
-        columns.reserve(static_cast<size_type>(table.num_columns()));
-        fields.reserve(static_cast<size_type>(table.num_columns()));
-        for (auto i = 0; i != table.num_columns(); ++i) {
-            auto col = table.column(i);
-            columns.push_back(col);
-            fields.push_back(col->field());
-        }
-        table_ = ::arrow::Table::Make(
-            std::make_shared<::arrow::Schema>(fields), columns, nrows);
     }
 
     ConstColumnProxy operator[](const std::string &name) const
@@ -132,13 +124,12 @@ class DataFrame
             return DataFrame();
         }
 
-        DataFrame ret;
-        for (size_type k = 0; k != ncol(); ++k) {
-            auto col = operator[](k);
-            ret[col.name()] = col(begin, end);
-        }
+        begin = std::min(begin, nrow());
+        end = std::min(end, nrow());
+        auto offset = static_cast<std::int64_t>(begin);
+        auto length = static_cast<std::int64_t>(end - begin);
 
-        return ret;
+        return DataFrame(table_->Slice(offset, length));
     }
 
     /// \brief Select a range of columns
@@ -153,6 +144,27 @@ class DataFrame
             auto col = operator[](k);
             ret[col.name()] = col.data();
         }
+
+        return ret;
+    }
+
+  private:
+    static bool is_single_chunk(const ::arrow::Table &table)
+    {
+        for (auto i = 0; i != table.num_columns(); ++i) {
+            if (table.column(i)->data()->chunks().size() > 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static std::shared_ptr<::arrow::Table> copy_table(
+        const ::arrow::Table &table)
+    {
+        std::shared_ptr<::arrow::Table> ret;
+        DF_ARROW_ERROR_HANDLER(
+            table.CombineChunks(::arrow::default_memory_pool(), &ret));
 
         return ret;
     }
