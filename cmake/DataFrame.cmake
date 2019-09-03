@@ -16,20 +16,14 @@
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(arrow)
-find_package(Boost COMPONENTS system filesystem)
-find_package(double-conversion)
+find_package(Arrow)
+find_package(Boost COMPONENTS date_time)
 find_package(BSONCXX)
 find_package(LZ4)
 find_package(RapidJSON)
 find_package(Threads)
 
-if (TARGET arrow_shared)
-    set(Arrow_LINK_LIBRARIES arrow_shared)
-else (TARGET arrow_shared)
-    set(Arrow_LINK_LIBRARIES arrow_static)
-endif (TARGET arrow_shared)
-
+include_directories(SYSTEM ${Arrow_INCLUDE_DIR})
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 include_directories(SYSTEM ${BSONCXX_INCLUDE_DIR})
 include_directories(SYSTEM ${LZ4_INCLUDE_DIR})
