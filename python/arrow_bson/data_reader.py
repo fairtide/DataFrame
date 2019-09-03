@@ -193,7 +193,8 @@ class DataReader(TypeVisitor):
             return None
 
         bits = decompress(self._doc[MASK])
-        vals = numpy.unpackbits(numpy.ndarray(len(bits), numpy.uint8, bits))
+        vals = numpy.unpackbits(numpy.ndarray(len(bits), numpy.uint8, bits),
+                                bitorder='big')
 
         assert len(vals) % self.data.length < 8
 
