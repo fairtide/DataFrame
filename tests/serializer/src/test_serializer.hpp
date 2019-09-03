@@ -59,8 +59,9 @@ inline void TestSerializer(::dataframe::DataFrame &out)
     std::size_t n = 1000;
     ::dataframe::DataFrame dat;
 
+    auto mask = make_data<bool>(n);
     dat["data"].emplace<T>(make_data<T>(n));
-    dat["null"].emplace<T>(make_data<T>(n), make_data<bool>(n));
+    dat["null"].emplace<T>(make_data<T>(n, mask.begin()), mask);
 
     auto outname = dat["data"].data()->type()->ToString();
     out[outname] = dat["data"].data();
