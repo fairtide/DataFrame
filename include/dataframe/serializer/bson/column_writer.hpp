@@ -36,6 +36,7 @@ class ColumnWriter : public ::arrow::ArrayVisitor
 
     ::bsoncxx::document::value write(const ::arrow::Array &array)
     {
+        DF_ARROW_ERROR_HANDLER(::arrow::ValidateArray(array));
         DF_ARROW_ERROR_HANDLER(array.Accept(this));
 
         return std::move(*column_);
