@@ -82,9 +82,7 @@ class TypeWriter : public ::arrow::TypeVisitor
         }
 
         if (!type.timezone().empty()) {
-            document param;
-            param.append(kvp(Schema::ZONE(), type.timezone()));
-            builder_.append(kvp(Schema::PARAM(), param.extract()));
+            builder_.append(kvp(Schema::PARAM(), type.timezone()));
         }
 
         return ::arrow::Status::OK();

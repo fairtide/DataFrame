@@ -34,9 +34,6 @@ struct Schema {
     // binary/string/list
     static view OFFSET() { return "o"; }
 
-    // timestamp
-    static view ZONE() { return "z"; }
-
     // list
     static view LENGTH() { return "l"; }
 
