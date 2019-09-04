@@ -1,7 +1,7 @@
 from .column_reader import *
 from .column_writer import *
-import collections
 import bson.raw_bson
+import collections
 import pyarrow
 
 
@@ -19,4 +19,14 @@ def write_table(table):
     doc = collections.OrdereDict()
     for col in table.columns:
         doc[col.name] = write_column(col.data.chunks[0])
+
     return bson.encode(doc)
+
+
+def read_dataframe(buf, **kwargs):
+    return read_table(buf).to_pandas(**kwargs)
+
+
+def write_dataframe(data, preserve_index=False, **kwargs):
+    return write_table(
+        pyarrow.from_pandas(data, preserve_index=preserve_index, **kwargs))

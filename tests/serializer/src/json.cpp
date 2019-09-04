@@ -94,8 +94,6 @@ TEMPLATE_TEST_CASE("JSON Row Serializer", "[serializer][template]",
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 {
-    // TODO void, bool, Dict, Decimal, FixedBinary
-
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
     dat["test"].emplace<TestType>(make_data<TestType>(n));
@@ -117,8 +115,6 @@ TEMPLATE_TEST_CASE("JSON Column Serializer", "[serializer][template]",
     ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,
     ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 {
-    // TODO void, bool, Dict, Decimal, FixedBinary
-
     ::dataframe::DataFrame dat;
     std::size_t n = 1000;
     dat["test"].emplace<TestType>(make_data<TestType>(n));

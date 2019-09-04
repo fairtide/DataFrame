@@ -18,7 +18,6 @@
 #define DATAFRAME_ARRAY_VIEW_HPP
 
 #include <dataframe/array/view/bool.hpp>
-#include <dataframe/array/view/decimal.hpp>
 #include <dataframe/array/view/dict.hpp>
 #include <dataframe/array/view/list.hpp>
 #include <dataframe/array/view/null.hpp>

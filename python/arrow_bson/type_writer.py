@@ -89,12 +89,6 @@ class TypeWriter(ArrayVisitor):
         self.doc[TYPE] = 'pod'
         self.doc[PARAM] = typ.byte_width
 
-    def visit_decimal(array):
-        typ = array.type
-
-        self.doc[TYPE] = 'decimal'
-        self.doc[PARAM] = {PRECISION: typ.precision, SCALE: typ.scale}
-
     def visit_list(array):
         param = dict()
         writer = TypeWriter(param)

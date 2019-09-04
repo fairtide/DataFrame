@@ -141,9 +141,6 @@ class TypeVisitor(object):
     def visit_dictionary(self, typ: pyarrow.DictionaryType) -> None:
         raise NotImplementedError(typ)
 
-    def visit_decimal(self, typ: pyarrow.Decimal128Type) -> None:
-        raise NotImplementedError(typ)
-
     def visit_list(self, typ: pyarrow.ListType) -> None:
         raise NotImplementedError(typ)
 
@@ -294,9 +291,6 @@ class ArrayVisitor(object):
         raise NotImplementedError(type(array))
 
     def visit_dictionary(self, array: pyarrow.DictionaryArray) -> None:
-        raise NotImplementedError(type(array))
-
-    def visit_decimal(self, array: pyarrow.Decimal128Array) -> None:
         raise NotImplementedError(type(array))
 
     def visit_list(self, array: pyarrow.ListArray) -> None:

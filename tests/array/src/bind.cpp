@@ -39,8 +39,6 @@ TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", bool, std::int8_t,
     ::dataframe::List<::dataframe::Struct<double>>,
     ::dataframe::Struct<::dataframe::List<double>>)
 {
-    // TODO void, bool, Dict, Decimal, FixedBinary
-
     using T = TestType;
 
     std::size_t n = 1000;

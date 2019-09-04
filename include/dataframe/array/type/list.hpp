@@ -22,8 +22,7 @@
 namespace dataframe {
 
 template <typename T>
-struct List {
-};
+struct List;
 
 template <typename T>
 struct TypeTraits<List<T>> {

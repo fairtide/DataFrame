@@ -106,8 +106,6 @@ class DataWriter : public ::arrow::ArrayVisitor
 
 #undef DF_DEFINE_VISITOR
 
-    // DF_DEFINE_VISITOR(Interval)
-
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
     {                                                                         \
@@ -149,12 +147,6 @@ class DataWriter : public ::arrow::ArrayVisitor
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
 
         return ::arrow::Status::OK();
-    }
-
-    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) override
-    {
-        return Visit(
-            static_cast<const ::arrow::FixedSizeBinaryArray &>(array));
     }
 
     ::arrow::Status Visit(const ::arrow::BinaryArray &array) override

@@ -22,8 +22,7 @@
 namespace dataframe {
 
 template <typename T, typename Index = std::int32_t, bool Ordered = false>
-struct Dict {
-};
+struct Dict;
 
 template <typename T, typename Index, bool Ordered>
 struct TypeTraits<Dict<T, Index, Ordered>> {

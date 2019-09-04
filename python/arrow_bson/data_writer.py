@@ -123,9 +123,6 @@ class DataWriter(ArrayVisitor):
         type_writer = TypeWriter(self.doc)
         type_writer.accept(array)
 
-    def visit_decimal(array):
-        self.visit_fixed_size_binary(array)
-
     def visit_binary(array):
         offsets = array.buffers()[1].slice(array.offset * 4,
                                            array.length * 4 + 4)

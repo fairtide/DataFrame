@@ -229,11 +229,6 @@ class JSONRowWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        // DF_DEFINE_VISITOR(Interval)
-        // DF_DEFINE_VISITOR(FixedSizeBinary)
-        // DF_DEFINE_VISITOR(Decimal128)
-        // DF_DEFINE_VISITOR(Binary)
-
         ::arrow::Status Visit(const ::arrow::StringArray &array) override
         {
             std::int64_t j = 0;
@@ -247,11 +242,6 @@ class JSONRowWriter : public Writer
 
             return ::arrow::Status::OK();
         }
-
-        // DF_DEFINE_VISITOR(List)
-        // DF_DEFINE_VISITOR(Struct)
-        // DF_DEFINE_VISITOR(Union)
-        // DF_DEFINE_VISITOR(Dictionary) // TODO
     };
 
   public:
@@ -522,11 +512,6 @@ class JSONColumnWriter : public Writer
             return ::arrow::Status::OK();
         }
 
-        // DF_DEFINE_VISITOR(Interval)
-        // DF_DEFINE_VISITOR(FixedSizeBinary)
-        // DF_DEFINE_VISITOR(Decimal128)
-        // DF_DEFINE_VISITOR(Binary)
-
         ::arrow::Status Visit(const ::arrow::StringArray &array) override
         {
             auto n = array.length();
@@ -540,11 +525,6 @@ class JSONColumnWriter : public Writer
 
             return ::arrow::Status::OK();
         }
-
-        // DF_DEFINE_VISITOR(List)
-        // DF_DEFINE_VISITOR(Struct)
-        // DF_DEFINE_VISITOR(Union)
-        // DF_DEFINE_VISITOR(Dictionary) // TODO
     };
 
   public:

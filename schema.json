@@ -36,6 +36,20 @@
             }
         },
 
+        "data_type": {
+            "oneOf": [{
+                "$ref": "#definitions/plain_type"
+            }, {
+                "$ref": "#definitions/timestamp_type"
+            }, {
+                "$ref": "#definitions/pod"
+            }, {
+                "$ref": "#definitions/list_type"
+            }, {
+                "$ref": "#definitions/struct_type"
+            }]
+        },
+
         "array": {
             "oneOf": [{
                 "$ref": "#definitions/null"
@@ -50,23 +64,17 @@
             }, {
                 "$ref": "#definitions/datetime"
             }, {
+                "$ref": "#definitions/timestamp"
+            }, {
                 "$ref": "#definitions/binary"
+            }, {
+                "$ref": "#definitions/pod"
             }, {
                 "$ref": "#definitions/dictionary"
             }, {
                 "$ref": "#definitions/list"
             }, {
                 "$ref": "#definitions/struct"
-            }]
-        },
-
-        "data_type": {
-            "oneOf": [{
-                "$ref": "#definitions/plain_type"
-            }, {
-                "$ref": "#definitions/list_type"
-            }, {
-                "$ref": "#definitions/struct_type"
             }]
         },
 
@@ -92,10 +100,6 @@
                         "float64",
                         "date[d]",
                         "date[ms]",
-                        "timestamp[s]",
-                        "timestamp[ms]",
-                        "timestamp[us]",
-                        "timestamp[ns]",
                         "time[s]",
                         "time[ms]",
                         "time[us]",
@@ -103,6 +107,40 @@
                         "factor",
                         "ordered"
                     ]
+                }
+            }
+        },
+
+        "timestamp_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "timestamp[s]",
+                        "timestamp[ms]",
+                        "timestamp[us]",
+                        "timestamp[ns]"
+                    ]
+                },
+                "p": {
+                    "type": "string",
+                    "description": "Time zone"
+                }
+            }
+        },
+
+        "pod_type": {
+            "type": "object",
+            "required": ["t", "p"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "const": "pod"
+                },
+                "p": {
+                    "type": "integer"
                 }
             }
         },
@@ -262,15 +300,37 @@
                     "enum": [
                         "date[d]",
                         "date[ms]",
-                        "timestamp[s]",
-                        "timestamp[ms]",
-                        "timestamp[us]",
-                        "timestamp[ns]",
                         "time[s]",
                         "time[ms]",
                         "time[us]",
                         "time[ns]"
                     ]
+                }
+            }
+        },
+
+        "timestamp": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "timestamp[s]",
+                        "timestamp[ms]",
+                        "timestamp[us]",
+                        "timestamp[ns]",
+                    ]
+                },
+                "p": {
+                    "type": "string",
+                    "description": "Time zone"
                 }
             }
         },
@@ -292,6 +352,26 @@
                 "t": {
                     "type": "string",
                     "enum": ["utf8", "bytes"]
+                }
+            }
+        },
+
+        "pod": {
+            "type": "object",
+            "required": ["d", "m", "t", "p"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "const": "pod"
+                },
+                "p": {
+                    "type": "integer"
                 }
             }
         },

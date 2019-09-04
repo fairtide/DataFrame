@@ -41,10 +41,6 @@ struct Schema {
     static view NAME() { return "n"; }
     static view FIELDS() { return "f"; }
 
-    // decimal128
-    static view PRECISION() { return "p"; }
-    static view SCALE() { return "s"; }
-
     // dictionary
     static view INDEX() { return "i"; }
     static view DICT() { return "d"; }

@@ -19,7 +19,6 @@
 
 #include <dataframe/array/type/bool.hpp>
 #include <dataframe/array/type/datetime.hpp>
-#include <dataframe/array/type/decimal.hpp>
 #include <dataframe/array/type/dict.hpp>
 #include <dataframe/array/type/iterator.hpp>
 #include <dataframe/array/type/list.hpp>

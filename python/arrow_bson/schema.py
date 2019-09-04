@@ -13,10 +13,6 @@ LENGTH = 'l'
 NAME = 'n'
 FIELDS = 'f'
 
-# decimal128
-PRECISION = 'p'
-SCALE = 's'
-
 # dictionary
 INDEX = 'i'
 DICT = 'd'

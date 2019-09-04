@@ -118,9 +118,6 @@ class DataReader(TypeVisitor):
         self.data.buffers.append(self._make_mask())
         self.data.buffers.append(buf)
 
-    def visit_decimal(self, typ):
-        self.visit_fixed_size_binary(typ)
-
     def visit_list(self, typ):
         offsets, length = decode_offsets(decompress(self._doc[OFFSET]))
 

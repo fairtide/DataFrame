@@ -160,12 +160,6 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return ::arrow::fixed_size_binary(tp.get_int32().value);
     }
 
-    if (type == "decimal") {
-        auto precision = tp[Schema::PRECISION()].get_int32().value;
-        auto scale = tp[Schema::SCALE()].get_int32().value;
-        return ::arrow::decimal(precision, scale);
-    }
-
     if (type == "list") {
         return ::arrow::list(read_type(tp.get_document().view()));
     }

@@ -42,8 +42,7 @@ inline const std::tuple_element_t<N, std::tuple<Types...>> &get_field(
 }
 
 template <typename T, typename... Types>
-struct NamedStruct {
-};
+struct NamedStruct;
 
 template <typename... Types>
 using Struct = NamedStruct<void, Types...>;

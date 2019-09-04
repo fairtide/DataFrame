@@ -132,22 +132,6 @@ class TypeWriter : public ::arrow::TypeVisitor
         return ::arrow::Status::OK();
     }
 
-    // ::arrow::Status Visit(const ::arrow::IntervalType &type) override
-    // {
-    //     using ::bsoncxx::builder::basic::kvp;
-
-    //     switch (type.unit()) {
-    //         case ::arrow::IntervalType::Unit::YEAR_MONTH:
-    //             builder_.append(kvp(Schema::TYPE(), "interval[ym]"));
-    //             break;
-    //         case ::arrow::IntervalType::Unit::DAY_TIME:
-    //             builder_.append(kvp(Schema::TYPE(), "interval[dt]"));
-    //             break;
-    //     }
-
-    //     return ::arrow::Status::OK();
-    // }
-
     ::arrow::Status Visit(const ::arrow::FixedSizeBinaryType &type) override
     {
         using ::bsoncxx::builder::basic::kvp;
@@ -155,24 +139,6 @@ class TypeWriter : public ::arrow::TypeVisitor
         builder_.append(kvp(Schema::TYPE(), "pod"));
         builder_.append(kvp(
             Schema::PARAM(), static_cast<std::int32_t>(type.byte_width())));
-
-        return ::arrow::Status::OK();
-    }
-
-    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) override
-    {
-        using ::bsoncxx::builder::basic::document;
-        using ::bsoncxx::builder::basic::kvp;
-
-        builder_.append(kvp(Schema::TYPE(), "decimal"));
-
-        document param;
-        param.append(kvp(
-            Schema::PRECISION(), static_cast<std::int32_t>(type.precision())));
-        param.append(
-            kvp(Schema::SCALE(), static_cast<std::int32_t>(type.scale())));
-
-        builder_.append(kvp(Schema::PARAM(), param.extract()));
 
         return ::arrow::Status::OK();
     }
