@@ -32,9 +32,11 @@ struct TypeTraits<Dict<T, Index, Ordered>> {
     using array_type = ::arrow::DictionaryArray;
     using builder_type = ::arrow::DictionaryBuilder<DataType<T>>;
 
-    [[noreturn]] static std::shared_ptr<data_type> make_data_type()
+    static std::shared_ptr<data_type> make_data_type()
     {
-        throw DataFrameException("Dict::data_type shall never be called");
+        return std::make_shared<data_type>(
+            ::dataframe::make_data_type<Index>(),
+            ::dataframe::make_data_type<T>(), Ordered);
     }
 
     static std::unique_ptr<builder_type> make_builder(

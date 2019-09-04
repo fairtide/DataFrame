@@ -65,6 +65,7 @@
             T, ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)          \
         DEFINE_TEST_SECTION(T, std::string)                                   \
         DEFINE_TEST_SECTION(T, ::dataframe::Bytes)                            \
+        DEFINE_TEST_SECTION(T, ::dataframe::Dict<int, short>)                 \
         DEFINE_TEST_SECTION(T, ::dataframe::List<int>)                        \
         DEFINE_TEST_SECTION(T, ::dataframe::List<double>)                     \
         DEFINE_TEST_SECTION(T, ::dataframe::Struct<int>)                      \
@@ -97,6 +98,7 @@ DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Microsecond>)
 DEFINE_TEST_CASE(::dataframe::Time<::dataframe::TimeUnit::Nanosecond>)
 DEFINE_TEST_CASE(std::string)
 DEFINE_TEST_CASE(::dataframe::Bytes)
+DEFINE_TEST_CASE(::dataframe::Dict<int, short>)
 DEFINE_TEST_CASE(::dataframe::List<int>)
 DEFINE_TEST_CASE(::dataframe::List<double>)
 DEFINE_TEST_CASE(::dataframe::Struct<int>)
