@@ -26,9 +26,7 @@ struct ArrayMaker<bool> {
     template <typename Iter>
     static void append(BuilderType<bool> *builder, Iter first, Iter last)
     {
-        for (auto iter = first; iter != last; ++iter) {
-            DF_ARROW_ERROR_HANDLER(builder->Append(static_cast<bool>(*iter)));
-        }
+        DF_ARROW_ERROR_HANDLER(builder->AppendValues(first, last));
     }
 };
 
