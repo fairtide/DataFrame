@@ -19,9 +19,11 @@
 
 #include <dataframe/array/make/bool.hpp>
 #include <dataframe/array/make/datetime.hpp>
+#include <dataframe/array/make/decimal.hpp>
 #include <dataframe/array/make/dict.hpp>
 #include <dataframe/array/make/list.hpp>
 #include <dataframe/array/make/null.hpp>
+#include <dataframe/array/make/pod.hpp>
 #include <dataframe/array/make/primitive.hpp>
 #include <dataframe/array/make/string.hpp>
 #include <dataframe/array/make/struct.hpp>
