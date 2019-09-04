@@ -19,10 +19,12 @@
 
 #include <dataframe/array/type/bool.hpp>
 #include <dataframe/array/type/datetime.hpp>
+#include <dataframe/array/type/decimal.hpp>
 #include <dataframe/array/type/dict.hpp>
 #include <dataframe/array/type/iterator.hpp>
 #include <dataframe/array/type/list.hpp>
 #include <dataframe/array/type/null.hpp>
+#include <dataframe/array/type/pod.hpp>
 #include <dataframe/array/type/primitive.hpp>
 #include <dataframe/array/type/string.hpp>
 #include <dataframe/array/type/struct.hpp>
