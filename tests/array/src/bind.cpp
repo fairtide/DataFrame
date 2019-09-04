@@ -24,7 +24,8 @@
 
 TEMPLATE_TEST_CASE("Bind/Split array", "[array][template]", bool, std::int8_t,
     std::int16_t, std::int32_t, std::int64_t, std::uint8_t, std::uint16_t,
-    std::uint32_t, std::uint64_t, std::string, ::dataframe::Dict<std::string>,
+    std::uint32_t, std::uint64_t, std::string, ::dataframe::Bytes,
+    ::dataframe::POD<int>, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
