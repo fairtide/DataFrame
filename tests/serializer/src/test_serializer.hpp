@@ -63,6 +63,9 @@ inline void TestSerializer(::dataframe::DataFrame &out)
     dat["data"].emplace<T>(make_data<T>(n));
     dat["null"].emplace<T>(make_data<T>(n, mask.begin()), mask);
 
+    CHECK(::arrow::ValidateArray(*dat["data"].data()).ok());
+    CHECK(::arrow::ValidateArray(*dat["null"].data()).ok());
+
     auto outname = dat["data"].data()->type()->ToString();
     out[outname] = dat["data"].data();
     out[outname + " (null)"] = dat["null"].data();

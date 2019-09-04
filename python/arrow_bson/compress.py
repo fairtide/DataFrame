@@ -4,7 +4,7 @@ import numpy
 import pyarrow
 
 
-def comrpess(data, compression_level):
+def compress(data, compression_level):
     if compression_level > 0:
         buf = lz4.block.compress(data,
                                  mode='high_compression',
@@ -26,7 +26,7 @@ def encode_offsets(data):
     n = len(data) // t.nbytes
     v = numpy.ndarray(n, t, data)
 
-    return numpy.diff(v, prepend=0).tobytes(), v[0], v[-1] - v[0]
+    return numpy.diff(v, prepend=numpy.int32(0)).tobytes(), v[0], v[-1] - v[0]
 
 
 def encode_datetime(data, dtype):

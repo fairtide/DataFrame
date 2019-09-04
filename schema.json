@@ -25,6 +25,17 @@
             }
         },
 
+        "bson_numberInt": {
+            "type": "object",
+            "required": ["$numberInt"],
+            "properties": {
+                "$numberLong": {
+                    "type": "string",
+                    "pattern": "-?[0-9]+"
+                }
+            }
+        },
+
         "bson_numberLong": {
             "type": "object",
             "required": ["$numberLong"],
@@ -192,7 +203,7 @@
                     "const": "pod"
                 },
                 "p": {
-                    "type": "integer"
+                    "$ref": "#/definitions/bson_numberInt"
                 }
             }
         },
@@ -474,7 +485,7 @@
                     "const": "pod"
                 },
                 "p": {
-                    "type": "integer"
+                    "$ref": "#/definitions/bson_numberInt"
                 }
             }
         },
