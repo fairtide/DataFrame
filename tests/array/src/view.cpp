@@ -75,19 +75,6 @@ struct TestDataBase {
 
         CHECK(std::equal(
             view.begin(), view.end(), values.begin() + offset, values.end()));
-
-        if constexpr (std::is_same_v<U, ::dataframe::Dict<std::string>>) {
-            auto p = values.begin() + offset;
-            for (std::size_t i = 0; i != view.size(); ++i) {
-                if (view[i] != p[static_cast<std::ptrdiff_t>(i)]) {
-                    auto j = view.indices()[i];
-                    std::cout << i << '\t' << j << '\t' << "'" << view[i]
-                              << "'" << '\t' << "'"
-                              << p[static_cast<std::ptrdiff_t>(i)] << "'"
-                              << std::endl;
-                }
-            }
-        }
     }
 
     std::int64_t length;
@@ -260,6 +247,80 @@ struct TestData<std::string> : TestDataBase<std::string> {
 };
 
 template <>
+struct TestData<::dataframe::Bytes> : TestDataBase<std::string> {
+    TestData(std::size_t n = 0, bool nullable = false)
+        : TestDataBase<std::string>(n, nullable)
+    {
+        ::arrow::BinaryBuilder builder(::arrow::default_memory_pool());
+        std::mt19937_64 rng;
+        std::uniform_int_distribution<char> rchar;
+        std::uniform_int_distribution<std::size_t> rsize(0, 100);
+        std::vector<char> buf;
+
+        auto setbuf = [&]() {
+            buf.resize(rsize(rng));
+            for (auto &c : buf) {
+                c = rchar(rng);
+            }
+        };
+
+        if (nullable) {
+            for (std::size_t i = 0; i != n; ++i) {
+                if (valids[i]) {
+                    setbuf();
+                    values.emplace_back(buf.data(), buf.size());
+                    DF_ARROW_ERROR_HANDLER(builder.Append(values.back()));
+                } else {
+                    values.emplace_back();
+                    DF_ARROW_ERROR_HANDLER(builder.AppendNull());
+                }
+            }
+        } else {
+            for (std::size_t i = 0; i != n; ++i) {
+                setbuf();
+                values.emplace_back(buf.data(), buf.size());
+                DF_ARROW_ERROR_HANDLER(builder.Append(values.back()));
+            }
+        }
+
+        DF_ARROW_ERROR_HANDLER(builder.Finish(&array));
+    }
+};
+
+template <typename T>
+struct TestData<::dataframe::POD<T>> : TestDataBase<T> {
+    TestData(std::size_t n = 0, bool nullable = false)
+        : TestDataBase<T>(n, nullable)
+    {
+        ::arrow::FixedSizeBinaryBuilder builder(
+            ::arrow::fixed_size_binary(sizeof(T)),
+            ::arrow::default_memory_pool());
+
+        std::mt19937_64 rng;
+        std::uniform_int_distribution<std::uint8_t> rchar;
+        std::vector<std::uint8_t> buf(n * sizeof(T));
+        for (auto &v : buf) {
+            v = rchar(rng);
+        }
+
+        this->values.resize(n);
+        std::memcpy(this->values.data(), buf.data(), buf.size());
+
+        if (nullable) {
+            std::vector<std::uint8_t> v(n);
+            std::copy(this->valids.begin(), this->valids.end(), v.begin());
+            DF_ARROW_ERROR_HANDLER(builder.AppendValues(
+                buf.data(), static_cast<std::int64_t>(n), v.data()));
+        } else {
+            DF_ARROW_ERROR_HANDLER(builder.AppendValues(
+                buf.data(), static_cast<std::int64_t>(n)));
+        }
+
+        DF_ARROW_ERROR_HANDLER(builder.Finish(&this->array));
+    }
+};
+
+template <>
 struct TestData<::dataframe::Dict<std::string>> : TestDataBase<std::string> {
     TestData(std::size_t n = 0, bool nullable = false)
         : TestDataBase<std::string>(n, nullable)
@@ -304,7 +365,7 @@ struct TestData<::dataframe::Dict<std::string>> : TestDataBase<std::string> {
 TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
     std::uint8_t, std::int8_t, std::uint16_t, std::int16_t, std::uint32_t,
     std::int32_t, std::uint64_t, std::int64_t, float, double, std::string,
-    ::dataframe::Dict<std::string>,
+    ::dataframe::Bytes, ::dataframe::POD<int>, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,
