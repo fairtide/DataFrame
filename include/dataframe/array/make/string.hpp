@@ -27,6 +27,7 @@ struct ArrayMaker<std::string> {
     static void append(
         BuilderType<std::string> *builder, Iter first, Iter last)
     {
+        DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
         for (auto iter = first; iter != last; ++iter) {
             std::string_view v(*iter);
             DF_ARROW_ERROR_HANDLER(builder->Append(
@@ -44,6 +45,7 @@ struct ArrayMaker<Bytes> {
     template <typename Iter>
     static void append(BuilderType<Bytes> *builder, Iter first, Iter last)
     {
+        DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
         for (auto iter = first; iter != last; ++iter) {
             DF_ARROW_ERROR_HANDLER(builder->Append(
                 iter->data(), static_cast<std::int32_t>(iter->size())));
