@@ -25,7 +25,11 @@ def write_column(array, compression_level):
 
 
 def read_table(buf):
-    doc = bson.raw_bson.RawBSONDocument(buf)
+    if isinstance(buf, bytes):
+        doc = bson.raw_bson.RawBSONDocument(buf)
+    else:
+        doc = buf
+
     data = list()
     for k, v in doc.items():
         data.append(pyarrow.column(k, read_column(v)))
