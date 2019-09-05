@@ -36,57 +36,18 @@ class ColumnWriter : public ::arrow::ArrayVisitor
 
     ::bsoncxx::document::value write(const ::arrow::Array &array)
     {
-        DF_ARROW_ERROR_HANDLER(array.Accept(this));
+        using ::bsoncxx::builder::basic::document;
+        using ::bsoncxx::builder::basic::kvp;
 
-        return std::move(*column_);
+        document col;
+
+        DataWriter data(col, buffer1_, buffer2_, compression_level_);
+        DF_ARROW_ERROR_HANDLER(array.Accept(&data));
+
+        return col.extract();
     }
 
     int compression_level() const { return compression_level_; }
-
-  private:
-#define DF_DEFINE_VISITOR(Type)                                               \
-    ::arrow::Status Visit(const ::arrow::Type##Array &array) override         \
-    {                                                                         \
-        using ::bsoncxx::builder::basic::document;                            \
-        using ::bsoncxx::builder::basic::kvp;                                 \
-                                                                              \
-        document col;                                                         \
-                                                                              \
-        DataWriter data(col, buffer1_, buffer2_, compression_level_);         \
-        DF_ARROW_ERROR_HANDLER(array.Accept(&data));                          \
-                                                                              \
-        column_ =                                                             \
-            std::make_unique<::bsoncxx::document::value>(col.extract());      \
-                                                                              \
-        return ::arrow::Status::OK();                                         \
-    }
-
-    DF_DEFINE_VISITOR(Null)
-    DF_DEFINE_VISITOR(Boolean)
-    DF_DEFINE_VISITOR(Int8)
-    DF_DEFINE_VISITOR(Int16)
-    DF_DEFINE_VISITOR(Int32)
-    DF_DEFINE_VISITOR(Int64)
-    DF_DEFINE_VISITOR(UInt8)
-    DF_DEFINE_VISITOR(UInt16)
-    DF_DEFINE_VISITOR(UInt32)
-    DF_DEFINE_VISITOR(UInt64)
-    DF_DEFINE_VISITOR(HalfFloat)
-    DF_DEFINE_VISITOR(Float)
-    DF_DEFINE_VISITOR(Double)
-    DF_DEFINE_VISITOR(Date32)
-    DF_DEFINE_VISITOR(Date64)
-    DF_DEFINE_VISITOR(Timestamp)
-    DF_DEFINE_VISITOR(Time32)
-    DF_DEFINE_VISITOR(Time64)
-    DF_DEFINE_VISITOR(FixedSizeBinary)
-    DF_DEFINE_VISITOR(Binary)
-    DF_DEFINE_VISITOR(String)
-    DF_DEFINE_VISITOR(List)
-    DF_DEFINE_VISITOR(Struct)
-    DF_DEFINE_VISITOR(Dictionary)
-
-#undef DF_DEFINE_VISITOR
 
   private:
     int compression_level_;
