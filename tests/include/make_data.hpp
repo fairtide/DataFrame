@@ -128,7 +128,7 @@ struct DataMaker<::dataframe::Bytes> {
 };
 
 template <typename T>
-struct DataMaker<::dataframe::POD<T>> {
+struct DataMaker<::dataframe::Opaque<T>> {
     template <typename Iter>
     static auto make(std::size_t n, Iter mask)
     {

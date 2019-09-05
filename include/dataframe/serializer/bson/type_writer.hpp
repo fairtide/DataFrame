@@ -136,7 +136,7 @@ class TypeWriter : public ::arrow::TypeVisitor
     {
         using ::bsoncxx::builder::basic::kvp;
 
-        builder_.append(kvp(Schema::TYPE(), "pod"));
+        builder_.append(kvp(Schema::TYPE(), "opaque"));
         builder_.append(kvp(
             Schema::PARAM(), static_cast<std::int32_t>(type.byte_width())));
 

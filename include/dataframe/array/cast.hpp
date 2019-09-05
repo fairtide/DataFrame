@@ -22,7 +22,7 @@
 #include <dataframe/array/cast/dict.hpp>
 #include <dataframe/array/cast/list.hpp>
 #include <dataframe/array/cast/null.hpp>
-#include <dataframe/array/cast/pod.hpp>
+#include <dataframe/array/cast/opaque.hpp>
 #include <dataframe/array/cast/primitive.hpp>
 #include <dataframe/array/cast/string.hpp>
 #include <dataframe/array/cast/struct.hpp>

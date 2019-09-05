@@ -80,7 +80,7 @@ CANONICAL_JSON_SCHEMA = {
             }, {
                 "$ref": "#definitions/binary_type"
             }, {
-                "$ref": "#definitions/pod_type"
+                "$ref": "#definitions/opaque_type"
             }, {
                 "$ref": "#definitions/dictionary_type"
             }, {
@@ -181,13 +181,13 @@ CANONICAL_JSON_SCHEMA = {
                 }
             }
         },
-        "pod_type": {
+        "opaque_type": {
             "type": "object",
             "required": ["t", "p"],
             "properties": {
                 "t": {
                     "type": "string",
-                    "const": "pod"
+                    "const": "opaque"
                 },
                 "p": {
                     "$ref": "#/definitions/bson_numberInt"
@@ -273,7 +273,7 @@ CANONICAL_JSON_SCHEMA = {
             }, {
                 "$ref": "#definitions/binary"
             }, {
-                "$ref": "#definitions/pod"
+                "$ref": "#definitions/opaque"
             }, {
                 "$ref": "#definitions/dictionary"
             }, {
@@ -426,7 +426,7 @@ CANONICAL_JSON_SCHEMA = {
                 }
             }
         },
-        "pod": {
+        "opaque": {
             "type": "object",
             "required": ["d", "m", "t", "p"],
             "properties": {
@@ -438,7 +438,7 @@ CANONICAL_JSON_SCHEMA = {
                 },
                 "t": {
                     "type": "string",
-                    "const": "pod"
+                    "const": "opaque"
                 },
                 "p": {
                     "$ref": "#/definitions/bson_numberInt"

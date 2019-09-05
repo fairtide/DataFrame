@@ -156,7 +156,7 @@ inline std::shared_ptr<::arrow::DataType> read_type(
         return read_dict_type(true);
     }
 
-    if (type == "pod") {
+    if (type == "opaque") {
         return ::arrow::fixed_size_binary(tp.get_int32().value);
     }
 

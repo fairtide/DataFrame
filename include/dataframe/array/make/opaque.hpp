@@ -14,34 +14,30 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_CAST_POD_HPP
-#define DATAFRAME_ARRAY_CAST_POD_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_OPAQUE_HPP
+#define DATAFRAME_ARRAY_MAKE_OPAQUE_HPP
 
-#include <dataframe/array/cast/primitive.hpp>
+#include <dataframe/array/make/primitive.hpp>
 
 namespace dataframe {
 
 template <typename T>
-struct CastArrayVisitor<POD<T>> : ::arrow::ArrayVisitor {
-    static_assert(std::is_standard_layout_v<T>);
-
-    std::shared_ptr<::arrow::Array> result;
-
-    CastArrayVisitor(
-        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *)
-        : result(std::move(data))
+struct ArrayMaker<Opaque<T>> {
+    template <typename Iter>
+    static void append(BuilderType<Opaque<T>> *builder, Iter first, Iter last)
     {
-    }
+        static_assert(
+            std::is_same_v<typename std::iterator_traits<Iter>::value_type,
+                T>);
 
-    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) override
-    {
-        return is_type<POD<T>>(array.type()) ?
-            ::arrow::Status::OK() :
-            ::arrow::Status(::arrow::StatusCode::NotImplemented,
-                "Different byte width between POD types");
+        DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
+        for (auto iter = first; iter != last; ++iter) {
+            DF_ARROW_ERROR_HANDLER(builder->Append(
+                reinterpret_cast<const std::uint8_t *>(&(*iter))));
+        }
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_CAST_POD_HPP
+#endif // DATAFRAME_ARRAY_MAKE_OPAQUE_HPP

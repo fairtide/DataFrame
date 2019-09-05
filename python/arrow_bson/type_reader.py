@@ -103,7 +103,7 @@ def read_type(doc):
             dict_type = read_type(tp[DICT])
         return pyarrow.dictionary(index_type, dict_type, True)
 
-    if t == 'pod':
+    if t == 'opaque':
         return pyarrow.binary(tp)
 
     if t == 'list':
