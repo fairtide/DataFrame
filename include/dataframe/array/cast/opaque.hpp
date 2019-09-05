@@ -14,32 +14,32 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_MAKE_POD_HPP
-#define DATAFRAME_ARRAY_MAKE_POD_HPP
+#ifndef DATAFRAME_ARRAY_CAST_OPAQUE_HPP
+#define DATAFRAME_ARRAY_CAST_OPAQUE_HPP
 
-#include <dataframe/array/make/primitive.hpp>
+#include <dataframe/array/cast/primitive.hpp>
 
 namespace dataframe {
 
 template <typename T>
-struct ArrayMaker<POD<T>> {
-    static_assert(std::is_standard_layout_v<T>);
+struct CastArrayVisitor<Opaque<T>> : ::arrow::ArrayVisitor {
+    std::shared_ptr<::arrow::Array> result;
 
-    template <typename Iter>
-    static void append(BuilderType<POD<T>> *builder, Iter first, Iter last)
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *)
+        : result(std::move(data))
     {
-        static_assert(
-            std::is_same_v<typename std::iterator_traits<Iter>::value_type,
-                T>);
+    }
 
-        DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
-        for (auto iter = first; iter != last; ++iter) {
-            DF_ARROW_ERROR_HANDLER(builder->Append(
-                reinterpret_cast<const std::uint8_t *>(&(*iter))));
-        }
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) override
+    {
+        return is_type<Opaque<T>>(array.type()) ?
+            ::arrow::Status::OK() :
+            ::arrow::Status(::arrow::StatusCode::NotImplemented,
+                "Different byte width between opaque types");
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_MAKE_POD_HPP
+#endif // DATAFRAME_ARRAY_CAST_OPAQUE_HPP

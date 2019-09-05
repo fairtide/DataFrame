@@ -14,20 +14,18 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_TYPE_POD_HPP
-#define DATAFRAME_ARRAY_TYPE_POD_HPP
+#ifndef DATAFRAME_ARRAY_TYPE_OPAQUE_HPP
+#define DATAFRAME_ARRAY_TYPE_OPAQUE_HPP
 
 #include <dataframe/array/type/primitive.hpp>
 
 namespace dataframe {
 
 template <typename T>
-struct POD;
+struct Opaque;
 
 template <typename T>
-struct TypeTraits<POD<T>> {
-    static_assert(std::is_standard_layout_v<T>);
-
+struct TypeTraits<Opaque<T>> {
     using scalar_type = T;
     using data_type = ::arrow::FixedSizeBinaryType;
     using array_type = ::arrow::FixedSizeBinaryArray;
@@ -46,15 +44,13 @@ struct TypeTraits<POD<T>> {
 };
 
 template <typename T>
-struct IsType<POD<T>, ::arrow::FixedSizeBinaryType> {
+struct IsType<Opaque<T>, ::arrow::FixedSizeBinaryType> {
     static bool is_type(const ::arrow::FixedSizeBinaryType &type)
     {
-        static_assert(std::is_standard_layout_v<T>);
-
         return type.byte_width() == sizeof(T);
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_TYPE_POD_HPP
+#endif // DATAFRAME_ARRAY_TYPE_OPAQUE_HPP

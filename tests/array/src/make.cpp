@@ -24,7 +24,7 @@
 TEMPLATE_TEST_CASE("Make Primitive array", "[make_array][template]", void,
     bool, std::uint8_t, std::int8_t, std::uint16_t, std::int16_t,
     std::uint32_t, std::int32_t, std::uint64_t, std::int64_t, float, double,
-    std::string, ::dataframe::Bytes, ::dataframe::POD<int>,
+    std::string, ::dataframe::Bytes, ::dataframe::Opaque<int>,
     ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,

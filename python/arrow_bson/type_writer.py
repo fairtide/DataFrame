@@ -88,7 +88,7 @@ class TypeWriter(TypeVisitor):
         self.doc[TYPE] = f'time[{unit}]'
 
     def visit_fixed_size_binary(self, typ):
-        self.doc[TYPE] = 'pod'
+        self.doc[TYPE] = 'opaque'
         self.doc[PARAM] = typ.byte_width
 
     def visit_list(self, typ):

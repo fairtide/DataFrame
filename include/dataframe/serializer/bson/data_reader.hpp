@@ -132,7 +132,7 @@ class DataReader : public ::arrow::TypeVisitor
         auto buffer = decompress(view_[Schema::DATA()].get_binary(), pool_);
 
         if (buffer->size() % type.byte_width() != 0) {
-            throw DataFrameException("Incorrect buffer size for POD type");
+            throw DataFrameException("Incorrect buffer size for opaque type");
         }
 
         data_.length = buffer->size() / type.byte_width();

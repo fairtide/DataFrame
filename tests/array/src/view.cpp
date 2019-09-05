@@ -288,7 +288,7 @@ struct TestData<::dataframe::Bytes> : TestDataBase<std::string> {
 };
 
 template <typename T>
-struct TestData<::dataframe::POD<T>> : TestDataBase<T> {
+struct TestData<::dataframe::Opaque<T>> : TestDataBase<T> {
     TestData(std::size_t n = 0, bool nullable = false)
         : TestDataBase<T>(n, nullable)
     {
@@ -365,7 +365,7 @@ struct TestData<::dataframe::Dict<std::string>> : TestDataBase<std::string> {
 TEMPLATE_TEST_CASE("Make view of array/slice", "[make_view][template]",
     std::uint8_t, std::int8_t, std::uint16_t, std::int16_t, std::uint32_t,
     std::int32_t, std::uint64_t, std::int64_t, float, double, std::string,
-    ::dataframe::Bytes, ::dataframe::POD<int>, ::dataframe::Dict<std::string>,
+    ::dataframe::Bytes, ::dataframe::Opaque<int>, ::dataframe::Dict<std::string>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Day>,
     ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,
     ::dataframe::Timestamp<::dataframe::TimeUnit::Second>,

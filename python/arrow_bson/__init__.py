@@ -1,10 +1,31 @@
 from .array_data import *
+from .compress import *
 from .data_reader import *
 from .data_writer import *
+from .schema import *
 from .type_reader import *
+from .type_writer import *
+from .visitor import *
+
+import bson
+import bson.json_util
 import bson.raw_bson
 import collections
+import json
+import jsonschema
 import pyarrow
+
+
+def validate(doc):
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
+
+    json_mode = bson.json_util.JSONMode.CANONICAL
+    json_options = bson.json_util.JSONOptions(json_mode=json_mode)
+    json_doc = bson.json_util.dumps(doc, json_options=json_options)
+
+    jsonschema.validate(instance=json.loads(json_doc),
+                        schema=CANONICAL_JSON_SCHEMA)
 
 
 def read_column(doc):
@@ -24,11 +45,9 @@ def write_column(array, compression_level):
     return col
 
 
-def read_table(buf):
-    if isinstance(buf, bytes):
-        doc = bson.raw_bson.RawBSONDocument(buf)
-    else:
-        doc = buf
+def read_table(doc):
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
 
     data = list()
     for k, v in doc.items():
@@ -46,8 +65,8 @@ def write_table(table, compression_level=0):
     return bson.encode(doc)
 
 
-def read_dataframe(buf, **kwargs):
-    return read_table(buf).to_pandas(**kwargs)
+def read_dataframe(doc, **kwargs):
+    return read_table(doc).to_pandas(**kwargs)
 
 
 def write_dataframe(data, preserve_index=False, **kwargs):
