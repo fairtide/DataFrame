@@ -1,10 +1,8 @@
 import sys
 import os
 
-root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
-sys.path.insert(0, os.path.join(root, 'python'))
+sys.path.insert(0,
+                os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 import arrow_bson
 import gzip
@@ -12,7 +10,7 @@ import numpy
 import pyarrow
 import unittest
 
-with gzip.open(os.path.join(root, 'test.data.gz'), 'rb') as f:
+with gzip.open('test.data.gz', 'rb') as f:
     TABLE = pyarrow.RecordBatchFileReader(f).read_all()
 
 
