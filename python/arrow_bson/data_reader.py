@@ -90,13 +90,13 @@ class DataReader(TypeVisitor):
         self.data.buffers.append(buf)
 
     def visit_date32(self, typ):
-        self._visit_datetime(typ, numpy.int32())
+        self._visit_datetime(typ, numpy.int32)
 
     def visit_date64(self, typ):
-        self._visit_datetime(typ, numpy.int64())
+        self._visit_datetime(typ, numpy.int64)
 
     def visit_timestamp(self, typ):
-        self._visit_datetime(typ, numpy.int64())
+        self._visit_datetime(typ, numpy.int64)
 
     def visit_binary(self, typ):
         offsets, length = decode_offsets(decompress(self._doc[OFFSET]))

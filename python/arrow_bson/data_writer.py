@@ -103,13 +103,13 @@ class DataWriter(ArrayVisitor):
         type_writer.accept(array.type)
 
     def visit_date32(self, array):
-        self._visit_datetime(array, numpy.int32())
+        self._visit_datetime(array, numpy.int32)
 
     def visit_date64(self, array):
-        self._visit_datetime(array, numpy.int64())
+        self._visit_datetime(array, numpy.int64)
 
     def visit_timestamp(self, array):
-        self._visit_datetime(array, numpy.int64())
+        self._visit_datetime(array, numpy.int64)
 
     def visit_fixed_size_binary(self, array):
         wid = array.type.byte_width

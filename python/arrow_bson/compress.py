@@ -21,24 +21,24 @@ def decompress(data):
 
 def encode_offsets(data):
     t = numpy.int32()
+
     assert len(data) % t.nbytes == 0
 
     n = len(data) // t.nbytes
     v = numpy.ndarray(n, t, data)
 
-    return numpy.diff(v, prepend=numpy.int32(0)).tobytes(), v[0], v[-1] - v[0]
+    return numpy.diff(v, prepend=v[0]).tobytes(), v[0], v[-1] - v[0]
 
 
 def encode_datetime(data, dtype):
-    if len(data) == 0:
-        return data
+    t = dtype(0)
 
-    assert len(data) % dtype.nbytes == 0
+    assert len(data) % t.nbytes == 0
 
-    n = len(data) // dtype.nbytes
+    n = len(data) // t.nbytes
     v = numpy.ndarray(n, dtype, data)
 
-    return numpy.diff(v, prepend=v[0]).tobytes()
+    return numpy.diff(v, prepend=t).tobytes()
 
 
 def decode_offsets(data):
@@ -53,9 +53,11 @@ def decode_offsets(data):
 
 
 def decode_datetime(data, dtype):
-    assert len(data) % dtype.nbytes == 0
+    t = dtype(0)
 
-    n = len(data) // dtype.nbytes
+    assert len(data) % t.nbytes == 0
+
+    n = len(data) // t.nbytes
     v = numpy.cumsum(numpy.ndarray(n, dtype, data), dtype=dtype)
 
     return pyarrow.py_buffer(v.tobytes()), n

@@ -23,19 +23,23 @@ with open(os.path.join(root, 'schema.json')) as f:
 
 
 class TestArrowBSON(unittest.TestCase):
-    def test_offsets(self):
-        offsets = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        buf = offsets.tobytes()
+    def test_offsets_codec(self):
+        val = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
+        buf = val.tobytes()
         enc = arrow_bson.encode_offsets(buf)[0]
         dec = arrow_bson.decode_offsets(enc)[0].to_pybytes()
         self.assertEqual(buf, dec)
 
-    def test_datetime(self):
-        t = numpy.int32()
-        datetime = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], t)
-        buf = datetime.tobytes()
-        enc = arrow_bson.encode_datetime(buf, t)
-        dec = arrow_bson.decode_datetime(enc, t)[0].to_pybytes()
+        off = (val + numpy.int32(10)).tobytes()
+        enc = arrow_bson.encode_offsets(off)[0]
+        dec = arrow_bson.decode_offsets(enc)[0].to_pybytes()
+        self.assertEqual(buf, dec)
+
+    def test_datetime_codec(self):
+        val = numpy.array([1, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
+        buf = val.tobytes()
+        enc = arrow_bson.encode_datetime(buf, numpy.int32)
+        dec = arrow_bson.decode_datetime(enc, numpy.int32)[0].to_pybytes()
         self.assertEqual(buf, dec)
 
     def test_write(self):
@@ -49,10 +53,7 @@ class TestArrowBSON(unittest.TestCase):
     def test_read(self):
         buf = arrow_bson.write_table(TABLE)
         ret = arrow_bson.read_table(buf)
-        for c1, c2 in zip(TABLE.columns, ret.columns):
-            if not c1.equals(c2):
-                print(c1.name)
-        # self.assertTrue(ret.equals(TABLE))
+        self.assertTrue(ret.equals(TABLE))
 
 
 if __name__ == '__main__':
