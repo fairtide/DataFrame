@@ -7,19 +7,13 @@ root = os.path.dirname(
 sys.path.insert(0, os.path.join(root, 'python'))
 
 import arrow_bson
-import bson.json_util
 import gzip
-import json
-import jsonschema
 import numpy
 import pyarrow
 import unittest
 
 with gzip.open(os.path.join(root, 'test.data.gz'), 'rb') as f:
     TABLE = pyarrow.RecordBatchFileReader(f).read_all()
-
-with open(os.path.join(root, 'schema.json')) as f:
-    SCHEMA = json.loads(f.read())
 
 
 class TestArrowBSON(unittest.TestCase):
@@ -44,11 +38,7 @@ class TestArrowBSON(unittest.TestCase):
 
     def test_write(self):
         buf = arrow_bson.write_table(TABLE)
-        options = bson.json_util.JSONOptions(
-            json_mode=bson.json_util.JSONMode.CANONICAL)
-        instance = bson.json_util.dumps(bson.raw_bson.RawBSONDocument(buf),
-                                        json_options=options)
-        jsonschema.validate(instance=json.loads(instance), schema=SCHEMA)
+        arrow_bson.validate(arrow_bson.write_table(TABLE))
 
     def test_read(self):
         buf = arrow_bson.write_table(TABLE)
