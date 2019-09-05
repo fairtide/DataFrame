@@ -12,9 +12,14 @@ class ArrayData(object):
 
     def make_array(self):
         if isinstance(self.type, pyarrow.DictionaryType):
+            if isinstance(self.dictionary, ArrayData):
+                values = self.dictionary.make_array()
+            else:
+                values = self.dictionary
+
             return pyarrow.DictionaryArray.from_arrays(
                 self._make_array(self.type.index_type),
-                self.dictionary._make_array(self.type.value_type),
+                values,
                 ordered=self.type.ordered)
         else:
             return self._make_array(self.type)
