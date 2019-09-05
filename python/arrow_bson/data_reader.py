@@ -90,13 +90,13 @@ class DataReader(TypeVisitor):
         self.data.buffers.append(buf)
 
     def visit_date32(self, typ):
-        self._visit_datetime(typ, numpy.int32())
+        self._visit_datetime(typ, numpy.int32)
 
     def visit_date64(self, typ):
-        self._visit_datetime(typ, numpy.int64())
+        self._visit_datetime(typ, numpy.int64)
 
     def visit_timestamp(self, typ):
-        self._visit_datetime(typ, numpy.int64())
+        self._visit_datetime(typ, numpy.int64)
 
     def visit_binary(self, typ):
         offsets, length = decode_offsets(decompress(self._doc[OFFSET]))
@@ -106,7 +106,7 @@ class DataReader(TypeVisitor):
         self.data.buffers.append(offsets)
         self.data.buffers.append(decompress(self._doc[DATA]))
 
-    def visit_utf8(self, typ):
+    def visit_string(self, typ):
         self.visit_binary(typ)
 
     def visit_fixed_size_binary(self, typ):
@@ -117,9 +117,6 @@ class DataReader(TypeVisitor):
         self.data.length = len(buf) // typ.byte_width
         self.data.buffers.append(self._make_mask())
         self.data.buffers.append(buf)
-
-    def visit_decimal(self, typ):
-        self.visit_fixed_size_binary(typ)
 
     def visit_list(self, typ):
         offsets, length = decode_offsets(decompress(self._doc[OFFSET]))
@@ -143,21 +140,19 @@ class DataReader(TypeVisitor):
         self.data.length = data_doc[LENGTH]
         self.data.buffers.append(self._make_mask())
 
-        n = typ.num_children
         field_docs = data_doc[FIELDS]
         fields = list()
 
-        for field in self._doc[PARAM]:
-            field_name = field[NAME]
-            field_doc = field_docs[field_name]
+        for field in typ:
+            field_doc = field_docs[field.name]
 
             field_data = ArrayData()
-            field_data.type = read_type(field_doc)  # TODO
+            field_data.type = field.type
 
             reader = DataReader(field_data, field_doc)
             reader.accept(field_data.type)
 
-            fields.append(pyarrow.field(field_name, field_data.type))
+            fields.append(pyarrow.field(field.name, field_data.type))
 
             self.data.children.append(field_data.make_array())
 
@@ -195,8 +190,6 @@ class DataReader(TypeVisitor):
         bits = decompress(self._doc[MASK])
         vals = numpy.unpackbits(numpy.ndarray(len(bits), numpy.uint8, bits),
                                 bitorder='big')
-
-        assert len(vals) % self.data.length < 8
 
         self.data.null_count = self.data.length - numpy.sum(vals)
         if self.data.null_count == 0:

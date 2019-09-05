@@ -33,6 +33,7 @@ struct ArrayMaker<List<T>> {
             throw DataFrameException("Null value builder");
         }
 
+        DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
         for (auto iter = first; iter != last; ++iter) {
             DF_ARROW_ERROR_HANDLER(builder->Append(true));
             ArrayMaker<T>::append(

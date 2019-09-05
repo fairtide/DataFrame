@@ -14,45 +14,32 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_MAKE_STRING_HPP
-#define DATAFRAME_ARRAY_MAKE_STRING_HPP
+#ifndef DATAFRAME_ARRAY_MAKE_POD_HPP
+#define DATAFRAME_ARRAY_MAKE_POD_HPP
 
 #include <dataframe/array/make/primitive.hpp>
 
 namespace dataframe {
 
-template <>
-struct ArrayMaker<std::string> {
-    template <typename Iter>
-    static void append(
-        BuilderType<std::string> *builder, Iter first, Iter last)
-    {
-        DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
-        for (auto iter = first; iter != last; ++iter) {
-            std::string_view v(*iter);
-            DF_ARROW_ERROR_HANDLER(builder->Append(
-                v.data(), static_cast<std::int32_t>(v.size())));
-        }
-    }
-};
+template <typename T>
+struct ArrayMaker<POD<T>> {
+    static_assert(std::is_standard_layout_v<T>);
 
-template <>
-struct ArrayMaker<std::string_view> : ArrayMaker<std::string> {
-};
-
-template <>
-struct ArrayMaker<Bytes> {
     template <typename Iter>
-    static void append(BuilderType<Bytes> *builder, Iter first, Iter last)
+    static void append(BuilderType<POD<T>> *builder, Iter first, Iter last)
     {
+        static_assert(
+            std::is_same_v<typename std::iterator_traits<Iter>::value_type,
+                T>);
+
         DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
         for (auto iter = first; iter != last; ++iter) {
             DF_ARROW_ERROR_HANDLER(builder->Append(
-                iter->data(), static_cast<std::int32_t>(iter->size())));
+                reinterpret_cast<const std::uint8_t *>(&(*iter))));
         }
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_MAKE_STRING_HPP
+#endif // DATAFRAME_ARRAY_MAKE_POD_HPP

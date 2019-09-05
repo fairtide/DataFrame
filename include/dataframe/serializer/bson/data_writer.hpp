@@ -44,7 +44,7 @@ class DataWriter : public ::arrow::ArrayVisitor
         builder_.append(
             kvp(Schema::DATA(), static_cast<std::int64_t>(array.length())));
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         TypeWriter type_writer(builder_);
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
@@ -65,7 +65,7 @@ class DataWriter : public ::arrow::ArrayVisitor
         builder_.append(kvp(Schema::DATA(),
             compress(buffer1_, &buffer2_, compression_level_)));
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         TypeWriter type_writer(builder_);
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
@@ -82,7 +82,7 @@ class DataWriter : public ::arrow::ArrayVisitor
             compress(array.length(), array.raw_values(), &buffer2_,           \
                 compression_level_)));                                        \
                                                                               \
-        make_mask(builder_, array);                                           \
+        make_mask(array);                                                     \
                                                                               \
         TypeWriter type_writer(builder_);                                     \
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));           \
@@ -99,34 +99,12 @@ class DataWriter : public ::arrow::ArrayVisitor
     DF_DEFINE_VISITOR(UInt32)
     DF_DEFINE_VISITOR(UInt64)
     DF_DEFINE_VISITOR(HalfFloat)
+    DF_DEFINE_VISITOR(Float)
+    DF_DEFINE_VISITOR(Double)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
 
 #undef DF_DEFINE_VISITOR
-
-#define DF_DEFINE_VISITOR(TypeName)                                           \
-    ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
-    {                                                                         \
-        using ::bsoncxx::builder::basic::kvp;                                 \
-                                                                              \
-        builder_.append(kvp(Schema::DATA(),                                   \
-            compress(array.length(), array.raw_values(), &buffer2_,           \
-                compression_level_)));                                        \
-                                                                              \
-        make_mask(builder_, array);                                           \
-                                                                              \
-        TypeWriter type_writer(builder_);                                     \
-        DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));           \
-                                                                              \
-        return ::arrow::Status::OK();                                         \
-    }
-
-    DF_DEFINE_VISITOR(Float)
-    DF_DEFINE_VISITOR(Double)
-
-#undef DF_DEFINE_VISITOR
-
-    // DF_DEFINE_VISITOR(Interval)
 
 #define DF_DEFINE_VISITOR(TypeName)                                           \
     ::arrow::Status Visit(const ::arrow::TypeName##Array &array) override     \
@@ -138,7 +116,7 @@ class DataWriter : public ::arrow::ArrayVisitor
         builder_.append(kvp(Schema::DATA(),                                   \
             compress(buffer1_, &buffer2_, compression_level_)));              \
                                                                               \
-        make_mask(builder_, array);                                           \
+        make_mask(array);                                                     \
                                                                               \
         TypeWriter type_writer(builder_);                                     \
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));           \
@@ -163,18 +141,12 @@ class DataWriter : public ::arrow::ArrayVisitor
             compress(array.length() * type.byte_width(), array.raw_values(),
                 &buffer2_, compression_level_)));
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         TypeWriter type_writer(builder_);
         DF_ARROW_ERROR_HANDLER(array.type()->Accept(&type_writer));
 
         return ::arrow::Status::OK();
-    }
-
-    ::arrow::Status Visit(const ::arrow::Decimal128Array &array) override
-    {
-        return Visit(
-            static_cast<const ::arrow::FixedSizeBinaryArray &>(array));
     }
 
     ::arrow::Status Visit(const ::arrow::BinaryArray &array) override
@@ -196,7 +168,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 
         // mask
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         // type
 
@@ -238,7 +210,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 
         // mask
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         // type
 
@@ -297,7 +269,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 
         // mask
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         // type
 
@@ -330,7 +302,7 @@ class DataWriter : public ::arrow::ArrayVisitor
 
         // mask
 
-        make_mask(builder_, array);
+        make_mask(array);
 
         // type
 
@@ -341,8 +313,7 @@ class DataWriter : public ::arrow::ArrayVisitor
     }
 
   private:
-    void make_mask(::bsoncxx::builder::basic::document &builder,
-        const ::arrow::Array &array)
+    void make_mask(const ::arrow::Array &array)
     {
         using ::bsoncxx::builder::basic::kvp;
 
@@ -367,7 +338,7 @@ class DataWriter : public ::arrow::ArrayVisitor
             internal::swap_bit_order(buffer1_.size(), buffer1_.data());
         }
 
-        builder.append(kvp(Schema::MASK(),
+        builder_.append(kvp(Schema::MASK(),
             compress(buffer1_, &buffer2_, compression_level_)));
     }
 

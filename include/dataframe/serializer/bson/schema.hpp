@@ -34,19 +34,12 @@ struct Schema {
     // binary/string/list
     static view OFFSET() { return "o"; }
 
-    // timestamp
-    static view ZONE() { return "z"; }
-
     // list
     static view LENGTH() { return "l"; }
 
     // struct
     static view NAME() { return "n"; }
     static view FIELDS() { return "f"; }
-
-    // decimal128
-    static view PRECISION() { return "p"; }
-    static view SCALE() { return "s"; }
 
     // dictionary
     static view INDEX() { return "i"; }

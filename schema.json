@@ -25,6 +25,17 @@
             }
         },
 
+        "bson_numberInt": {
+            "type": "object",
+            "required": ["$numberInt"],
+            "properties": {
+                "$numberLong": {
+                    "type": "string",
+                    "pattern": "-?[0-9]+"
+                }
+            }
+        },
+
         "bson_numberLong": {
             "type": "object",
             "required": ["$numberLong"],
@@ -36,33 +47,27 @@
             }
         },
 
-        "array": {
-            "oneOf": [{
-                "$ref": "#definitions/null"
-            }, {
-                "$ref": "#definitions/bool"
-            }, {
-                "$ref": "#definitions/signed"
-            }, {
-                "$ref": "#definitions/unsigned"
-            }, {
-                "$ref": "#definitions/float"
-            }, {
-                "$ref": "#definitions/datetime"
-            }, {
-                "$ref": "#definitions/binary"
-            }, {
-                "$ref": "#definitions/dictionary"
-            }, {
-                "$ref": "#definitions/list"
-            }, {
-                "$ref": "#definitions/struct"
-            }]
-        },
-
         "data_type": {
             "oneOf": [{
-                "$ref": "#definitions/plain_type"
+                "$ref": "#definitions/null_type"
+            }, {
+                "$ref": "#definitions/bool_type"
+            }, {
+                "$ref": "#definitions/signed_type"
+            }, {
+                "$ref": "#definitions/unsigned_type"
+            }, {
+                "$ref": "#definitions/float_type"
+            }, {
+                "$ref": "#definitions/datetime_type"
+            }, {
+                "$ref": "#definitions/timestamp_type"
+            }, {
+                "$ref": "#definitions/binary_type"
+            }, {
+                "$ref": "#definitions/pod_type"
+            }, {
+                "$ref": "#definitions/dictionary_type"
             }, {
                 "$ref": "#definitions/list_type"
             }, {
@@ -70,39 +75,158 @@
             }]
         },
 
-        "plain_type": {
+        "null_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "const": "null"
+                }
+            }
+        },
+
+        "bool_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "const": "bool"
+                }
+            }
+        },
+
+        "signed_type": {
             "type": "object",
             "required": ["t"],
             "properties": {
                 "t": {
                     "type": "string",
                     "enum": [
-                        "null",
-                        "bool",
                         "int8",
                         "int16",
                         "int32",
-                        "int64",
+                        "int64"
+                    ]
+                }
+            }
+        },
+
+        "unsigned_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": [
                         "uint8",
                         "uint16",
                         "uint32",
-                        "uint64",
+                        "uint64"
+                    ]
+                }
+            }
+        },
+
+
+        "float_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": [
                         "float16",
                         "float32",
-                        "float64",
+                        "float64"
+                    ]
+                }
+            }
+        },
+
+        "datetime_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": [
                         "date[d]",
                         "date[ms]",
-                        "timestamp[s]",
-                        "timestamp[ms]",
-                        "timestamp[us]",
-                        "timestamp[ns]",
                         "time[s]",
                         "time[ms]",
                         "time[us]",
-                        "time[ns]",
-                        "factor",
-                        "ordered"
+                        "time[ns]"
                     ]
+                }
+            }
+        },
+
+        "timestamp_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "timestamp[s]",
+                        "timestamp[ms]",
+                        "timestamp[us]",
+                        "timestamp[ns]"
+                    ]
+                },
+                "p": {
+                    "type": "string",
+                    "description": "Time zone"
+                }
+            }
+        },
+
+        "binary_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": ["utf8", "bytes"]
+                }
+            }
+        },
+
+        "pod_type": {
+            "type": "object",
+            "required": ["t", "p"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "const": "pod"
+                },
+                "p": {
+                    "$ref": "#/definitions/bson_numberInt"
+                }
+            }
+        },
+
+        "dictionary_type": {
+            "type": "object",
+            "required": ["t"],
+            "properties": {
+                "t": {
+                    "type": "string",
+                    "enum": ["ordered", "factor"]
+                },
+                "p": {
+                    "type": "object",
+                    "required": ["i", "d"],
+                    "properties": {
+                        "i": {
+                            "$ref": "#/definitions/signed_type"
+                        },
+                        "d": {
+                            "$ref": "#/definitions/data_type"
+                        }
+                    }
                 }
             }
         },
@@ -146,6 +270,34 @@
                     }
                 }
             }
+        },
+
+        "array": {
+            "oneOf": [{
+                "$ref": "#definitions/null"
+            }, {
+                "$ref": "#definitions/bool"
+            }, {
+                "$ref": "#definitions/signed"
+            }, {
+                "$ref": "#definitions/unsigned"
+            }, {
+                "$ref": "#definitions/float"
+            }, {
+                "$ref": "#definitions/datetime"
+            }, {
+                "$ref": "#definitions/timestamp"
+            }, {
+                "$ref": "#definitions/binary"
+            }, {
+                "$ref": "#definitions/pod"
+            }, {
+                "$ref": "#definitions/dictionary"
+            }, {
+                "$ref": "#definitions/list"
+            }, {
+                "$ref": "#definitions/struct"
+            }]
         },
 
         "null": {
@@ -262,15 +414,37 @@
                     "enum": [
                         "date[d]",
                         "date[ms]",
-                        "timestamp[s]",
-                        "timestamp[ms]",
-                        "timestamp[us]",
-                        "timestamp[ns]",
                         "time[s]",
                         "time[ms]",
                         "time[us]",
                         "time[ns]"
                     ]
+                }
+            }
+        },
+
+        "timestamp": {
+            "type": "object",
+            "required": ["d", "m", "t"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "enum": [
+                        "timestamp[s]",
+                        "timestamp[ms]",
+                        "timestamp[us]",
+                        "timestamp[ns]"
+                    ]
+                },
+                "p": {
+                    "type": "string",
+                    "description": "Time zone"
                 }
             }
         },
@@ -292,6 +466,26 @@
                 "t": {
                     "type": "string",
                     "enum": ["utf8", "bytes"]
+                }
+            }
+        },
+
+        "pod": {
+            "type": "object",
+            "required": ["d", "m", "t", "p"],
+            "properties": {
+                "d": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "m": {
+                    "$ref": "#/definitions/bson_binary"
+                },
+                "t": {
+                    "type": "string",
+                    "const": "pod"
+                },
+                "p": {
+                    "$ref": "#/definitions/bson_numberInt"
                 }
             }
         },
@@ -391,7 +585,6 @@
                         }
                     }
                 }
-
             }
         }
 

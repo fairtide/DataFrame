@@ -32,9 +32,8 @@ inline std::shared_ptr<::arrow::DataType> read_type(
     std::string_view type(b_type.data(), b_type.size());
 
     auto read_timestamp_type = [&tp](auto unit) {
-        return ::arrow::timestamp(unit,
-            tp ? std::string(tp[Schema::ZONE()].get_utf8().value.data()) :
-                 std::string());
+        return ::arrow::timestamp(
+            unit, tp ? tp.get_utf8().value.data() : std::string());
     };
 
     auto read_dict_type = [&tp](auto ordered) {
@@ -159,12 +158,6 @@ inline std::shared_ptr<::arrow::DataType> read_type(
 
     if (type == "pod") {
         return ::arrow::fixed_size_binary(tp.get_int32().value);
-    }
-
-    if (type == "decimal") {
-        auto precision = tp[Schema::PRECISION()].get_int32().value;
-        auto scale = tp[Schema::SCALE()].get_int32().value;
-        return ::arrow::decimal(precision, scale);
     }
 
     if (type == "list") {

@@ -102,7 +102,6 @@ class DataReader : public ::arrow::TypeVisitor
     DF_DEFINE_VISITOR(Double)
     DF_DEFINE_VISITOR(Time32)
     DF_DEFINE_VISITOR(Time64)
-    // DF_DEFINE_VISITOR(Interval)
 
 #undef DF_DEFINE_VISITOR
 
@@ -142,11 +141,6 @@ class DataReader : public ::arrow::TypeVisitor
         data_.buffers.push_back(std::move(buffer));
 
         return ::arrow::Status::OK();
-    }
-
-    ::arrow::Status Visit(const ::arrow::Decimal128Type &type) override
-    {
-        return Visit(static_cast<const ::arrow::FixedSizeBinaryType &>(type));
     }
 
     ::arrow::Status Visit(const ::arrow::BinaryType &) override

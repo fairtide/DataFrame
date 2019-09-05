@@ -21,6 +21,7 @@
 #include <dataframe/array/view/dict.hpp>
 #include <dataframe/array/view/list.hpp>
 #include <dataframe/array/view/null.hpp>
+#include <dataframe/array/view/pod.hpp>
 #include <dataframe/array/view/primitive.hpp>
 #include <dataframe/array/view/string.hpp>
 #include <dataframe/array/view/struct.hpp>

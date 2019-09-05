@@ -128,6 +128,15 @@ struct DataMaker<::dataframe::Bytes> {
 };
 
 template <typename T>
+struct DataMaker<::dataframe::POD<T>> {
+    template <typename Iter>
+    static auto make(std::size_t n, Iter mask)
+    {
+        return make_data<T>(n, mask);
+    }
+};
+
+template <typename T>
 struct DataMaker<::dataframe::Dict<T>> {
     template <typename Iter>
     static auto make(std::size_t n, Iter mask)

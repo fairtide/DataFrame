@@ -106,9 +106,6 @@ def read_type(doc):
     if t == 'pod':
         return pyarrow.binary(tp)
 
-    if t == 'decimal':
-        return pyarrow.decimal(tp[PRECISION], tp[SCALE])
-
     if t == 'list':
         return pyarrow.list_(read_type(tp))
 

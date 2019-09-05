@@ -54,8 +54,7 @@ struct IsType<T, ::arrow::StringType> {
 };
 
 /// \brief Type used to distinguish Binary from String
-struct Bytes {
-};
+struct Bytes;
 
 template <>
 struct TypeTraits<Bytes> {

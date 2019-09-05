@@ -32,7 +32,7 @@
         ::dataframe::Time<::dataframe::TimeUnit::Millisecond>
 
 #define TEST_TYPES                                                            \
-    BASIC_TEST_TYPES, void,                                                   \
+    BASIC_TEST_TYPES, void, ::dataframe::POD<int>,                            \
         ::dataframe::Datestamp<::dataframe::DateUnit::Millisecond>,           \
         ::dataframe::Time<::dataframe::TimeUnit::Microsecond>,                \
         ::dataframe::Time<::dataframe::TimeUnit::Nanosecond>,                 \
@@ -62,6 +62,9 @@ inline void TestSerializer(::dataframe::DataFrame &out)
     auto mask = make_data<bool>(n);
     dat["data"].emplace<T>(make_data<T>(n));
     dat["null"].emplace<T>(make_data<T>(n, mask.begin()), mask);
+
+    CHECK(::arrow::ValidateArray(*dat["data"].data()).ok());
+    CHECK(::arrow::ValidateArray(*dat["null"].data()).ok());
 
     auto outname = dat["data"].data()->type()->ToString();
     out[outname] = dat["data"].data();

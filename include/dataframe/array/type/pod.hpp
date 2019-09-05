@@ -14,44 +14,47 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_TYPE_LIST_HPP
-#define DATAFRAME_ARRAY_TYPE_LIST_HPP
+#ifndef DATAFRAME_ARRAY_TYPE_POD_HPP
+#define DATAFRAME_ARRAY_TYPE_POD_HPP
 
 #include <dataframe/array/type/primitive.hpp>
 
 namespace dataframe {
 
 template <typename T>
-struct List;
+struct POD;
 
 template <typename T>
-struct TypeTraits<List<T>> {
-    using scalar_type = std::vector<ScalarType<T>>;
-    using data_type = ::arrow::ListType;
-    using array_type = ::arrow::ListArray;
-    using builder_type = ::arrow::ListBuilder;
+struct TypeTraits<POD<T>> {
+    static_assert(std::is_standard_layout_v<T>);
+
+    using scalar_type = T;
+    using data_type = ::arrow::FixedSizeBinaryType;
+    using array_type = ::arrow::FixedSizeBinaryArray;
+    using builder_type = ::arrow::FixedSizeBinaryBuilder;
 
     static std::shared_ptr<data_type> make_data_type()
     {
-        return std::make_shared<data_type>(::dataframe::make_data_type<T>());
+        return std::make_shared<data_type>(sizeof(T));
     }
 
     static std::unique_ptr<builder_type> make_builder(
         ::arrow::MemoryPool *pool = ::arrow::default_memory_pool())
     {
-        return std::make_unique<::arrow::ListBuilder>(
-            pool, ::dataframe::make_builder<T>(), make_data_type());
+        return std::make_unique<builder_type>(make_data_type(), pool);
     }
 };
 
 template <typename T>
-struct IsType<List<T>, ::arrow::ListType> {
-    static bool is_type(const ::arrow::ListType &type)
+struct IsType<POD<T>, ::arrow::FixedSizeBinaryType> {
+    static bool is_type(const ::arrow::FixedSizeBinaryType &type)
     {
-        return ::dataframe::is_type<T>(type.value_type());
+        static_assert(std::is_standard_layout_v<T>);
+
+        return type.byte_width() == sizeof(T);
     }
 };
 
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_TYPE_LIST_HPP
+#endif // DATAFRAME_ARRAY_TYPE_POD_HPP

@@ -14,8 +14,8 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_VIEW_PRIMITIVE_HPP
-#define DATAFRAME_ARRAY_VIEW_PRIMITIVE_HPP
+#ifndef DATAFRAME_ARRAY_VIEW_POD_HPP
+#define DATAFRAME_ARRAY_VIEW_POD_HPP
 
 #include <dataframe/array/type.hpp>
 
@@ -23,10 +23,9 @@ namespace dataframe {
 
 /// \brief Simple class that wrap the size and pointer of a raw array
 template <typename T>
-class ArrayView
+class ArrayView<POD<T>>
 {
-    static_assert(
-        sizeof(T) == sizeof(typename ArrayType<T>::TypeClass::c_type));
+    static_assert(std::is_standard_layout_v<T>);
 
   public:
     using value_type = T;
@@ -52,10 +51,10 @@ class ArrayView
         : data_(std::move(data))
         , size_(static_cast<size_type>(data_->length()))
         , begin_(reinterpret_cast<const T *>(
-              dynamic_cast<const ArrayType<T> &>(*data_).raw_values()))
+              dynamic_cast<const ArrayType<POD<T>> &>(*data_).raw_values()))
         , end_(begin_ + size_)
     {
-        if (!is_type<T>(data_)) {
+        if (!is_type<POD<T>>(data_)) {
             throw DataFrameException("Mismatch type for view type");
         }
     }
@@ -135,24 +134,6 @@ class ArrayView
     const T *end_ = nullptr;
 };
 
-template <typename T>
-inline bool operator==(const ArrayView<T> &v1, const ArrayView<T> &v2)
-{
-    return std::equal(v1.begin(), v1.end(), v2.begin(), v2.end());
-}
-
-template <typename T>
-inline bool operator!=(const ArrayView<T> &v1, const ArrayView<T> &v2)
-{
-    return !(v1 == v2);
-}
-
-template <typename T>
-inline ArrayView<T> make_view(std::shared_ptr<::arrow::Array> data)
-{
-    return ArrayView<T>(std::move(data));
-}
-
 } // namespace dataframe
 
-#endif // DATAFRAME_ARRAY_VIEW_PRIMITIVE_HPP
+#endif // DATAFRAME_ARRAY_VIEW_POD_HPP

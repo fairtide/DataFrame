@@ -1,11 +1,44 @@
+import bson
 import lz4.block
 import numpy
 import pyarrow
 
 
+def compress(data, compression_level):
+    if compression_level > 0:
+        buf = lz4.block.compress(data,
+                                 mode='high_compression',
+                                 compression=compression_level)
+    else:
+        buf = lz4.block.compress(data)
+
+    return bson.Binary(buf)
+
+
 def decompress(data):
-    # TODO
     return pyarrow.py_buffer(lz4.block.decompress(data))
+
+
+def encode_offsets(data):
+    t = numpy.int32()
+
+    assert len(data) % t.nbytes == 0
+
+    n = len(data) // t.nbytes
+    v = numpy.ndarray(n, t, data)
+
+    return numpy.diff(v, prepend=v[0]).tobytes(), v[0], v[-1] - v[0]
+
+
+def encode_datetime(data, dtype):
+    t = dtype(0)
+
+    assert len(data) % t.nbytes == 0
+
+    n = len(data) // t.nbytes
+    v = numpy.ndarray(n, dtype, data)
+
+    return numpy.diff(v, prepend=t).tobytes()
 
 
 def decode_offsets(data):
@@ -20,9 +53,11 @@ def decode_offsets(data):
 
 
 def decode_datetime(data, dtype):
-    assert len(data) % dtype.nbytes == 0
+    t = dtype(0)
 
-    n = len(data) // dtype.nbytes
+    assert len(data) % t.nbytes == 0
+
+    n = len(data) // t.nbytes
     v = numpy.cumsum(numpy.ndarray(n, dtype, data), dtype=dtype)
 
     return pyarrow.py_buffer(v.tobytes()), n

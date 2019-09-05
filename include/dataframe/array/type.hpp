@@ -23,6 +23,7 @@
 #include <dataframe/array/type/iterator.hpp>
 #include <dataframe/array/type/list.hpp>
 #include <dataframe/array/type/null.hpp>
+#include <dataframe/array/type/pod.hpp>
 #include <dataframe/array/type/primitive.hpp>
 #include <dataframe/array/type/string.hpp>
 #include <dataframe/array/type/struct.hpp>

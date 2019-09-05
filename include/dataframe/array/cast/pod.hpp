@@ -14,17 +14,34 @@
 // limitations under the License.
 // ============================================================================
 
-#ifndef DATAFRAME_ARRAY_CAST_HPP
-#define DATAFRAME_ARRAY_CAST_HPP
+#ifndef DATAFRAME_ARRAY_CAST_POD_HPP
+#define DATAFRAME_ARRAY_CAST_POD_HPP
 
-#include <dataframe/array/cast/bool.hpp>
-#include <dataframe/array/cast/datetime.hpp>
-#include <dataframe/array/cast/dict.hpp>
-#include <dataframe/array/cast/list.hpp>
-#include <dataframe/array/cast/null.hpp>
-#include <dataframe/array/cast/pod.hpp>
 #include <dataframe/array/cast/primitive.hpp>
-#include <dataframe/array/cast/string.hpp>
-#include <dataframe/array/cast/struct.hpp>
 
-#endif // DATAFRAME_ARRAY_CAST_HPP
+namespace dataframe {
+
+template <typename T>
+struct CastArrayVisitor<POD<T>> : ::arrow::ArrayVisitor {
+    static_assert(std::is_standard_layout_v<T>);
+
+    std::shared_ptr<::arrow::Array> result;
+
+    CastArrayVisitor(
+        std::shared_ptr<::arrow::Array> data, ::arrow::MemoryPool *)
+        : result(std::move(data))
+    {
+    }
+
+    ::arrow::Status Visit(const ::arrow::FixedSizeBinaryArray &array) override
+    {
+        return is_type<POD<T>>(array.type()) ?
+            ::arrow::Status::OK() :
+            ::arrow::Status(::arrow::StatusCode::NotImplemented,
+                "Different byte width between POD types");
+    }
+};
+
+} // namespace dataframe
+
+#endif // DATAFRAME_ARRAY_CAST_POD_HPP

@@ -208,13 +208,6 @@ struct SelectVisitor : ::arrow::ArrayVisitor {
         return ::arrow::Status::OK();
     }
 
-    // virtual Status Visit(const IntervalArray &type);
-    // virtual Status Visit(const Decimal128Array &type);
-
-    // virtual Status Visit(const ListArray &type);
-    // virtual Status Visit(const StructArray &type);
-    // virtual Status Visit(const UnionArray &type);
-
     ::arrow::Status Visit(const ::arrow::DictionaryArray &array) override
     {
         auto index = select_array(array.indices(), first, last);
