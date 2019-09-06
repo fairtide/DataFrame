@@ -214,27 +214,33 @@ def test_table(n, types=None, offset=None, length=None, nullable=True):
 class TestArrowBSON(unittest.TestCase):
     def test_offsets_codec(self):
         val = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        buf = val.tobytes()
-        enc = bson_dataframe.encode_offsets(buf)[0]
-        dec = bson_dataframe.decode_offsets(enc)[0].to_pybytes()
-        self.assertEqual(buf, dec)
+        enc = bson_dataframe.encode_offsets(val)
+        dec = bson_dataframe.decode_offsets(enc)
+        self.assertEqual(val.tobytes(), dec.tobytes())
+        self.assertEqual(val.dtype, enc.dtype)
+        self.assertEqual(val.dtype, dec.dtype)
 
-        off = (val + numpy.int32(10)).tobytes()
-        enc = bson_dataframe.encode_offsets(off)[0]
-        dec = bson_dataframe.decode_offsets(enc)[0].to_pybytes()
-        self.assertEqual(buf, dec)
+        off = val + numpy.int32(10)
+        enc = bson_dataframe.encode_offsets(off)
+        dec = bson_dataframe.decode_offsets(enc)
+        self.assertEqual(val.tobytes(), dec.tobytes())
+        self.assertEqual(val.dtype, enc.dtype)
+        self.assertEqual(val.dtype, dec.dtype)
 
     def test_datetime_codec(self):
         val = numpy.array([1, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        buf = val.tobytes()
-        enc = bson_dataframe.encode_datetime(buf, numpy.int32)
-        dec = bson_dataframe.decode_datetime(enc, numpy.int32)[0].to_pybytes()
-        self.assertEqual(buf, dec)
+        enc = bson_dataframe.encode_datetime(val)
+        dec = bson_dataframe.decode_datetime(enc)
+        self.assertEqual(val.tobytes(), dec.tobytes())
+        self.assertEqual(val.dtype, enc.dtype)
+        self.assertEqual(val.dtype, dec.dtype)
 
     def test_write(self):
         table = test_table(1000)
         buf = bson_dataframe.write_table(table)
-        bson_dataframe.validate(bson_dataframe.write_table(table))
+        doc = bson_dataframe.validate(bson_dataframe.write_table(table))
+        with open('test.json', 'w') as out:
+            out.write(doc)
 
     def test_read(self):
         table = test_table(1000)

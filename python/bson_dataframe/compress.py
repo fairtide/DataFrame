@@ -1,63 +1,31 @@
-import bson
 import lz4.block
 import numpy
-import pyarrow
 
 
-def compress(data, compression_level):
+def compress(data: bytes, compression_level=0) -> bytes:
     if compression_level > 0:
-        buf = lz4.block.compress(data,
-                                 mode='high_compression',
-                                 compression=compression_level)
+        return lz4.block.compress(data,
+                                  mode='high_compression',
+                                  compression=compression_level)
     else:
-        buf = lz4.block.compress(data)
-
-    return bson.Binary(buf)
+        return lz4.block.compress(data)
 
 
-def decompress(data):
-    return pyarrow.py_buffer(lz4.block.decompress(data))
+def decompress(data: bytes) -> bytes:
+    return lz4.block.decompress(data)
 
 
-def encode_offsets(data):
-    t = numpy.int32()
-
-    assert len(data) % t.nbytes == 0
-
-    n = len(data) // t.nbytes
-    v = numpy.ndarray(n, t, data)
-
-    return numpy.diff(v, prepend=v[0]).tobytes(), v[0], v[-1] - v[0]
+def encode_offsets(data: numpy.ndarray) -> numpy.ndarray:
+    return numpy.diff(data, prepend=data[0])
 
 
-def encode_datetime(data, dtype):
-    t = dtype(0)
-
-    assert len(data) % t.nbytes == 0
-
-    n = len(data) // t.nbytes
-    v = numpy.ndarray(n, dtype, data)
-
-    return numpy.diff(v, prepend=t).tobytes()
+def decode_offsets(data: numpy.ndarray) -> numpy.ndarray:
+    return numpy.cumsum(data, dtype=data.dtype)
 
 
-def decode_offsets(data):
-    t = numpy.int32()
-
-    assert len(data) % t.nbytes == 0
-
-    n = len(data) // t.nbytes
-    v = numpy.cumsum(numpy.ndarray(n, t, data), dtype=t)
-
-    return pyarrow.py_buffer(v.tobytes()), n - 1
+def encode_datetime(data: numpy.ndarray) -> numpy.ndarray:
+    return numpy.diff(data, prepend=data[0] - data[0])
 
 
-def decode_datetime(data, dtype):
-    t = dtype(0)
-
-    assert len(data) % t.nbytes == 0
-
-    n = len(data) // t.nbytes
-    v = numpy.cumsum(numpy.ndarray(n, dtype, data), dtype=dtype)
-
-    return pyarrow.py_buffer(v.tobytes()), n
+def decode_datetime(data: numpy.ndarray) -> numpy.ndarray:
+    return numpy.cumsum(data, dtype=data.dtype)

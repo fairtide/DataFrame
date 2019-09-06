@@ -2,7 +2,7 @@ from .schema import *
 from .visitor import *
 
 
-class TypeWriter(TypeVisitor):
+class _TypeWriter(TypeVisitor):
     def __init__(self, doc):
         self.doc = doc
 
@@ -93,8 +93,7 @@ class TypeWriter(TypeVisitor):
 
     def visit_list(self, typ):
         param = dict()
-        writer = TypeWriter(param)
-        writer.accept(typ.value_type)
+        _TypeWriter(param).accept(typ.value_type)
 
         self.doc[TYPE] = 'list'
         self.doc[PARAM] = param
@@ -107,8 +106,7 @@ class TypeWriter(TypeVisitor):
 
             field_doc = dict()
             field_doc[NAME] = field.name
-            writer = TypeWriter(field_doc)
-            writer.accept(field.type)
+            _TypeWriter(field_doc).accept(field.type)
             param.append(field_doc)
 
         self.doc[TYPE] = 'struct'
@@ -116,12 +114,10 @@ class TypeWriter(TypeVisitor):
 
     def visit_dictionary(self, typ):
         index_doc = dict()
-        index_writer = TypeWriter(index_doc)
-        index_writer.accept(typ.index_type)
+        _TypeWriter(index_doc).accept(typ.index_type)
 
         dict_doc = dict()
-        dict_writer = TypeWriter(dict_doc)
-        dict_writer.accept(typ.value_type)
+        _TypeWriter(dict_doc).accept(typ.value_type)
 
         if typ.ordered:
             self.doc[TYPE] = 'ordered'
@@ -129,3 +125,9 @@ class TypeWriter(TypeVisitor):
             self.doc[TYPE] = 'factor'
 
         self.doc[PARAM] = {INDEX: index_doc, DICT: dict_doc}
+
+
+def write_type(doc, typ: pyarrow.DataType):
+    _TypeWriter(doc).accept(typ)
+
+    return doc

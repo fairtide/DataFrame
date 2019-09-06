@@ -2,23 +2,50 @@ from .compress import *
 from .schema import *
 from .type_writer import *
 from .visitor import *
+
 import collections
 import pyarrow
 import bson
 
 
-class DataWriter(ArrayVisitor):
+class _DataWriter(ArrayVisitor):
     def __init__(self, doc, compression_level):
         self.doc = doc
         self.compression_level = compression_level
 
+    def _compress(self, data):
+        return bson.Binary(compress(data, self.compression_level))
+
+    def _make_mask(self, array):
+        if isinstance(array, pyarrow.NullArray):
+            bitmap = numpy.zeros(len(array), dtype=numpy.bool)
+        elif array.null_count == 0:
+            bitmap = numpy.ones(len(array), dtype=numpy.bool)
+        else:
+            begin = array.offset
+            end = array.offset + len(array)
+            buf = array.buffers()[0]
+            val = numpy.ndarray(len(buf), numpy.uint8, buf)
+            bitmap = numpy.unpackbits(val, bitorder='little')[begin:end]
+
+        mask = numpy.packbits(bitmap, bitorder='big')
+        self.doc[MASK] = self._compress(mask)
+
+    def _make_offsets(self, array):
+        t = numpy.int32()
+        i = array.offset * t.nbytes
+        l = len(array) * t.nbytes + t.nbytes
+        buf = array.buffers()[1].slice(i, l)
+        n = len(buf) // t.nbytes
+        v = numpy.ndarray(n, t, buf)
+        u = encode_offsets(v)
+
+        return u.tobytes(), v[0], v[-1] - v[0]
+
     def visit_null(self, array):
         self.doc[DATA] = bson.Int64(len(array))
-
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
+        write_type(self.doc, array.type)
 
     def visit_bool(self, array):
         begin = array.offset
@@ -27,12 +54,9 @@ class DataWriter(ArrayVisitor):
         val = numpy.ndarray(len(buf), numpy.uint8, buf)
         bitmap = numpy.unpackbits(val, bitorder='little')[begin:end]
 
-        self.doc[DATA] = compress(bitmap.tobytes(), self.compression_level)
-
+        self.doc[DATA] = self._compress(bitmap.tobytes())
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
+        write_type(self.doc, array.type)
 
     def _visit_numeric(self, array):
         wid = array.type.bit_width // 8
@@ -41,12 +65,9 @@ class DataWriter(ArrayVisitor):
         length = len(array) * wid
         buf = array.buffers()[1].slice(offset, length)
 
-        self.doc[DATA] = compress(buf, self.compression_level)
-
+        self.doc[DATA] = self._compress(buf)
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
+        write_type(self.doc, array.type)
 
     def visit_int8(self, array):
         self._visit_numeric(array)
@@ -90,17 +111,16 @@ class DataWriter(ArrayVisitor):
     def _visit_datetime(self, array, dtype):
         wid = array.type.bit_width // 8
 
-        offset = array.offset * wid
-        length = len(array) * wid
-        buf = array.buffers()[1].slice(offset, length)
+        n = len(array)
+        i = array.offset * wid
+        l = n * wid
+        buf = array.buffers()[1].slice(i, l)
+        v = numpy.ndarray(n, dtype, buf)
+        data = encode_datetime(v).tobytes()
 
-        self.doc[DATA] = compress(encode_datetime(buf, dtype),
-                                  self.compression_level)
-
+        self.doc[DATA] = self._compress(data)
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
+        write_type(self.doc, array.type)
 
     def visit_date32(self, array):
         self._visit_datetime(array, numpy.int32)
@@ -118,53 +138,36 @@ class DataWriter(ArrayVisitor):
         length = len(array) * wid
         buf = array.buffers()[1].slice(offset, length)
 
-        self.doc[DATA] = compress(buf, self.compression_level)
-
+        self.doc[DATA] = self._compress(buf)
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
+        write_type(self.doc, array.type)
 
     def visit_binary(self, array):
-        offsets = array.buffers()[1].slice(array.offset * 4,
-                                           len(array) * 4 + 4)
-        offsets, data_offset, data_length = encode_offsets(offsets)
+        offsets, data_offset, data_length = self._make_offsets(array)
 
         data = b''
         if data_length != 0:
             data = array.buffers()[2].slice(data_offset, data_length)
 
-        self.doc[DATA] = compress(data, self.compression_level)
-
+        self.doc[DATA] = self._compress(data)
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
-
-        self.doc[OFFSET] = compress(offsets, self.compression_level)
+        write_type(self.doc, array.type)
+        self.doc[OFFSET] = self._compress(offsets)
 
     def visit_string(self, array):
         self.visit_binary(array)
 
     def visit_list(self, array):
-        offsets = array.buffers()[1].slice(array.offset * 4,
-                                           len(array) * 4 + 4)
-        offsets, values_offset, values_length = encode_offsets(offsets)
-
+        offsets, values_offset, values_length = self._make_offsets(array)
         values = array.flatten().slice(values_offset, values_length)
 
         data = collections.OrderedDict()
-        writer = DataWriter(data, self.compression_level)
-        writer.accept(values)
+        _DataWriter(data, self.compression_level).accept(values)
 
         self.doc[DATA] = data
-
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
-
-        self.doc[OFFSET] = compress(offsets, self.compression_level)
+        write_type(self.doc, array.type)
+        self.doc[OFFSET] = self._compress(offsets)
 
     def visit_struct(self, array):
         fields = collections.OrderedDict()
@@ -174,44 +177,26 @@ class DataWriter(ArrayVisitor):
 
             field_data = array.field(i)
             field_doc = collections.OrderedDict()
-            writer = DataWriter(field_doc, self.compression_level)
-            writer.accept(field_data)
+            _DataWriter(field_doc, self.compression_level).accept(field_data)
             fields[field.name] = field_doc
 
         self.doc[DATA] = {LENGTH: bson.Int64(len(array)), FIELDS: fields}
-
         self._make_mask(array)
-
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
+        write_type(self.doc, array.type)
 
     def visit_dictionary(self, array):
         index_doc = collections.OrderedDict()
-        index_writer = DataWriter(index_doc, self.compression_level)
-        index_writer.accept(array.indices)
+        _DataWriter(index_doc, self.compression_level).accept(array.indices)
 
         dict_doc = collections.OrderedDict()
-        dict_writer = DataWriter(dict_doc, self.compression_level)
-        dict_writer.accept(array.dictionary)
+        _DataWriter(dict_doc, self.compression_level).accept(array.dictionary)
 
         self.doc[DATA] = {INDEX: index_doc, DICT: dict_doc}
-
         self._make_mask(array)
+        write_type(self.doc, array.type)
 
-        type_writer = TypeWriter(self.doc)
-        type_writer.accept(array.type)
 
-    def _make_mask(self, array):
-        if isinstance(array, pyarrow.NullArray):
-            bitmap = numpy.zeros(len(array), dtype=numpy.bool)
-        elif array.null_count == 0:
-            bitmap = numpy.ones(len(array), dtype=numpy.bool)
-        else:
-            begin = array.offset
-            end = array.offset + len(array)
-            buf = array.buffers()[0]
-            val = numpy.ndarray(len(buf), numpy.uint8, buf)
-            bitmap = numpy.unpackbits(val, bitorder='little')[begin:end]
+def write_data(doc, array: pyarrow.Array, compression_level=0):
+    _DataWriter(doc, compression_level).accept(array)
 
-        mask = numpy.packbits(bitmap, bitorder='big')
-        self.doc[MASK] = compress(mask, self.compression_level)
+    return doc

@@ -13,10 +13,11 @@ import bson.raw_bson
 import collections
 import json
 import jsonschema
+import pandas
 import pyarrow
 
 
-def validate(doc):
+def validate(doc) -> None:
     if isinstance(doc, bytes):
         doc = bson.raw_bson.RawBSONDocument(doc)
 
@@ -27,50 +28,36 @@ def validate(doc):
     jsonschema.validate(instance=json.loads(json_doc),
                         schema=CANONICAL_JSON_SCHEMA)
 
-
-def read_array(doc):
-    data = ArrayData()
-    data.type = read_type(doc)
-    reader = DataReader(data, doc)
-    reader.accept(data.type)
-
-    return data.make_array()
+    return json_doc
 
 
-def write_array(array, compression_level):
-    col = collections.OrderedDict()
-    writer = DataWriter(col, compression_level)
-    writer.accept(array)
-
-    return col
-
-
-def read_table(doc):
-    if isinstance(doc, bytes):
-        doc = bson.raw_bson.RawBSONDocument(doc)
-
-    data = list()
-    for k, v in doc.items():
-        data.append(pyarrow.column(k, read_array(v)))
-
-    return pyarrow.Table.from_arrays(data)
-
-
-def write_table(table, compression_level=0):
-    table = table.combine_chunks()
-    doc = collections.OrderedDict()
-    for col in table.columns:
-        doc[col.name] = write_array(col.data.chunks[0], compression_level)
+def write_array(array: pyarrow.Array, compression_level=0) -> bytes:
+    doc = write_data(collections.OrderedDict(), array, compression_level)
 
     return bson.encode(doc)
 
 
-def read_dataframe(doc, **kwargs):
-    return read_table(doc).to_pandas(**kwargs)
+def write_table(table: pyarrow.Table, compression_level=0) -> bytes:
+    table = table.combine_chunks()
+    doc = collections.OrderedDict()
+    for col in table.columns:
+        buf = write_array(col.data.chunks[0], compression_level)
+        doc[col.name] = bson.raw_bson.RawBSONDocument(buf)
+
+    return bson.encode(doc)
 
 
-def write_dataframe(data, preserve_index=False, **kwargs):
-    return write_table(
-        pyarrow.Table.from_pandas(data,
-                                  preserve_index=preserve_index,
-                                  **kwargs))
+def read_array(doc) -> pyarrow.Array:
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
+
+    return read_data(doc).make_array()
+
+
+def read_table(doc) -> pyarrow.Table:
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
+
+    data = [pyarrow.column(k, read_array(v)) for k, v in doc.items()]
+
+    return pyarrow.Table.from_arrays(data)
