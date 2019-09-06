@@ -14,7 +14,7 @@
 # limitations under the License.
 # ============================================================================
 
-project(DataFrame-tests CXX)
+project(DataFrame-cpp-tests CXX)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 

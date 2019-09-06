@@ -14,10 +14,8 @@
 # limitations under the License.
 # ============================================================================
 
-project(DataFrame-tests-serializer CXX)
+project(DataFrame-cpp-tests-table CXX)
 
-add_dataframe_test(bson ${BSONCXX_LINK_LIBRARIES} ${LZ4_LINK_LIBARIES} ${LZ4_LINK_LIBRARIES})
-add_dataframe_test(feather)
-add_dataframe_test(json Boost::date_time)
-add_dataframe_test(record_batch_file)
-add_dataframe_test(record_batch_stream)
+add_dataframe_test(data_frame)
+add_dataframe_test(join)
+add_dataframe_test(sort)

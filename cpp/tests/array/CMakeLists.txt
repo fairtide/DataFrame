@@ -14,8 +14,10 @@
 # limitations under the License.
 # ============================================================================
 
-project(DataFrame-tests-table CXX)
+project(DataFrame-cpp-tests-array CXX)
 
-add_dataframe_test(data_frame)
-add_dataframe_test(join)
-add_dataframe_test(sort)
+add_dataframe_test(bind)
+add_dataframe_test(cast)
+add_dataframe_test(make)
+add_dataframe_test(type)
+add_dataframe_test(view)
