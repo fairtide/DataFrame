@@ -2,9 +2,9 @@
 
 from distutils.core import setup
 
-setup(name='arrow_bson',
+setup(name='bson_dataframe',
       packages=[
-          'arrow_bson',
+          'bson_dataframe',
       ],
       install_requires=[
           'bson',

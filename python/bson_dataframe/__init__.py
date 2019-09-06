@@ -28,7 +28,7 @@ def validate(doc):
                         schema=CANONICAL_JSON_SCHEMA)
 
 
-def read_column(doc):
+def read_array(doc):
     data = ArrayData()
     data.type = read_type(doc)
     reader = DataReader(data, doc)
@@ -37,7 +37,7 @@ def read_column(doc):
     return data.make_array()
 
 
-def write_column(array, compression_level):
+def write_array(array, compression_level):
     col = collections.OrderedDict()
     writer = DataWriter(col, compression_level)
     writer.accept(array)
@@ -51,7 +51,7 @@ def read_table(doc):
 
     data = list()
     for k, v in doc.items():
-        data.append(pyarrow.column(k, read_column(v)))
+        data.append(pyarrow.column(k, read_array(v)))
 
     return pyarrow.Table.from_arrays(data)
 
@@ -60,7 +60,7 @@ def write_table(table, compression_level=0):
     table = table.combine_chunks()
     doc = collections.OrderedDict()
     for col in table.columns:
-        doc[col.name] = write_column(col.data.chunks[0], compression_level)
+        doc[col.name] = write_array(col.data.chunks[0], compression_level)
 
     return bson.encode(doc)
 
@@ -71,4 +71,6 @@ def read_dataframe(doc, **kwargs):
 
 def write_dataframe(data, preserve_index=False, **kwargs):
     return write_table(
-        pyarrow.from_pandas(data, preserve_index=preserve_index, **kwargs))
+        pyarrow.Table.from_pandas(data,
+                                  preserve_index=preserve_index,
+                                  **kwargs))

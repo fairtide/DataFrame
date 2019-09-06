@@ -4,17 +4,17 @@ import os
 sys.path.insert(0,
                 os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-import arrow_bson
+import bson_dataframe
 import numpy
 import pyarrow
 import unittest
 
 
-class TestArrayGenerator(arrow_bson.TypeVisitor):
+class TestArrayGenerator(bson_dataframe.TypeVisitor):
     def __init__(self, n, typ, nullable):
         self.nullable = nullable
 
-        self.data = arrow_bson.ArrayData()
+        self.data = bson_dataframe.ArrayData()
         self.data.length = n
         self.data.type = typ
 
@@ -112,7 +112,7 @@ class TestArrayGenerator(arrow_bson.TypeVisitor):
         if self.nullable:
             buf = self.data.buffers[0]
             bits = numpy.ndarray(len(buf), numpy.uint8, buf)
-            mask = numpy.unpackbits(bits, bitorder='little')
+            mask = numpy.unpackbits(bits, bitorder='little')[:self.data.length]
             for i, v in enumerate(mask):
                 if not v:
                     counts[i + 1] = 0
@@ -151,7 +151,7 @@ class TestArrayGenerator(arrow_bson.TypeVisitor):
                                                   False).array
 
 
-def test_table(n, types=None, offset=None, length=None):
+def test_table(n, types=None, offset=None, length=None, nullable=True):
     if types is None:
         types = [
             pyarrow.null(),
@@ -201,11 +201,12 @@ def test_table(n, types=None, offset=None, length=None):
             array = array.slice(offset, length)
         data.append(pyarrow.column(name, array))
 
-        name = str(t) + ' (null)'
-        array = TestArrayGenerator(n, t, True).array
-        if offset is not None:
-            array = array.slice(offset, length)
-        data.append(pyarrow.column(name, array))
+        if nullable:
+            name = str(t) + ' (null)'
+            array = TestArrayGenerator(n, t, True).array
+            if offset is not None:
+                array = array.slice(offset, length)
+            data.append(pyarrow.column(name, array))
 
     return pyarrow.Table.from_arrays(data)
 
@@ -214,49 +215,49 @@ class TestArrowBSON(unittest.TestCase):
     def test_offsets_codec(self):
         val = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
         buf = val.tobytes()
-        enc = arrow_bson.encode_offsets(buf)[0]
-        dec = arrow_bson.decode_offsets(enc)[0].to_pybytes()
+        enc = bson_dataframe.encode_offsets(buf)[0]
+        dec = bson_dataframe.decode_offsets(enc)[0].to_pybytes()
         self.assertEqual(buf, dec)
 
         off = (val + numpy.int32(10)).tobytes()
-        enc = arrow_bson.encode_offsets(off)[0]
-        dec = arrow_bson.decode_offsets(enc)[0].to_pybytes()
+        enc = bson_dataframe.encode_offsets(off)[0]
+        dec = bson_dataframe.decode_offsets(enc)[0].to_pybytes()
         self.assertEqual(buf, dec)
 
     def test_datetime_codec(self):
         val = numpy.array([1, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
         buf = val.tobytes()
-        enc = arrow_bson.encode_datetime(buf, numpy.int32)
-        dec = arrow_bson.decode_datetime(enc, numpy.int32)[0].to_pybytes()
+        enc = bson_dataframe.encode_datetime(buf, numpy.int32)
+        dec = bson_dataframe.decode_datetime(enc, numpy.int32)[0].to_pybytes()
         self.assertEqual(buf, dec)
 
     def test_write(self):
         table = test_table(1000)
-        buf = arrow_bson.write_table(table)
-        arrow_bson.validate(arrow_bson.write_table(table))
+        buf = bson_dataframe.write_table(table)
+        bson_dataframe.validate(bson_dataframe.write_table(table))
 
     def test_read(self):
         table = test_table(1000)
-        buf = arrow_bson.write_table(table)
-        ret = arrow_bson.read_table(buf)
+        buf = bson_dataframe.write_table(table)
+        ret = bson_dataframe.read_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice(self):
         table = test_table(1000, offset=100, length=500)
-        buf = arrow_bson.write_table(table)
-        ret = arrow_bson.read_table(buf)
+        buf = bson_dataframe.write_table(table)
+        ret = bson_dataframe.read_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice_head(self):
         table = test_table(1000, offset=0, length=500)
-        buf = arrow_bson.write_table(table)
-        ret = arrow_bson.read_table(buf)
+        buf = bson_dataframe.write_table(table)
+        ret = bson_dataframe.read_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice_tail(self):
         table = test_table(1000, offset=500, length=500)
-        buf = arrow_bson.write_table(table)
-        ret = arrow_bson.read_table(buf)
+        buf = bson_dataframe.write_table(table)
+        ret = bson_dataframe.read_table(buf)
         self.assertTrue(ret.equals(table))
 
 
