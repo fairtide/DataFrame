@@ -77,51 +77,53 @@ Some array types may have additional fields,
 ``p`` (Parameter)
     Used by parametric typed array to store informations of the array type.
 
-``o`` (Offset)
-    Buffer of 32-bit integers of the length each element in variable sized
-    arrays (such as lists and strings). The first element is always 0, followed
-    by the length of each element in the array. Therefore its length is the
-    array length plus 1. The vector of its cumulative sums is thus the offsets
-    of each array elements.
-
-    For example, a list of lists,
-
-    .. code-block::
-
-        v = [[1, 2, 3], [4], [5, 6]]
-
-    will be encoded by two lists,
-
-    .. code-block::
-
-        d = [1, 2, 3, 4, 5, 6]
-
-    and
-
-    .. code-block::
-
-        o = [0, 3, 1, 2]
-
-    To restore the original list of lists, one use the following simple logic,
-
-    .. code-block::
-
-        begin, end = o[:2]
-        u = list()
-        for s in o[1:]:
-            u.append(d[begin:end])
-            begin = end
-            end += s
-
-    To gain random access to the data without copying, compute the offset array
-    first. The reason for not storing the offset array itself is that usually
-    the distinct values of element length is limitted and thus the compressed
-    data become smaller, while the offset array itself is a monotically
-    non-decreasing sequeces.
-
 A data type may also be serialized as a BSON document and referred below. It is
 the subset of the ``t`` and ``p`` (if exist) fields of the BSON document of a
 serialized array.
+
+Offsets Buffer
+--------------
+
+Offsets or element counts are stored in a buffer of 32-bit integers of the
+length each element in variable sized arrays (such as lists and strings). The
+first element is always 0, followed by the length of each element in the array.
+Therefore its length is the array length plus 1. The vector of its cumulative
+sums is thus the offsets of each array elements.
+
+For example, a list of lists,
+
+.. code-block::
+
+    v = [[1, 2, 3], [4], [5, 6]]
+
+will be encoded by two lists,
+
+.. code-block::
+
+    d = [1, 2, 3, 4, 5, 6]
+
+and
+
+.. code-block::
+
+    o = [0, 3, 1, 2]
+
+To restore the original list of lists, one use the following simple logic,
+
+.. code-block::
+
+    begin, end = o[:2]
+    u = list()
+    for s in o[1:]:
+        u.append(d[begin:end])
+        begin = end
+        end += s
+
+To gain random access to the data without copying, compute the offset array
+first. The reason for not storing the offset array itself is that usually
+the distinct values of element length is limitted and thus the compressed
+data become smaller, while the offset array itself is a monotically
+non-decreasing sequeces.
 
 Primitive Arrays
 ----------------
