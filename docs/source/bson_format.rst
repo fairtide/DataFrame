@@ -2,397 +2,1106 @@ DataFrame Serialization with BSON Format
 ========================================
 
 The library specify and implement (in C++ and Python) a BSON based
-serialization for DataFrame data. The format is inspired by the data format of
-`Arctic <https://github.com/manahl/arctic>`_, in particular its TickStore.
-However, the format covers considerably more data types. The implementation
-itself at the moment provides serialization to and from `Arrow
-<https://arrow.apache.org>`_ tables, however, the specification is independent
-of either project.
+serialization for DataFrame data. The format is inspired by the data
+format of `Arctic <https://github.com/manahl/arctic%3E>`__, in
+particular its TickStore. However, the format covers considerably more
+data types, inspired by the `Arrow <https://arrow.apache.org>`__
+project.
 
-As a toy example, given a DataFrame below,
+The the specification of has some similarity to that of Arrow, it is
+independent and has some notable differences.
 
-.. code-block:: python
+The Python package ``bson_dataframe`` provides integration with
+`pyarrow <https://arrow.apache.org/docs/python/>`__ and
+`pandas <https://pandas.pydata.org>`__.
 
-    df = pandas.DataFrame({'x': [1, 2, 3], 'y': ['a', 'b', 'c']})
+Below we detail the specification of the format, with code example of
+how to encode and decode different data types.
 
-is serialized to the following BSON document (printed by its `Canonical JSON Representation <https://github.com/mongodb/specifications/blob/master/source/extended-json.rst>`_).
+.. code:: ipython3
 
-.. code-block:: json
+    import numpy
+    import lz4.block
+    import bson
+    import bson.json_util
 
-    {
-        "x": {
-            "d": { "$binary": { "base64": "GAAAACIBAAEAEgIHAJAAAwAAAAAAAAA=", "subType": "00" } },
-            "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-            "t": "int64"
-        },
-        "y": {
-            "d": { "$binary": { "base64": "AwAAADBhYmM=", "subType": "00" } },
-            "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-            "t": "utf8",
-            "o": { "$binary": { "base64": "EAAAAPABAAAAAAEAAAABAAAAAQAAAA==", "subType": "00" } }
-        }
-    }
+.. code:: ipython3
 
-Each column is stored as a BSON document with the its name as the key and the
-corresponding array data as BSON document value. The specifics for different
-array types are detailed below.
+    def test(data, dtype, encoder, decoder):
+        numpy.random.seed(1204)
+        mask = numpy.random.bytes(len(data) // 8 + 1)
+        mask = numpy.ndarray(len(mask), numpy.uint8, mask)
+        mask = numpy.unpackbits(mask)[:len(data)]
+        mask = mask.astype(bool)
+    
+        doc = encoder(data, mask, dtype)
+        d, m = decoder(doc)
+        
+        
+        json_mode = bson.json_util.JSONMode.CANONICAL
+        json_options = bson.json_util.JSONOptions(json_mode=json_mode)
+        json_doc = bson.json_util.dumps(doc, json_options=json_options, indent=4)
+    
+        
+        print(f'''
+    Orignal Data
+    
+    data: {data}
+    mask: {mask}
+    type: {dtype}
+    
+    Encoded Document
+    
+    {json_doc}
+    
+    Decoded Data
+    
+    data: {d}
+    mask: {m}
+    ''')
 
-Buffers
--------
+Schema of BSON Keys
+-------------------
 
-The basic building block of the data is buffers, and stored as binary in BSON
-with default sub-type. Each buffers is compressed data using the `LZ4
-<https://lz4.github.io/lz4/>`_ codec. The first 4 bytes of the binary is the
-32-bits integer of the length of decompressed buffer. The rest of the binary is
-a compressed data of `LZ4 block format
-<https://github.com/lz4/lz4/blob/master/doc/lz4_Block_format.md>`_.
+.. code:: ipython3
 
-Unless otherwise specified, below we use the term *buffer* to refer to the
-decompressed buffer instead of the compressed one stored in the BSON document.
+    DATA = 'd'
+    MASK = 'm'
+    TYPE = 't'
+    PARAM = 'p'
+    
+    # binary/string/list
+    OFFSET = 'o'
+    
+    # list
+    LENGTH = 'l'
+    
+    # struct
+    NAME = 'n'
+    FIELDS = 'f'
+    
+    # dictionary
+    INDEX = 'i'
+    DICT = 'd'
 
-Byte Order
-----------
-
-The data stored in the buffers are of little-endian byte-order unless specified
-otherwise.
-
-Common Fields
--------------
-
-All array data has the following common fields:
-
-``d`` (Data)
-    The bulk of the data. Its type and structure varies for different array
-    type
-
-``m`` (Mask)
-    The mask of the data to indicate missing values. The bytes within the
-    buffer are MSB packed bits. Each slot corresponding to an array element.
-
-``t`` (Type)
-    A single string denotes the type of the array
-
-Some array types may have additional fields,
-
-``p`` (Parameter)
-    Used by parametric typed array to store informations of the array type.
-
-A data type may also be serialized as a BSON document and referred below. It is
-the subset of the ``t`` and ``p`` (if exist) fields of the BSON document of a
-serialized array.
-
-Offsets Buffer
---------------
-
-Offsets or element counts are stored in a buffer of 32-bit integers of the
-length each element in variable sized arrays (such as lists and strings). The
-first element is always 0, followed by the length of each element in the array.
-Therefore its length is the array length plus 1. The vector of its cumulative
-sums is thus the offsets of each array elements.
-
-For example, a list of lists,
-
-.. code-block::
-
-    v = [[1, 2, 3], [4], [5, 6]]
-
-will be encoded by two lists,
-
-.. code-block::
-
-    d = [1, 2, 3, 4, 5, 6]
-
-and
-
-.. code-block::
-
-    o = [0, 3, 1, 2]
-
-To restore the original list of lists, one use the following simple logic,
-
-.. code-block::
-
-    begin, end = o[:2]
-    u = list()
-    for s in o[1:]:
-        u.append(d[begin:end])
-        begin = end
-        end += s
-
-To gain random access to the data without copying, compute the offset array
-first. The reason for not storing the offset array itself is that usually
-the distinct values of element length is limitted and thus the compressed
-data become smaller, while the offset array itself is a monotically
-non-decreasing sequeces.
-
-Primitive Arrays
-----------------
-
-Required Fields
-    * ``d``: The raw buffer of values
-    * ``m``: The mask
-    * ``t``: The data type
-
-Primitive arrays contains integral or floating point data. Each element of the
-array has fixed byte width, which is listed below
-
-======= ==========
-Type    Byte width
-======= ==========
-bool    1
-int8    1
-int16   2
-int32   4
-int64   8
-uint8   1
-uint16  2
-uint32  4
-uint64  8
-float16 2
-float32 4
-float64 8
-======= ==========
-
-Example (``int32`` array):
-
-.. code-block:: json
-
-    {
-        "d": { "$binary": { "base64": "DAAAAMCvTEJazvY/LjU7hZE=", "subType": "00" } },
-        "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-        "t": "int32"
-    }
-
-
-Date Arrays
+Compression
 -----------
 
-Required Fields
-    * ``d``: The raw buffer of difference encoded values
-    * ``m``: The mask
-    * ``t``: The data type
+.. code:: ipython3
 
-There are two types for date arrays. ``date[d]`` and ``date[ms]``, with value
-type 32-bits integers 64-bits integers, respectively.
+    def compress(data) -> bson.Binary:
+        if isinstance(data, numpy.ndarray):
+            data = data.tobytes()
+    
+        return bson.Binary(lz4.block.compress(data))
 
-Date arrays are similar to primitive arrays except that the values are
-difference encoded. For example, given original values of days since UNIX
-epoch,
+.. code:: ipython3
 
-.. code-block::
+    def decompress(data, dtype: str):
+        buf = lz4.block.decompress(data)
+    
+        if dtype == 'raw':
+            return buf
+    
+        wid = numpy.dtype(dtype).itemsize
+        assert len(buf) % wid == 0
+    
+        return numpy.ndarray(len(buf) // wid, dtype, buf)
 
-    [1, 3, 5, 7, 8, 9, 10, 8]
+.. code:: ipython3
 
-The values stored are
+    def extract_type(doc):
+        ret = {TYPE: doc[TYPE]}
+        if PARAM in ret:
+            ret[PARAM] = doc[PARAM]
+    
+        return ret
 
-.. code-block::
+Mask
+----
 
-    [1, 2, 1, 2, 1, 1, 1, -2]
+.. code:: ipython3
 
-That is, the first element is the original value, and each element that follows
-is the difference between he original value and its predecessor. The rationale
-behind such encoding is that the compressed data is much smaller for some
-commonly occurring data such as a sequence of monotonically increasing, evenly
-spaced dates, which is common in finance data. For random data there no
-advantage or disadvantage in terms of space on average. The cost of encoding or
-decoding is small or negligible compared to the cost of compression or
-decompression, respectively.
+    def encode_mask(data: numpy.ndarray) -> bson.Binary:
+        return compress(numpy.packbits(data, bitorder='big'))
+
+.. code:: ipython3
+
+    def decode_mask(data: bson.Binary, length) -> numpy.ndarray:
+        return numpy.unpackbits(decompress(data, numpy.uint8), bitorder='big').astype(bool)[:length]
+
+Null Array
+~~~~~~~~~~
+
+.. code:: ipython3
+
+    def encode_null(data, *args):
+        mask = numpy.zeros(len(data), dtype=bool)
+    
+        return {
+            DATA: bson.Int64(len(data)),
+            MASK: encode_mask(mask),
+            TYPE: 'null',
+        }
+
+.. code:: ipython3
+
+    def decode_null(doc):
+        length = doc[DATA]
+        data = [None] * length
+        mask = numpy.zeros(length, dtype=bool)
+    
+        return data, mask
+
+.. code:: ipython3
+
+    test([None] * 3, 'null', encode_null, decode_null)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [None, None, None]
+    mask: [ True False False]
+    type: null
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$numberLong": "3"
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABAA",
+                "subType": "00"
+            }
+        },
+        "t": "null"
+    }
+    
+    Decoded Data
+    
+    data: [None, None, None]
+    mask: [False False False]
+    
+
+
+Boolean Arrays
+~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    def encode_bool(data, mask, *args):
+        data = numpy.array(data, dtype=bool).astype(numpy.int8)
+    
+        return {
+            DATA: compress(data),
+            MASK: encode_mask(mask),
+            TYPE: 'bool',
+        }
+
+.. code:: ipython3
+
+    def decode_bool(doc):
+        data = decompress(doc[DATA], numpy.int8).astype(bool)
+        mask = decode_mask(doc[MASK], len(data))
+    
+        return data, mask
+
+.. code:: ipython3
+
+    test([True, False, True], 'bool', encode_bool, decode_bool)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [True, False, True]
+    mask: [ True False False]
+    type: bool
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "AwAAADABAAE=",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "bool"
+    }
+    
+    Decoded Data
+    
+    data: [ True False  True]
+    mask: [ True False False]
+    
+
+
+Numeric Arrays
+~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    NUMERIC_TYPES = ['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64', 'float16', 'float32', 'float64']
+
+.. code:: ipython3
+
+    def encode_numeric(data, mask, dtype):
+        data = numpy.array(data, dtype=dtype)
+    
+        return {
+            DATA: compress(data),
+            MASK: encode_mask(mask),
+            TYPE: dtype,
+        }
+
+.. code:: ipython3
+
+    def decode_numeric(doc):
+        data = decompress(doc[DATA], doc[TYPE])
+        mask = decode_mask(doc[MASK], len(data))
+    
+        return data, mask
+
+.. code:: ipython3
+
+    test([1, 2, 3], 'int32', encode_numeric, decode_numeric)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [1, 2, 3]
+    mask: [ True False False]
+    type: int32
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "DAAAAMABAAAAAgAAAAMAAAA=",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "int32"
+    }
+    
+    Decoded Data
+    
+    data: [1 2 3]
+    mask: [ True False False]
+    
+
+
+Date Array
+----------
+
+.. code:: ipython3
+
+    DATE_TYPES = {'date[d]': 'int32', 'date[ms]': 'int64'}
+    DATE_UNITS = {'date[d]': 'datetime64[D]', 'date[ms]': 'datetime64[ms]'}
+
+.. code:: ipython3
+
+    def encode_date(data, mask, dtype):
+        data = numpy.array(data, dtype=DATE_TYPES[dtype])
+        values = numpy.diff(data, prepend=0)
+        
+        return {
+            DATA: compress(values.astype(DATE_TYPES[dtype])),
+            MASK: encode_mask(mask),
+            TYPE: dtype,
+        }
+
+.. code:: ipython3
+
+    def decode_date(doc):
+        dtype = DATE_TYPES[doc[TYPE]]
+        values = numpy.cumsum(decompress(doc[DATA], dtype)).astype(DATE_UNITS[doc[TYPE]])
+        mask = decode_mask(doc[MASK], len(values))
+    
+        return values, mask
+
+.. code:: ipython3
+
+    test(numpy.array(['1970-01-01', '2000-01-01'], dtype='datetime64[D]'), 'date[d]', encode_date, decode_date)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: ['1970-01-01' '2000-01-01']
+    mask: [ True False]
+    type: date[d]
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "CAAAAIAAAAAAzSoAAA==",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "date[d]"
+    }
+    
+    Decoded Data
+    
+    data: ['1970-01-01' '2000-01-01']
+    mask: [ True False]
+    
+
+
+.. code:: ipython3
+
+    test(numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], dtype='datetime64[ms]'), 'date[ms]', encode_date, decode_date)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: ['1970-01-01T00:00:00.000' '2000-01-01T01:02:03.040']
+    mask: [ True False]
+    type: date[ms]
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "EAAAABMAAQCAIHsIa9wAAAA=",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "date[ms]"
+    }
+    
+    Decoded Data
+    
+    data: ['1970-01-01T00:00:00.000' '2000-01-01T01:02:03.040']
+    mask: [ True False]
+    
+
 
 Timestamp Array
 ---------------
 
-Required Fields
-    * ``d``: The raw buffer of diff encoded values
-    * ``m``: The mask
-    * ``t``: The data type
+.. code:: ipython3
 
-Optional Fields
-    * ``p``: String of time zone
+    TIMESTAMP_TYPES = ['timestamp[s]', 'timestamp[ms]', 'timestamp[us]', 'timestamp[ns]']
 
-Timestamp array is similar to date arrays in that its values (64-bits integers)
-are also difference encoded. There are four timestamp types, ``timestamp[s]``,
-``timestamp[ms]``, ``timestamp[us]``, and ``timestamp[ns]``, intended for use
-of timestamps with precisions seconds, milliseconds, microseconds, and
-nanoseconds, respectively.
+.. code:: ipython3
 
-Time Arrays
------------
+    def encode_timestamp(data, mask, dtype):
+        data = numpy.array(data, dtype='int64')
+        values = numpy.diff(data, prepend=0)
+        
+        return {
+            DATA: compress(values.astype('int64')),
+            MASK: encode_mask(mask),
+            TYPE: dtype,
+        }
 
-Required Fields
-    * ``d``: The raw buffer of diff encoded values
-    * ``m``: The mask
-    * ``t``: The data type
+.. code:: ipython3
 
-Time arrays are values of time of day. There are four time types, ``time[s]``,
-``time[ms]``, ``time[us]``, and ``time[ns]``, intended for use of timestamps
-with precisions seconds, milliseconds, microseconds, and nanoseconds,
-respectively. The first two has 32-bits integers as its values and last two has
-64-bits integers as its values.
+    def decode_timestamp(doc):
+        values = numpy.cumsum(decompress(doc[DATA], 'int64')).astype(doc[TYPE].replace('timestamp', 'datetime64'))
+        mask = decode_mask(doc[MASK], len(values))
+    
+        return values, mask
 
-Null Array
-----------
+.. code:: ipython3
 
-Required Fields
-    * ``d``: 64-bits integer of array length
-    * ``m``: The mask. Filled with zero byes.
-    * ``t``: The data type (``null``)
+    test(numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], dtype='datetime64[ms]'), 'timestamp[ms]', encode_timestamp, decode_timestamp)
 
-Example:
 
-.. code-block:: json
+.. parsed-literal::
 
-    {
-        "d": { "$numberLong": "3" },
-        "m": { "$binary": { "base64": "AQAAABAA", "subType": "00" } },
-        "t": "null"
-    }
-
-Binary and String Array
------------------------
-
-Required Fields
-    * ``d``: The raw buffer concatenated data
-    * ``m``: The mask
-    * ``t``: The data type (``bytes`` or ``utf8``)
-    * ``o``: The offsets
-
-Binary (``bytes``) or string (``utf8``) arrays are identical in their memory
-layout. The data buffer is the raw bytes of each element concatenated together.
-The offset buffer is as described above, used to delimit the data buffer.
-
-Opaque Array
-------------
-
-Required Fields
-    * ``d``: The raw buffer concatenated data
-    * ``m``: The mask
-    * ``t``: The data type (``opaque``)
-    * ``p``: 32-bits integer of byte width
-
-An opaque typed array is similar to a binary array except that the byte width
-of each element is fixed and thus there's no need to encode the offsets.
-
-Factor and Ordered Array
-------------------------
-
-Required Fields
-    * ``d``: The data (see below)
-    * ``m``: The mask
-    * ``t``: The data type (``factor`` or ``ordered``)
-    * ``p``: Index and value types (see below)
-
-``factor`` and ``ordered`` are both dictionary types. Some languages support
-both (such as R from which the names are taken), while others does not make any
-distinction between the two. The layout of the document is identical to both.
-
-The data field is a BSON document composed of two fields
-
-``i`` (Index)
-    The index array serialized as BSON document
-``d`` (Dictionary)
-    The dictionary value array serialized as BSON document
-
-The parameter field is a BSON document composed of two fields
-
-``i`` (Index)
-    The index type serialized as BSON document.
-
-``d`` (Dictionary)
-    The dictionary value value serialized as BSON document
-
-Example:
-
-.. code-block:: json
-
+    
+    Orignal Data
+    
+    data: ['1970-01-01T00:00:00.000' '2000-01-01T01:02:03.040']
+    mask: [ True False]
+    type: timestamp[ms]
+    
+    Encoded Document
+    
     {
         "d": {
-            "i": {
-                "d": { "$binary": { "base64": "DAAAAMAJAAAAAQAAAAcAAAA=", "subType": "00" } },
-                "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-                "t": "int32"
-            },
-            "d": {
-                "d": { "$binary": { "base64": "IAAAAPARH7JcmE1LzE1uaHRTEAro9wkrvQk7FUkmXANkMO7nKUg=", "subType": "00" } },
-                "m": { "$binary": { "base64": "AgAAACD/wA==", "subType": "00" } },
-                "t": "utf8",
-                "o": { "$binary": { "base64": "LAAAAFMAAAAABAQAkwMAAAABAAAABggAFgIIAFAACAAAAA==", "subType": "00" } }
+            "$binary": {
+                "base64": "EAAAABMAAQCAIHsIa9wAAAA=",
+                "subType": "00"
             }
         },
-        "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-        "t": "ordered",
-        "p": {
-            "i": { "t": "int32" },
-            "d": { "t": "utf8" }
-        }
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "timestamp[ms]"
     }
+    
+    Decoded Data
+    
+    data: ['1970-01-01T00:00:00.000' '2000-01-01T01:02:03.040']
+    mask: [ True False]
+    
 
-List Array
+
+Time Array
 ----------
 
-Required Fields
-    * ``d``: The concatenated value array serialized as a BSON document
-    * ``m``: The mask
-    * ``t``: The data type (``list``)
-    * ``p``: The value type serialized as a BSON document
-    * ``o``: The offsets
+.. code:: ipython3
 
-Example:
+    TIME_TYPES = {'time[s]': 'int32', 'time[ms]': 'int32', 'time[us]': 'int64', 'time[ns]': 'int64'}
 
-.. code-block:: json
+.. code:: ipython3
 
+    def encode_time(data, mask, dtype):
+        data = numpy.array(data, dtype=TIME_TYPES[dtype])
+    
+        return {
+            DATA: compress(data),
+            MASK: encode_mask(mask),
+            TYPE: dtype,
+        }
+
+.. code:: ipython3
+
+    def decode_time(doc):
+        dtype = TIME_TYPES[doc[TYPE]]
+        data = decompress(doc[DATA], dtype).astype(doc[TYPE].replace('time', 'timedelta64'))
+        mask = decode_mask(doc[MASK], len(data))
+    
+        return data, mask
+
+.. code:: ipython3
+
+    test(numpy.array([1, 2, 3], dtype='timedelta64[ms]'), 'time[ms]', encode_time, decode_time)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [1 2 3]
+    mask: [ True False False]
+    type: time[ms]
+    
+    Encoded Document
+    
     {
         "d": {
-            "d": { "$binary": { "base64": "UAAAAPBBmYzN7kSpfPmZEXRK7BBM0DjPJWCZ4UH7kAuc+bDQ+gkhz5yl0DQCKZt3bDJFfR67Ut5UhW4pKAEk8GzlEjcvUjfVGlbF1NtRRdME+FkIcOs=", "subType": "00" } },
-            "m": { "$binary": { "base64": "AwAAADD///A=", "subType": "00" } },
-            "t": "int32"
+            "$binary": {
+                "base64": "DAAAAMABAAAAAgAAAAMAAAA=",
+                "subType": "00"
+            }
         },
-        "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-        "t": "list",
-        "p": { "t": "int32" },
-        "o": { "$binary": { "base64": "EAAAAPABAAAAAAQAAAAJAAAABwAAAA==", "subType": "00" } }
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "time[ms]"
     }
+    
+    Decoded Data
+    
+    data: [1 2 3]
+    mask: [ True False False]
+    
 
 
-Struct Array
-------------
+.. code:: ipython3
 
-Required Fields
-    * ``d``: The data (see below)
-    * ``m``: The mask
-    * ``t``: The data type (``struct``)
-    * ``p``: The fields (see below)
+    test(numpy.array([1, 2, 3], dtype='timedelta64[ns]'), 'time[ns]', encode_time, decode_time)
 
-The data field has the following subfields
 
-* ``l``: The length of the structure array
-* ``f``: Data of each fields. Each element is an array of all values in a
-  given field, with field name as the key and serialized BSON document as the
-  value.
+.. parsed-literal::
 
-The parameter field is an array of documents, each element is the field type
-serialized as a BSON document, plus a field ``n``, the name of the field.
-
-Example:
-
-.. code-block:: json
-
+    
+    Orignal Data
+    
+    data: [1 2 3]
+    mask: [ True False False]
+    type: time[ns]
+    
+    Encoded Document
+    
     {
         "d": {
-            "l": { "$numberLong": "3" },
+            "$binary": {
+                "base64": "GAAAACIBAAEAEgIHAJAAAwAAAAAAAAA=",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "time[ns]"
+    }
+    
+    Decoded Data
+    
+    data: [1 2 3]
+    mask: [ True False False]
+    
+
+
+Binary Arrays
+-------------
+
+Opaque
+~~~~~~
+
+.. code:: ipython3
+
+    def encode_opaque(data, mask, *args):
+        return {
+            DATA: compress(b''.join(data)),
+            MASK: encode_mask(mask),
+            TYPE: 'opaque',
+            PARAM: len(data[0]),
+        }
+
+.. code:: ipython3
+
+    def decode_opaque(doc):
+        data = decompress(doc[DATA], f'|S{doc[PARAM]}')
+        mask = decode_mask(doc[MASK], len(data))
+        
+        return data, mask
+
+.. code:: ipython3
+
+    test([b'abc', b'def', b'ghi'], 'opaque', encode_opaque, decode_opaque)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [b'abc', b'def', b'ghi']
+    mask: [ True False False]
+    type: opaque
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "CQAAAJBhYmNkZWZnaGk=",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "opaque",
+        "p": {
+            "$numberInt": "3"
+        }
+    }
+    
+    Decoded Data
+    
+    data: [b'abc' b'def' b'ghi']
+    mask: [ True False False]
+    
+
+
+Bytes and String
+~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    def encode_binary(data, mask, dtype):
+        if dtype == 'utf8':
+            data = [v.encode('utf8') for v in data]
+    
+        values = b''.join(data)
+        counts = [0] + [len(v) for v in data]
+        
+        return {
+            DATA: compress(values),
+            MASK: encode_mask(mask),
+            TYPE: dtype,
+            OFFSET: compress(numpy.array(counts, dtype=numpy.int32)),
+        }
+
+.. code:: ipython3
+
+    def decode_binary(doc):
+        values = decompress(doc[DATA], 'raw')
+        counts = decompress(doc[OFFSET], numpy.int32)
+        offsets = numpy.cumsum(counts)
+        n = len(offsets) - 1
+    
+        data = [values[offsets[i]:offsets[i + 1]] for i in range(n)]
+    
+        if doc[TYPE] == 'utf8':
+            data = [v.decode('utf8') for v in data]
+    
+        mask = decode_mask(doc[MASK], len(data))
+        
+        return data, mask
+
+.. code:: ipython3
+
+    test([b'abc', b'defgh', b'ijk'], 'bytes', encode_binary, decode_binary)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [b'abc', b'defgh', b'ijk']
+    mask: [ True False False]
+    type: bytes
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "CwAAALBhYmNkZWZnaGlqaw==",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "bytes",
+        "o": {
+            "$binary": {
+                "base64": "EAAAAPABAAAAAAMAAAAFAAAAAwAAAA==",
+                "subType": "00"
+            }
+        }
+    }
+    
+    Decoded Data
+    
+    data: [b'abc', b'defgh', b'ijk']
+    mask: [ True False False]
+    
+
+
+.. code:: ipython3
+
+    test(['abc', 'Ωåß√'], 'utf8', encode_binary, decode_binary)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: ['abc', 'Ωåß√']
+    mask: [ True False]
+    type: utf8
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "$binary": {
+                "base64": "DAAAAMBhYmPOqcOlw5/iiJo=",
+                "subType": "00"
+            }
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "utf8",
+        "o": {
+            "$binary": {
+                "base64": "DAAAAMAAAAAAAwAAAAkAAAA=",
+                "subType": "00"
+            }
+        }
+    }
+    
+    Decoded Data
+    
+    data: ['abc', 'Ωåß√']
+    mask: [ True False]
+    
+
+
+Nested Arrays
+-------------
+
+.. code:: ipython3
+
+    class ListType():
+        def __init__(self, dtype):
+            self.value_type = dtype
+            
+        def __str__(self):
+            return f'list<{str(self.value_type)}>'
+
+.. code:: ipython3
+
+    class Field():
+        def __init__(self, name, dtype):
+            self.name = name
+            self.type = dtype
+            
+        def __str__(self):
+            return f'{self.name}: {str(self.type)}'
+
+.. code:: ipython3
+
+    class StructType():
+        def __init__(self, fields):
+            self.fields = fields
+            
+        def __str__(self):
+            return str([str(v) for v in self.fields])
+
+.. code:: ipython3
+
+    class DictionaryType():
+        def __init__(self, index_type, value_type, ordered):
+            self.index_type = index_type
+            self.value_type = value_type
+            self.ordered = orderded
+            
+        def __str__(self):
+            if self.ordered:
+                return f'ordered<{str(self.index_type)}, {str(self.value_type)}>'
+            else:
+                return f'factor<{str(self.index_type)}, {str(self.value_type)}>'
+
+.. code:: ipython3
+
+    def encode_array(data, mask, dtype):
+        if dtype == 'null':
+            return encode_null(data, mask, dtype)
+        if dtype == 'bool':
+            return encode_bool(data, mask, dtype)
+        if dtype in NUMERIC_TYPES:
+            return encode_numeric(data, mask, dtype)
+        if dtype in DATE_TYPES:
+            return encode_date(data, mask, dtype)
+        if dtype in TIMESTAMP_TYPES:
+            return encode_timestamp(data, mask, dtype)
+        if dtype in TIME_TYEPS:
+            return encode_time(data, mask, dtype)
+        if isinstance(dtype, ListType):
+            return encode_list(data, mask, dtype)
+        if isinstance(dtype, StructType):
+            return encode_struct(data, mask, dtype)
+        if isinstance(dtype, DictionaryType):
+            return encode_dictionary(data, mask, dtype)
+        raise ValueError(f'Unknown type {dtype}')
+
+.. code:: ipython3
+
+    def decode_array(doc):
+        dtype = doc[TYPE]
+        if dtype == 'null':
+            return decode_null(doc)
+        if dtype == 'bool':
+            return decode_bool(doc)
+        if dtype in NUMERIC_TYPES:
+            return decode_numeric(doc)
+        if dtype in DATE_TYPES:
+            return decode_date(doc)
+        if dtype in TIMESTAMP_TYPES:
+            return decode_timestamp(doc)
+        if dtype in TIME_TYEPS:
+            return decode_time(doc)
+        if isinstance(dtype, ListType):
+            return decode_list(doc)
+        if isinstance(dtype, StructType):
+            return decode_struct(ddoc)
+        if isinstance(dtype, DictionaryType):
+            return decode_dictionary(doc)
+        raise ValueError(f'Unknown type {dtype}')
+
+List
+~~~~
+
+.. code:: ipython3
+
+    def encode_list(data, mask, dtype):
+        values = numpy.concatenate(data)
+        counts = [0] + [len(v) for v in data]
+        vmask = numpy.ones(len(data), dtype=bool)
+        data_doc = encode_array(values, vmask, dtype.value_type)
+        
+        return {
+            DATA: data_doc,
+            MASK: encode_mask(mask),
+            TYPE: 'list',
+            PARAM: extract_type(data_doc),
+            OFFSET: compress(numpy.array(counts, dtype=numpy.int32)),
+        }
+
+.. code:: ipython3
+
+    def decode_list(doc):
+        values, vmask = decode_array(doc[DATA])
+        counts = decompress(doc[OFFSET], numpy.int32)
+        offsets = numpy.cumsum(counts)
+        n = len(offsets) - 1
+    
+        data = [values[offsets[i]:offsets[i + 1]] for i in range(n)]
+        mask = decode_mask(doc[MASK], len(data))
+    
+        return data, mask
+
+.. code:: ipython3
+
+    test([numpy.array([1, 2, 3]), numpy.array([4, 5])], ListType('int64'), encode_list, decode_list)
+
+
+.. parsed-literal::
+
+    
+    Orignal Data
+    
+    data: [array([1, 2, 3]), array([4, 5])]
+    mask: [ True False]
+    type: list<int64>
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "d": {
+                "$binary": {
+                    "base64": "KAAAACIBAAEAEgIHACMAAwgAEwQIAIAFAAAAAAAAAA==",
+                    "subType": "00"
+                }
+            },
+            "m": {
+                "$binary": {
+                    "base64": "AQAAABDA",
+                    "subType": "00"
+                }
+            },
+            "t": "int64"
+        },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
+        "t": "list",
+        "p": {
+            "t": "int64"
+        },
+        "o": {
+            "$binary": {
+                "base64": "DAAAAMAAAAAAAwAAAAIAAAA=",
+                "subType": "00"
+            }
+        }
+    }
+    
+    Decoded Data
+    
+    data: [array([1, 2, 3]), array([4, 5])]
+    mask: [ True False]
+    
+
+
+Struct
+~~~~~~
+
+.. code:: ipython3
+
+    def encode_struct(data, mask, dtype):
+        names = list()
+        types = dict()
+        values = dict()
+        for field in dtype.fields:
+            names.append(field.name)
+            types[field.name] = field.type
+            values[field.name] = [v[field.name] for v in data]
+        
+        fields_doc = dict({k: encode_array(values[k], mask, types[k]) for k in names})
+        data_doc = {LENGTH: len(data), FIELDS: fields_doc}
+        
+        param_doc = [extract_type(fields_doc[k]) for k in names]
+        for k, v in zip(names, param_doc):
+            v[NAME] = k
+        
+        return {
+            DATA: data_doc,
+            MASK: encode_mask(mask),
+            TYPE: 'struct',
+            PARAM: param_doc,
+        }
+
+.. code:: ipython3
+
+    def decode_struct(doc):
+        values = dict({k: decode_array(v)[0] for k, v in doc[DATA][FIELDS].items()})
+    
+        data = [{}] * doc[DATA][LENGTH]
+        print(data)
+        for k, v in values.items():
+            for i, u in enumerate(v):
+                print((i, k, u))
+                data[i][k] = u
+                print(data)
+        print(data)
+    
+        mask = decode_mask(doc[MASK], len(data))
+        
+        return data, mask
+
+.. code:: ipython3
+
+    test([{'x': 1, 'y': 2.2}, {'x': 3, 'y': 4.4}], StructType([Field('x', 'int64'), Field('y', 'float64')]), encode_struct, decode_struct)
+
+
+.. parsed-literal::
+
+    [{}, {}]
+    (0, 'x', 1)
+    [{'x': 1}, {'x': 1}]
+    (1, 'x', 3)
+    [{'x': 3}, {'x': 3}]
+    (0, 'y', 2.2)
+    [{'x': 3, 'y': 2.2}, {'x': 3, 'y': 2.2}]
+    (1, 'y', 4.4)
+    [{'x': 3, 'y': 4.4}, {'x': 3, 'y': 4.4}]
+    [{'x': 3, 'y': 4.4}, {'x': 3, 'y': 4.4}]
+    
+    Orignal Data
+    
+    data: [{'x': 1, 'y': 2.2}, {'x': 3, 'y': 4.4}]
+    mask: [ True False]
+    type: ['x: int64', 'y: float64']
+    
+    Encoded Document
+    
+    {
+        "d": {
+            "l": {
+                "$numberInt": "2"
+            },
             "f": {
                 "x": {
-                    "d": { "$binary": { "base64": "DAAAAMCQMFbTLMBdM04UP74=", "subType": "00" } },
-                    "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-                    "t": "int32"
+                    "d": {
+                        "$binary": {
+                            "base64": "EAAAACIBAAEAgAMAAAAAAAAA",
+                            "subType": "00"
+                        }
+                    },
+                    "m": {
+                        "$binary": {
+                            "base64": "AQAAABCA",
+                            "subType": "00"
+                        }
+                    },
+                    "t": "int64"
                 },
                 "y": {
-                    "d": { "$binary": { "base64": "DAAAAMCTai8/ys9UPhTufD8=", "subType": "00" } },
-                    "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
-                    "t": "float32"
+                    "d": {
+                        "$binary": {
+                            "base64": "EAAAAPABmpmZmZmZAUCamZmZmZkRQA==",
+                            "subType": "00"
+                        }
+                    },
+                    "m": {
+                        "$binary": {
+                            "base64": "AQAAABCA",
+                            "subType": "00"
+                        }
+                    },
+                    "t": "float64"
                 }
             }
         },
-        "m": { "$binary": { "base64": "AQAAABDg", "subType": "00" } },
+        "m": {
+            "$binary": {
+                "base64": "AQAAABCA",
+                "subType": "00"
+            }
+        },
         "t": "struct",
-        "p": [{ "n": "x", "t": "int32" }, { "n": "y", "t": "float32" }]
+        "p": [
+            {
+                "t": "int64",
+                "n": "x"
+            },
+            {
+                "t": "float64",
+                "n": "y"
+            }
+        ]
     }
+    
+    Decoded Data
+    
+    data: [{'x': 3, 'y': 4.4}, {'x': 3, 'y': 4.4}]
+    mask: [ True False]
+    
+
+
+Dictionary
+~~~~~~~~~~
+
