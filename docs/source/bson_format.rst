@@ -1,4 +1,4 @@
-.. code:: ipython3
+.. code:: python3
 
     import abc
     import bson
@@ -49,7 +49,7 @@ at top level. The exact contents are details later.
 -  ``PARAM`` additional informations of parametric type
 -  ``OFFSET`` offset data of array with variable length elements
 
-.. code:: ipython3
+.. code:: python3
 
     DATA = 'd'
     MASK = 'm'
@@ -60,7 +60,7 @@ at top level. The exact contents are details later.
 There are a few sub field which may appears within ``DATA`` or
 ``PARAM``.
 
-.. code:: ipython3
+.. code:: python3
 
     LENGTH = 'l'
     NAME = 'n'
@@ -76,12 +76,12 @@ The bulk of the data are encoded as BSON binary compressed with
 format <https://github.com/lz4/lz4/blob/master/doc/lz4_Block_format.md>`__
 prefixed with a 32-bits integer of the orignal size.
 
-.. code:: ipython3
+.. code:: python3
 
     def compress(data: numpy.ndarray) -> bson.Binary:
         return bson.Binary(lz4.block.compress(data.tobytes()))
 
-.. code:: ipython3
+.. code:: python3
 
     def decompress(data: bson.Binary, dtype='byte') -> numpy.ndarray:
         buf = lz4.block.decompress(data)
@@ -99,12 +99,12 @@ Arrays may be masked to indicate positions of missings values. The
 length of the mask the the same as the array data. When encoded, a mask
 is packed bits with MSB order.
 
-.. code:: ipython3
+.. code:: python3
 
     def encode_mask(data: numpy.ndarray) -> bson.Binary:
         return compress(numpy.packbits(data))
 
-.. code:: ipython3
+.. code:: python3
 
     def decode_mask(data: bson.Binary, length: int) -> numpy.ndarray:
         return numpy.unpackbits(decompress(data, 'uint8')).astype(bool, copy=False)[:length]
@@ -144,12 +144,12 @@ The following relation always hold:
    offsets[-1] == len(data)
    values[offsets[i]:offsets[i + 1]] == data[i]
 
-.. code:: ipython3
+.. code:: python3
 
     def encode_offsets(data) -> bson.Binary:
         return compress(numpy.array([0] + [len(v) for v in data], 'int32'))
 
-.. code:: ipython3
+.. code:: python3
 
     def decode_offsets(data, offsets: bson.Binary):
         offsets = numpy.cumsum(decompress(offsets, 'int32'))
@@ -159,7 +159,7 @@ The following relation always hold:
 Document Structure
 ------------------
 
-.. code:: ipython3
+.. code:: python3
 
     class DataType(object):
         name = None
@@ -221,7 +221,7 @@ Document Structure
         
             return data, mask
 
-.. code:: ipython3
+.. code:: python3
 
     def test(dtype, data, mask):
         print(f'''
@@ -268,7 +268,7 @@ A ``null`` array is one with all values missing. The ``DATA`` is its
 length as 64-bit BSON integer. Its mask is always an array of ``False``
 with the same length.
 
-.. code:: ipython3
+.. code:: python3
 
     class Null(DataType):
         name = 'null'
@@ -282,7 +282,7 @@ with the same length.
         def decode_data(self, data):
             return [None] * data
 
-.. code:: ipython3
+.. code:: python3
 
     test(Null(), [None, None, None], [False, False, False])
 
@@ -329,7 +329,7 @@ All the standard numeric types are supported. Note that same as in numpy
 and different from Arrow, ``bool`` is a 1-byte type instead of packed
 bits.
 
-.. code:: ipython3
+.. code:: python3
 
     def numeric_type(name):
         clsname = name.title()
@@ -346,13 +346,13 @@ bits.
             'decode_data': decode_data
         })
 
-.. code:: ipython3
+.. code:: python3
 
     for dtype in ['bool', 'int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64', 'float16', 'float32', 'float64']:
         clsname, typeclass = numeric_type(dtype)
         globals()[clsname] = typeclass
 
-.. code:: ipython3
+.. code:: python3
 
     test(Int32(), [1, 2, 3], [False, True, False])
 
@@ -408,7 +408,7 @@ difference shall be minimal compared to that of memory allocation etc.
 For example, consider the following sequence of integers and the
 compressed size of the orignal and difference encoded data,
 
-.. code:: ipython3
+.. code:: python3
 
     data = numpy.array(range(1000), 'int32')
     len(compress(data)), len(compress(numpy.diff(data, prepend=numpy.int32(0))))
@@ -425,7 +425,7 @@ compressed size of the orignal and difference encoded data,
 The later is more than 100 times smaller than compressing the original
 values. Here’s is another example of random integers,
 
-.. code:: ipython3
+.. code:: python3
 
     data = numpy.random.randint(0, 1000, 1000, 'int32')
     len(compress(data)), len(compress(numpy.diff(data, prepend=numpy.int32(0))))
@@ -447,7 +447,7 @@ Date array can have two different unit and underlying integer type.
 The underlying integer type is 32 bits sigend integer for day unit and
 64 bits integer for milliseconds unit.
 
-.. code:: ipython3
+.. code:: python3
 
     class Date(DataType):
         def __init__(self, unit):
@@ -481,7 +481,7 @@ The underlying integer type is 32 bits sigend integer for day unit and
     
             return numpy.cumsum(values).astype(self.to_numpy())
 
-.. code:: ipython3
+.. code:: python3
 
     test(Date('d'), numpy.array(['1970-01-01', '2000-01-01'], 'datetime64[D]'), [True, False])
 
@@ -523,7 +523,7 @@ The underlying integer type is 32 bits sigend integer for day unit and
     
 
 
-.. code:: ipython3
+.. code:: python3
 
     test(Date('ms'), numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], 'datetime64[ms]'), [True, False])
 
@@ -579,7 +579,7 @@ following difference,
 
 It is equivalent to ``numpy.datetime64`` type
 
-.. code:: ipython3
+.. code:: python3
 
     class Timestamp(DataType):
         def __init__(self, unit):
@@ -602,7 +602,7 @@ It is equivalent to ``numpy.datetime64`` type
     
             return numpy.cumsum(values).astype(self.to_numpy())
 
-.. code:: ipython3
+.. code:: python3
 
     test(Timestamp('ms'), numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], 'datetime64[ms]'), [True, False])
 
@@ -653,11 +653,11 @@ The underlying integer type is 32 bits signed integers for second and
 millisecond units, and 64 bits integer for microsecond and nanosecond
 unit.
 
-.. code:: ipython3
+.. code:: python3
 
     TIME_TYPES = {'time[s]': 'int32', 'time[ms]': 'int32', 'time[us]': 'int64', 'time[ns]': 'int64'}
 
-.. code:: ipython3
+.. code:: python3
 
     class Time(DataType):
         def __init__(self, unit):
@@ -686,7 +686,7 @@ unit.
         def decode_data(self, data):
             return decompress(data, self._dtype()).astype(self.to_numpy())
 
-.. code:: ipython3
+.. code:: python3
 
     test(Time('ms'), numpy.array([1, 2, 3], 'timedelta64[ms]'), [True, False, True])
 
@@ -740,7 +740,7 @@ Opaque
 Opaque array has fixed length bytes as its element. It is encoded using
 the concatenated bytes and the length of each element.
 
-.. code:: ipython3
+.. code:: python3
 
     class Opaque(DataType):
         name = 'opaque'
@@ -769,7 +769,7 @@ the concatenated bytes and the length of each element.
         def decode_data(self, data):
             return decompress(data, self.to_numpy())
 
-.. code:: ipython3
+.. code:: python3
 
     test(Opaque(3), [b'abc', b'def', b'ghi'], [True, False, True])
 
@@ -829,7 +829,7 @@ code points. They are encoded by two parts
 Note that for String array, the offsets are offsets into the raw bytes,
 not the characters. Each UTF-8 code point may occupy more than 1 byte.
 
-.. code:: ipython3
+.. code:: python3
 
     class Bytes(DataType):
         name = 'bytes'
@@ -845,7 +845,7 @@ not the characters. Each UTF-8 code point may occupy more than 1 byte.
         def decode_data(self, data):
             return decompress(data).tobytes()
 
-.. code:: ipython3
+.. code:: python3
 
     class Utf8(Bytes):
         name = 'utf8'
@@ -857,7 +857,7 @@ not the characters. Each UTF-8 code point may occupy more than 1 byte.
             data, mask = super().decode_array(doc)
             return [v.decode('utf8') for v in data], mask
 
-.. code:: ipython3
+.. code:: python3
 
     test(Bytes(), [b'abc', b'defgh', b'ijk'], [True, False, True])
 
@@ -905,7 +905,7 @@ not the characters. Each UTF-8 code point may occupy more than 1 byte.
     
 
 
-.. code:: ipython3
+.. code:: python3
 
     test(Utf8(), ['abc', 'Ωåß√'], [True, False])
 
@@ -962,7 +962,7 @@ few helper class and functions are defined below and explained later.
 Dictionary
 ~~~~~~~~~~
 
-.. code:: ipython3
+.. code:: python3
 
     class Dictionary(DataType):
         def __init__(self, index_type=None, value_type=None):
@@ -1008,17 +1008,17 @@ Dictionary
     
             return [value[i] for i in index]
 
-.. code:: ipython3
+.. code:: python3
 
     class Ordered(Dictionary):
         name = 'ordered'
 
-.. code:: ipython3
+.. code:: python3
 
     class Factor(Dictionary):
         name = 'factor'
 
-.. code:: ipython3
+.. code:: python3
 
     test(Ordered(), ['abc', 'abc', 'def', 'xyz', 'abc'], [True, True, True, False, True])
 
@@ -1112,7 +1112,7 @@ The value array may have its own mask.
 
 Note that, the length of missing element may or may not be zero.
 
-.. code:: ipython3
+.. code:: python3
 
     class List(DataType):
         name = 'list'
@@ -1143,7 +1143,7 @@ Note that, the length of missing element may or may not be zero.
             values, values_mask = self.value_type.decode_array(data)
             return values
 
-.. code:: ipython3
+.. code:: python3
 
     test(List(Int64()), [[1, 2, 3], [], [], [4, 5]], [True, False, True, True])
 
@@ -1211,7 +1211,7 @@ each element is a record with given fields. Each given record has the
 same fields, and each fields has the same data type within each record.
 For example,
 
-.. code:: ipython3
+.. code:: python3
 
     class Field():
         def __init__(self, name, dtype):
@@ -1231,7 +1231,7 @@ For example,
         def decode(doc):
             return Field(doc[NAME], DataType.decode_type(doc))
 
-.. code:: ipython3
+.. code:: python3
 
     class Struct(DataType):
         name = 'struct'
@@ -1279,7 +1279,7 @@ For example,
 
 An example of struct array,
 
-.. code:: ipython3
+.. code:: python3
 
     struct_type = Struct([Field('x', Int64()), Field('y', Float64())])
     
@@ -1316,7 +1316,7 @@ of each field is encoded separatedly. More specifically
    ordering of the fields. The inferred type shall match the field types
    encoded here.
 
-.. code:: ipython3
+.. code:: python3
 
     test(struct_type, struct_data, [True, False, True])
 
