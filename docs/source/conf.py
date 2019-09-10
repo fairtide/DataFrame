@@ -9,9 +9,16 @@ if not os.environ.get('READTHEDOCS', None):
     subprocess.check_call([
         'jupyter',
         'nbconvert',
+        '--execute',
+        '--inplace',
+        bson_format_nb,
+    ])
+
+    subprocess.check_call([
+        'jupyter',
+        'nbconvert',
         '--to',
         'rst',
-        '--execute',
         bson_format_nb,
     ])
 

@@ -478,6 +478,7 @@ values. Here’s is another example of random integers,
 
 .. code:: python3
 
+    numpy.random.seed(0)
     data = numpy.random.randint(-1000, 1000, 1000, 'int32')
     len(compress(data)), len(compress(numpy.diff(data, prepend=numpy.int32(0))))
 
@@ -486,7 +487,7 @@ values. Here’s is another example of random integers,
 
 .. parsed-literal::
 
-    (3787, 3903)
+    (3829, 3868)
 
 
 
@@ -523,6 +524,15 @@ bits integer for milliseconds unit.
     
         def to_numpy(self):
             return 'datetime64[D]'
+
+.. code:: python3
+
+    class DateMs(Date):
+        unit = 'ms'
+        bit_width = 32
+    
+        def to_numpy(self):
+            return 'datetime64[ms]'
 
 .. code:: python3
 
@@ -565,15 +575,6 @@ bits integer for milliseconds unit.
     mask: [ True False]
     
 
-
-.. code:: python3
-
-    class DateMs(Date):
-        unit = 'ms'
-        bit_width = 32
-    
-        def to_numpy(self):
-            return 'datetime64[ms]'
 
 .. code:: python3
 
@@ -1033,6 +1034,57 @@ not the characters. Each UTF-8 code point may occupy more than 1 byte.
 Dictionary
 ~~~~~~~~~~
 
+Dictionary encoding, also called categorical arrays is a compact way to
+encode data with values falls in a set of categories. For example,
+
+Given data
+
+::
+
+   data = ['a', 'a', 'b', 'c', 'a', 'd', 'c']
+
+It may be encoded by two arrays. First dictionary, the set of all
+possible values,
+
+::
+
+   value = ['a', 'b', 'c', 'd']
+
+And second the zero-based index within the dictionary,
+
+::
+
+   index = [0, 0, 1, 2, 0, 3, 2]
+
+The following relaton holds,
+
+::
+
+   data[i] == value[index[i]]
+
+Some languages such as R makes the distinction between ordered and
+unordered categorical arrays. The format allows such distinction but
+otherwise the encoding is identical for both:
+
+-  ``DATA`` is a BSON document with fields
+
+   -  ``INDEX`` encoded index array
+   -  ``DICT`` encoded dictionary array
+
+-  ``PARAM`` is optional. If ommited, the index type is ``int32`` and
+   the dictionary type is ``utf8``. If present, it is a BSON document
+   with fields.
+
+   -  ``INDEX`` encoded type of the index array
+   -  ``DICT`` encoded type of the dictionary array
+
+Whether or not ``PARAM`` is explicitly given, the types given in
+``PARAM`` or the defaults shall match that of the actual array types in
+``DATA``.
+
+The implementation is responsible to maintain suitable order of the
+values in the dictionary if such distinction is important.
+
 .. code:: python3
 
     class Dictionary(DataType):
@@ -1179,7 +1231,8 @@ It is encoded similar to that of bytes and string array,
    value type can be inferred from the encoded value array. And the
    inferred type shall match the type specified here.
 
-The value array may have its own mask.
+The value array may have its own mask. The value type given in ``PARAM``
+shall match that of the actual type in ``DATA``
 
 Note that, the length of missing element may or may not be zero.
 
@@ -1278,9 +1331,7 @@ Struct
 ~~~~~~
 
 Struct array is similar to that of numpy structured array. Logically
-each element is a record with given fields. Each given record has the
-same fields, and each fields has the same data type within each record.
-For example,
+each element is a record with given fields.
 
 .. code:: python3
 
@@ -1386,6 +1437,9 @@ of each field is encoded separatedly. More specifically
    be inferred from the encoded value array. This list enforce the
    ordering of the fields. The inferred type shall match the field types
    encoded here.
+
+The types given in ``PARAM`` shall match that of the actual types in
+``DATA``.
 
 .. code:: python3
 
