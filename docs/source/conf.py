@@ -7,6 +7,7 @@ if not os.environ.get('READTHEDOCS', None):
     subprocess.check_call(['jupyter', 'nbconvert', '--to', 'rst', bson_format_nb])
 
 project = 'DataFrame'
+master_doc = 'index'
 copyright = '2019, Fairtide Pte. Ltd.'
 author = 'Fairtide Pte. Ltd.'
 html_theme = 'sphinx_rtd_theme'
