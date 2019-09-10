@@ -3,6 +3,7 @@
 from distutils.core import setup
 
 setup(name='bson_dataframe',
+      version='0.1.5',
       packages=[
           'bson_dataframe',
       ],

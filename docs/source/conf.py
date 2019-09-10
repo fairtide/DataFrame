@@ -29,6 +29,7 @@ if not os.environ.get('READTHEDOCS', None):
         rst.write(txt)
 
 project = 'DataFrame'
+version = '0.1.5'
 master_doc = 'index'
 copyright = '2019, Fairtide Pte. Ltd.'
 author = 'Fairtide Pte. Ltd.'
