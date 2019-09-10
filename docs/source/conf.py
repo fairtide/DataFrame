@@ -6,8 +6,21 @@ if not os.environ.get('READTHEDOCS', None):
     bson_format_nb = os.path.join(root, 'bson_format.ipynb')
     bson_format_rst = os.path.join(root, 'bson_format.rst')
 
-    subprocess.check_call(
-        ['jupyter', 'nbconvert', '--to', 'rst', bson_format_nb])
+    subprocess.check_call([
+        'jupyter',
+        'nbconvert',
+        '--execute',
+        '--inplace',
+        bson_format_nb,
+    ])
+
+    subprocess.check_call([
+        'jupyter',
+        'nbconvert',
+        '--to',
+        'rst',
+        bson_format_nb,
+    ])
 
     with open(bson_format_rst) as rst:
         txt = rst.read().replace('ipython3', 'python3')

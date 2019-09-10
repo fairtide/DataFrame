@@ -1,6 +1,5 @@
 .. code:: python3
 
-    import abc
     import bson
     import bson.json_util
     import bson.raw_bson
@@ -10,50 +9,40 @@
 DataFrame Serialization with BSON Format
 ========================================
 
-BSON based serialization for DataFrame or similar tabular data is
+A BSON based serialization for DataFrame or similar tabular data is
 specified here. The format is inspired by the data format used by
 `Arctic <https://github.com/manahl/arctic%3E>`__, especially its
 TickStore. However, the format covers considerably more data types,
-inspired by the `Arrow <https://arrow.apache.org>`__ project. The Python
-package ``bson_dataframe`` provides integration with
-`pyarrow <https://arrow.apache.org/docs/python/>`__. And the C++ library
-provides integeration with the ``DataFrame`` based around Arrow. Below
-we detail the specification of the format, with code example of how to
-implement a minimal encoder/decoder for different data types.
+inspired by the `Arrow <https://arrow.apache.org>`__ project. Also
+unlike Arctic, the format is language agnostics. Below we detail the
+specification of the format, with code example of a minimal reference
+implementation that integrate with `numpy <https://numpy.org>`__.
 
-This document details the specification of the format, and walk through
-a reference implementation in Python that convert to and from
-`numpy <https://numpy.org>`__.
-
-Difference from Arrow
----------------------
-
--  Boolean values of single byte scalars instead of packed bits
--  Struct array fields must have non-empty field names
--  Mask is not optionally, even when there is no missing values
+Basics
+------
 
 Byte order
-----------
+~~~~~~~~~~
 
 The format use little-endian for byte order
 
 Schema
-------
+~~~~~~
 
 Each array is encoded into a BSON document. There are five possible keys
-at top level. The exact contents are details later.
-
--  ``DATA`` encoded data of array values
--  ``MASK`` encoded data of array mask
--  ``TYPE`` type name of the array
--  ``PARAM`` additional informations of parametric type
--  ``OFFSET`` offset data of array with variable length elements
+at top level. The exact contents are details later. Three are them are
+required
 
 .. code:: python3
 
     DATA = 'd'
     MASK = 'm'
     TYPE = 't'
+
+Two top level fields are optional,
+
+.. code:: python3
+
     PARAM = 'p'
     OFFSET = 'o'
 
@@ -68,8 +57,8 @@ There are a few sub field which may appears within ``DATA`` or
     INDEX = 'i'
     DICT = 'd'
 
-Buffers and Compression
------------------------
+Buffers
+~~~~~~~
 
 The bulk of the data are encoded as BSON binary compressed with
 `LZ4 <http://www.lz4.org>`__ `block
@@ -85,15 +74,12 @@ prefixed with a 32-bits integer of the orignal size.
 
     def decompress(data: bson.Binary, dtype='byte') -> numpy.ndarray:
         buf = lz4.block.decompress(data)
-        
-        
         wid = numpy.dtype(dtype).itemsize
         assert len(buf) % wid == 0
-    
         return numpy.ndarray(len(buf) // wid, dtype, buf)
 
 Mask
-----
+~~~~
 
 Arrays may be masked to indicate positions of missings values. The
 length of the mask the the same as the array data. When encoded, a mask
@@ -104,19 +90,24 @@ is packed bits with MSB order.
     def encode_mask(data: numpy.ndarray) -> bson.Binary:
         return compress(numpy.packbits(data))
 
+When unpacked, the mask may have at most 7 trailing zero bits.
+
 .. code:: python3
 
     def decode_mask(data: bson.Binary, length: int) -> numpy.ndarray:
-        return numpy.unpackbits(decompress(data, 'uint8')).astype(bool, copy=False)[:length]
+        buf = decompress(data, 'uint8')
+        mask = numpy.unpackbits(buf).astype(bool)
+        assert not any(mask[length:])
+        assert length <= len(mask) < length + 8
+        return mask[:length]
 
 Offsets
--------
+~~~~~~~
 
-Some array has variable length elements (binary and list). The length of
-each element is encoded by their offsets within a concatenated array of
-all values. The offsets data itself is difference encoded and thus it is
-equivalent to the array of the lengths of each element with a zero
-element prefix.
+For arrays with variable length elements (``bytes``, ``utf8``,
+``list``), the length of each element is encoded by their offsets within
+a concatenated array of all values. The offsets data itself is
+difference encoded.
 
 Example, given data
 
@@ -136,13 +127,19 @@ And the corresponding offsets is,
 
    offsets = [0, 3, 3, 5, 6]
 
-The following relation always hold:
+And the difference encoded offsets is,
 
 ::
 
-   offsets[0] == 0
-   offsets[-1] == len(data)
-   values[offsets[i]:offsets[i + 1]] == data[i]
+   counts = [0, 3, 0, 2, 1]
+
+The following relation always hold (within index range):
+
+::
+
+   data[i] == values[offsets[i]:offsets[i + 1]]
+
+The ``counts`` array is stored as 32-bits integers.
 
 .. code:: python3
 
@@ -153,11 +150,61 @@ The following relation always hold:
 
     def decode_offsets(data, offsets: bson.Binary):
         offsets = numpy.cumsum(decompress(offsets, 'int32'))
-    
         return [data[i:j] for i, j in zip(offsets[:-1], offsets[1:])]
 
-Document Structure
-------------------
+Data Types
+----------
+
+Below we list all data types supported by the format.
+
+Types with fixed byte width elements
+
+================= ==========
+Type              Byte width
+================= ==========
+``null``          0
+``bool``          1
+``int8``          1
+``int16``         2
+``int32``         4
+``int64``         8
+``uint8``         1
+``uint16``        2
+``uint32``        4
+``uint64``        8
+``float16``       2
+``float32``       4
+``float64``       8
+``date[d]``       4
+``date[ms]``      8
+``timestamp[s]``  8
+``timestamp[ms]`` 8
+``timestamp[us]`` 8
+``timestamp[ns]`` 8
+``time[s]``       4
+``time[ms]``      4
+``time[us]``      8
+``time[ns]``      8
+================= ==========
+
+Other types may be parametric, nested or with variable length elements
+
+=========== ========== ====== ===============
+Type        Parametric Nested Variable Length
+=========== ========== ====== ===============
+``opaque``  True       False  False
+``bytes``   False      False  True
+``utf8``    False      False  True
+``ordered`` True       True   False
+``factor``  True       True   False
+``list``    True       True   True
+``struct``  True       True   False
+=========== ========== ====== ===============
+
+Below we define the base class for all data types. Different data type
+will at least override the ``encode_data`` and ``decode_data`` methods
+for the ``DATA`` field. For parameteric types the ``encode_param`` and
+``decode_param`` fields are required for the ``PARAM`` field.
 
 .. code:: python3
 
@@ -172,6 +219,18 @@ Document Structure
         def to_numpy(self):
             return self.name
     
+        def encode_param(self):
+            raise NotImplementedError()
+    
+        def decode_param(self):
+            raise NotImplementedError()
+    
+        def encode_data(self):
+            raise NotImplementedError()
+    
+        def decode_data(self):
+            raise NotImplementedError()
+    
         def encode_type(self):
             doc = {}
             doc[TYPE] = self.name
@@ -183,15 +242,10 @@ Document Structure
     
         @staticmethod
         def decode_type(doc):
-            typename = doc[TYPE]
-            pos = typename.find('[')
-    
-            if pos < 0:
-                dtype = globals()[typename.title()]()
-            else: # hack for timestamp[ms] etc
-                init = typename[pos + 1:-1]
-                typename = typename[:pos]
-                dtype = globals()[typename.title()](init)
+            typename = doc[TYPE].title()
+            typename = typename.replace('[', '')
+            typename = typename.replace(']', '')
+            dtype = globals()[typename]()
     
             if PARAM in doc:
                 dtype.decode_param(doc[PARAM])
@@ -202,11 +256,13 @@ Document Structure
             doc = {}
             doc[DATA] = self.encode_data(data)
             doc[MASK] = encode_mask(mask)
+    
             doc.update(self.encode_type())
+    
             if self.has_offsets:
                 doc[OFFSET] = encode_offsets(data)
     
-            return doc
+            return bson.raw_bson.RawBSONDocument(bson.encode(doc))
     
         def decode_array(self, doc):
             if PARAM in doc:
@@ -221,6 +277,10 @@ Document Structure
         
             return data, mask
 
+Below we define a simple test functions to display the encoded data in
+`MongoDB Canonical
+JSON <https://github.com/mongodb/specifications/blob/master/source/extended-json.rst>`__,
+
 .. code:: python3
 
     def test(dtype, data, mask):
@@ -233,10 +293,9 @@ Document Structure
     ''')
     
         doc = dtype.encode_array(data, mask)
-        bson_doc = bson.raw_bson.RawBSONDocument(bson.encode(doc))
         json_mode = bson.json_util.JSONMode.CANONICAL
         json_options = bson.json_util.JSONOptions(json_mode=json_mode)
-        json_doc = bson.json_util.dumps(bson_doc, json_options=json_options, indent=4)
+        json_doc = bson.json_util.dumps(doc, json_options=json_options, indent=4)
     
         print(f'''
     Encoded
@@ -255,18 +314,12 @@ Document Structure
     mask: {m}
     ''')
 
-Primitive Array
----------------
-
-Primitve are arrays where its type information can be encoded by a
-single string
-
 Null
 ~~~~
 
 A ``null`` array is one with all values missing. The ``DATA`` is its
-length as 64-bit BSON integer. Its mask is always an array of ``False``
-with the same length.
+encoded as a 64-bit BSON integer. Its mask is always an array of
+``False`` with the same length.
 
 .. code:: python3
 
@@ -325,23 +378,21 @@ Numeric
 ~~~~~~~
 
 Numeric arrays are encoded as-is. The ``DATA`` is its underlying bytes.
-All the standard numeric types are supported. Note that same as in numpy
-and different from Arrow, ``bool`` is a 1-byte type instead of packed
-bits.
+All the standard numeric types are supported.
 
 .. code:: python3
 
-    def numeric_type(name):
-        clsname = name.title()
+    def numeric_type(dtype):
+        clsname = dtype.title()
     
         def encode_data(self, data):
-            return compress(numpy.array(data, name))
+            return compress(numpy.array(data, dtype))
     
         def decode_data(self, data):
-            return decompress(data, name)
+            return decompress(data, dtype)
     
         return clsname, type(clsname, (DataType,), {
-            'name': name,
+            'name': dtype,
             'encode_data': encode_data,
             'decode_data': decode_data
         })
@@ -427,7 +478,8 @@ values. Here’s is another example of random integers,
 
 .. code:: python3
 
-    data = numpy.random.randint(0, 1000, 1000, 'int32')
+    numpy.random.seed(0)
+    data = numpy.random.randint(-1000, 1000, 1000, 'int32')
     len(compress(data)), len(compress(numpy.diff(data, prepend=numpy.int32(0))))
 
 
@@ -435,55 +487,56 @@ values. Here’s is another example of random integers,
 
 .. parsed-literal::
 
-    (3223, 3661)
+    (3829, 3868)
 
 
 
-The compressed size of the later is actually larger than the original.
-Depends on the data it may or may not be smaller or larger.
-
-Date array can have two different unit and underlying integer type.
-
-The underlying integer type is 32 bits sigend integer for day unit and
-64 bits integer for milliseconds unit.
+The compressed size of the later is comaprable to that of the original.
+Date array can have two different unit and underlying integer type. The
+underlying integer type is 32 bits sigend integer for day unit and 64
+bits integer for milliseconds unit.
 
 .. code:: python3
 
     class Date(DataType):
-        def __init__(self, unit):
-            self.unit = unit
-            self.name = f'date[{self.unit}]'
+        @property
+        def name(self):
+            return f'date[{self.unit}]'
     
-        def _dtype(self):
-            if self.unit == 'd':
-                return 'int32'
-    
-            if self.unit == 'ms':
-                return 'int64'
-    
-        def to_numpy(self):
-            if self.unit == 'd':
-                return 'datetime64[D]'
-    
-            if self.unit == 'ms':
-                return 'datetime64[ms]'
+        @property
+        def dtype(self):
+            return f'int{self.bit_width}'
     
         def encode_data(self, data):
-            dtype = self._dtype()
-            data = numpy.array(data, dtype)
-            values = numpy.diff(data, prepend=0).astype(dtype)
-    
+            data = numpy.array(data, self.dtype)
+            values = numpy.diff(data, prepend=0).astype(self.dtype)
             return compress(values)
     
         def decode_data(self, data):
-            dtype = self._dtype()
-            values = decompress(data, dtype)
-    
+            values = decompress(data, self.dtype)
             return numpy.cumsum(values).astype(self.to_numpy())
 
 .. code:: python3
 
-    test(Date('d'), numpy.array(['1970-01-01', '2000-01-01'], 'datetime64[D]'), [True, False])
+    class DateD(Date):
+        unit = 'd'
+        bit_width = 32
+    
+        def to_numpy(self):
+            return 'datetime64[D]'
+
+.. code:: python3
+
+    class DateMs(Date):
+        unit = 'ms'
+        bit_width = 32
+    
+        def to_numpy(self):
+            return 'datetime64[ms]'
+
+.. code:: python3
+
+    test(DateD(), numpy.array(['1970-01-01', '2000-01-01'], 'datetime64[D]'), [True, False])
 
 
 .. parsed-literal::
@@ -525,7 +578,7 @@ The underlying integer type is 32 bits sigend integer for day unit and
 
 .. code:: python3
 
-    test(Date('ms'), numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], 'datetime64[ms]'), [True, False])
+    test(DateMs(), numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], 'datetime64[ms]'), [True, False])
 
 
 .. parsed-literal::
@@ -543,7 +596,7 @@ The underlying integer type is 32 bits sigend integer for day unit and
     {
         "d": {
             "$binary": {
-                "base64": "EAAAABMAAQCAIHsIa9wAAAA=",
+                "base64": "CAAAAIAAAAAAIHsIaw==",
                 "subType": "00"
             }
         },
@@ -560,7 +613,7 @@ The underlying integer type is 32 bits sigend integer for day unit and
     Decoded
     
     type: date[ms]
-    data: ['1970-01-01T00:00:00.000' '2000-01-01T01:02:03.040']
+    data: ['1970-01-01T00:00:00.000' '1970-01-21T18:48:37.920']
     mask: [ True False]
     
 
@@ -582,9 +635,9 @@ It is equivalent to ``numpy.datetime64`` type
 .. code:: python3
 
     class Timestamp(DataType):
-        def __init__(self, unit):
-            self.unit = unit
-            self.name = f'timestamp[{self.unit}]'
+        @property
+        def name(self):
+            return f'timestamp[{self.unit}]'
      
         def to_numpy(self):
             return f'datetime64[{self.unit}]'
@@ -604,7 +657,27 @@ It is equivalent to ``numpy.datetime64`` type
 
 .. code:: python3
 
-    test(Timestamp('ms'), numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], 'datetime64[ms]'), [True, False])
+    class TimestampS(Timestamp):
+        unit = 's'
+
+.. code:: python3
+
+    class TimestampMs(Timestamp):
+        unit = 'ms'
+
+.. code:: python3
+
+    class TimestampUs(Timestamp):
+        unit = 'us'
+
+.. code:: python3
+
+    class TimestampNs(Timestamp):
+        unit = 'ns'
+
+.. code:: python3
+
+    test(TimestampMs(), numpy.array(['1970-01-01', '2000-01-01T01:02:03.04'], 'datetime64[ms]'), [True, False])
 
 
 .. parsed-literal::
@@ -655,40 +728,51 @@ unit.
 
 .. code:: python3
 
-    TIME_TYPES = {'time[s]': 'int32', 'time[ms]': 'int32', 'time[us]': 'int64', 'time[ns]': 'int64'}
-
-.. code:: python3
-
     class Time(DataType):
-        def __init__(self, unit):
-            self.unit = unit
-            self.name = f'time[{self.unit}]'
+        @property
+        def name(self):
+            return f'time[{self.unit}]'
+    
+        @property
+        def dtype(self):
+            return f'int{self.bit_width}'
     
         def to_numpy(self):
             return f'timedelta64[{self.unit}]'
     
-        def _dtype(self):
-            if self.unit == 's':
-                return 'int32'
-    
-            if self.unit == 'ms':
-                return 'int32'
-    
-            if self.unit == 'us':
-                return 'int64'
-    
-            if self.unit == 'ns':
-                return 'int64'
-    
         def encode_data(self, data):
-            return compress(numpy.array(data, self._dtype()))
+            return compress(numpy.array(data, self.dtype))
     
         def decode_data(self, data):
-            return decompress(data, self._dtype()).astype(self.to_numpy())
+            return decompress(data, self.dtype).astype(self.to_numpy())
 
 .. code:: python3
 
-    test(Time('ms'), numpy.array([1, 2, 3], 'timedelta64[ms]'), [True, False, True])
+    class TimeS(Time):
+        unit = 's'
+        bit_width = 32
+
+.. code:: python3
+
+    class TimeMs(Time):
+        unit = 'ms'
+        bit_width = 32
+
+.. code:: python3
+
+    class TimeUs(Time):
+        unit = 'us'
+        bit_width = 64
+
+.. code:: python3
+
+    class TimeNs(Time):
+        unit = 'ns'
+        bit_width = 64
+
+.. code:: python3
+
+    test(TimeMs(), numpy.array([1, 2, 3], 'timedelta64[ms]'), [True, False, True])
 
 
 .. parsed-literal::
@@ -728,12 +812,6 @@ unit.
     
 
 
-Binary Array
-------------
-
-Binary arrays have raw bytes as its elements. The length of each element
-may or may not be fixed.
-
 Opaque
 ~~~~~~
 
@@ -750,7 +828,7 @@ the concatenated bytes and the length of each element.
             self.byte_width = byte_width
     
         def __str__(self):
-            return f'opaque<{self.byte_width}>'
+            return f'opaque[{self.byte_width}]'
     
         def to_numpy(self):
             return f'|S{self.byte_width}'
@@ -779,7 +857,7 @@ the concatenated bytes and the length of each element.
     
     Orignal
     
-    type: opaque<3>
+    type: opaque[3]
     data: [b'abc', b'def', b'ghi']
     mask: [True, False, True]
     
@@ -808,7 +886,7 @@ the concatenated bytes and the length of each element.
     
     Decoded
     
-    type: opaque<3>
+    type: opaque[3]
     data: [b'abc' b'def' b'ghi']
     mask: [ True False  True]
     
@@ -953,14 +1031,59 @@ not the characters. Each UTF-8 code point may occupy more than 1 byte.
     
 
 
-Nested Arrays
--------------
-
-Nested arrays are arrays that my (recursively) contains other arrays. A
-few helper class and functions are defined below and explained later.
-
 Dictionary
 ~~~~~~~~~~
+
+Dictionary encoding, also called categorical arrays is a compact way to
+encode data with values falls in a set of categories. For example,
+
+Given data
+
+::
+
+   data = ['a', 'a', 'b', 'c', 'a', 'd', 'c']
+
+It may be encoded by two arrays. First dictionary, the set of all
+possible values,
+
+::
+
+   value = ['a', 'b', 'c', 'd']
+
+And second the zero-based index within the dictionary,
+
+::
+
+   index = [0, 0, 1, 2, 0, 3, 2]
+
+The following relaton holds,
+
+::
+
+   data[i] == value[index[i]]
+
+Some languages such as R makes the distinction between ordered and
+unordered categorical arrays. The format allows such distinction but
+otherwise the encoding is identical for both:
+
+-  ``DATA`` is a BSON document with fields
+
+   -  ``INDEX`` encoded index array
+   -  ``DICT`` encoded dictionary array
+
+-  ``PARAM`` is optional. If ommited, the index type is ``int32`` and
+   the dictionary type is ``utf8``. If present, it is a BSON document
+   with fields.
+
+   -  ``INDEX`` encoded type of the index array
+   -  ``DICT`` encoded type of the dictionary array
+
+Whether or not ``PARAM`` is explicitly given, the types given in
+``PARAM`` or the defaults shall match that of the actual array types in
+``DATA``.
+
+The implementation is responsible to maintain suitable order of the
+values in the dictionary if such distinction is important.
 
 .. code:: python3
 
@@ -976,7 +1099,7 @@ Dictionary
             self.value_type = value_type
             
         def __str__(self):
-            return f'{self.name}<{str(self.index_type)}, {str(self.value_type)}>'
+            return f'{self.name}[{str(self.index_type)}, {str(self.value_type)}]'
     
         def to_numpy(self):
             return object
@@ -1028,7 +1151,7 @@ Dictionary
     
     Orignal
     
-    type: ordered<int32, utf8>
+    type: ordered[int32, utf8]
     data: ['abc', 'abc', 'def', 'xyz', 'abc']
     mask: [True, True, True, False, True]
     
@@ -1086,7 +1209,7 @@ Dictionary
     
     Decoded
     
-    type: ordered<int32, utf8>
+    type: ordered[int32, utf8]
     data: ['abc', 'abc', 'def', 'xyz', 'abc']
     mask: [ True  True  True False  True]
     
@@ -1108,7 +1231,8 @@ It is encoded similar to that of bytes and string array,
    value type can be inferred from the encoded value array. And the
    inferred type shall match the type specified here.
 
-The value array may have its own mask.
+The value array may have its own mask. The value type given in ``PARAM``
+shall match that of the actual type in ``DATA``
 
 Note that, the length of missing element may or may not be zero.
 
@@ -1123,7 +1247,7 @@ Note that, the length of missing element may or may not be zero.
             self.value_type = value_type
     
         def __str__(self):
-            return f'list<{str(self.value_type)}>'
+            return f'list[{str(self.value_type)}]'
     
         def to_numpy(self):
             return object
@@ -1153,7 +1277,7 @@ Note that, the length of missing element may or may not be zero.
     
     Orignal
     
-    type: list<int64>
+    type: list[int64]
     data: [[1, 2, 3], [], [], [4, 5]]
     mask: [True, False, True, True]
     
@@ -1197,7 +1321,7 @@ Note that, the length of missing element may or may not be zero.
     
     Decoded
     
-    type: list<int64>
+    type: list[int64]
     data: [array([1, 2, 3]), array([], dtype=int64), array([], dtype=int64), array([4, 5])]
     mask: [ True False  True  True]
     
@@ -1207,9 +1331,7 @@ Struct
 ~~~~~~
 
 Struct array is similar to that of numpy structured array. Logically
-each element is a record with given fields. Each given record has the
-same fields, and each fields has the same data type within each record.
-For example,
+each element is a record with given fields.
 
 .. code:: python3
 
@@ -1241,7 +1363,7 @@ For example,
             self.fields = fields
     
         def __str__(self):
-            return str([str(v) for v in self.fields])
+            return f'struct{[str(v) for v in self.fields]}'
     
         def to_numpy(self):
             return numpy.dtype([(field.name, field.type.to_numpy()) for field in self.fields])
@@ -1316,6 +1438,9 @@ of each field is encoded separatedly. More specifically
    ordering of the fields. The inferred type shall match the field types
    encoded here.
 
+The types given in ``PARAM`` shall match that of the actual types in
+``DATA``.
+
 .. code:: python3
 
     test(struct_type, struct_data, [True, False, True])
@@ -1326,7 +1451,7 @@ of each field is encoded separatedly. More specifically
     
     Orignal
     
-    type: ['x: int64', 'y: float64']
+    type: struct['x: int64', 'y: float64']
     data: [(1, 4.) (2, 5.) (3, 6.)]
     mask: [True, False, True]
     
@@ -1393,7 +1518,7 @@ of each field is encoded separatedly. More specifically
     
     Decoded
     
-    type: ['x: int64', 'y: float64']
+    type: struct['x: int64', 'y: float64']
     data: [(1, 4.) (2, 5.) (3, 6.)]
     mask: [ True False  True]
     
