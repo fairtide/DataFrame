@@ -14,8 +14,8 @@
 # limitations under the License.
 # ============================================================================
 
-cmake_minimum_required(VERSION 3.0.0)
+project(DataFrame-cpp-tests-table CXX)
 
-project(DataFrameProject)
-
-add_subdirectory(cpp)
+add_dataframe_test(data_frame)
+add_dataframe_test(join)
+add_dataframe_test(sort)

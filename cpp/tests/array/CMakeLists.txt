@@ -14,8 +14,10 @@
 # limitations under the License.
 # ============================================================================
 
-cmake_minimum_required(VERSION 3.0.0)
+project(DataFrame-cpp-tests-array CXX)
 
-project(DataFrameProject)
-
-add_subdirectory(cpp)
+add_dataframe_test(bind)
+add_dataframe_test(cast)
+add_dataframe_test(make)
+add_dataframe_test(type)
+add_dataframe_test(view)

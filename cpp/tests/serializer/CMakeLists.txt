@@ -14,8 +14,10 @@
 # limitations under the License.
 # ============================================================================
 
-cmake_minimum_required(VERSION 3.0.0)
+project(DataFrame-cpp-tests-serializer CXX)
 
-project(DataFrameProject)
-
-add_subdirectory(cpp)
+add_dataframe_test(bson ${BSONCXX_LINK_LIBRARIES} ${LZ4_LINK_LIBARIES} ${LZ4_LINK_LIBRARIES})
+add_dataframe_test(feather)
+add_dataframe_test(json Boost::date_time)
+add_dataframe_test(record_batch_file)
+add_dataframe_test(record_batch_stream)
