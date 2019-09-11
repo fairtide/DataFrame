@@ -178,8 +178,8 @@ class _DataReader(TypeVisitor):
         self.data.buffers.append(self._make_mask())
 
         field_docs = data_doc[FIELDS]
-        fields = list()
 
+        fields = []
         for field in typ:
             field_doc = field_docs[field.name]
             field_data = ArrayData()

@@ -92,19 +92,19 @@ class _TypeWriter(TypeVisitor):
         self.doc[PARAM] = typ.byte_width
 
     def visit_list(self, typ):
-        param = dict()
+        param = {}
         _TypeWriter(param).accept(typ.value_type)
 
         self.doc[TYPE] = 'list'
         self.doc[PARAM] = param
 
     def visit_struct(self, typ):
-        param = list()
+        param = []
         for field in typ:
             assert field.name is not None
             assert len(field.name) > 0
 
-            field_doc = dict()
+            field_doc = {}
             field_doc[NAME] = field.name
             _TypeWriter(field_doc).accept(field.type)
             param.append(field_doc)
@@ -113,10 +113,10 @@ class _TypeWriter(TypeVisitor):
         self.doc[PARAM] = param
 
     def visit_dictionary(self, typ):
-        index_doc = dict()
+        index_doc = {}
         _TypeWriter(index_doc).accept(typ.index_type)
 
-        dict_doc = dict()
+        dict_doc = {}
         _TypeWriter(dict_doc).accept(typ.value_type)
 
         if typ.ordered:

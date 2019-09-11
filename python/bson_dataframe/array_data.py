@@ -6,8 +6,8 @@ class ArrayData(object):
         self.type = None
         self.length = None
         self.null_count = None
-        self.buffers = list()
-        self.children = list()
+        self.buffers = []
+        self.children = []
         self.dictionary = None
 
     def make_array(self):

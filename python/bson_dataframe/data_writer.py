@@ -3,7 +3,6 @@ from .schema import *
 from .type_writer import *
 from .visitor import *
 
-import collections
 import pyarrow
 import bson
 
@@ -161,7 +160,7 @@ class _DataWriter(ArrayVisitor):
         offsets, values_offset, values_length = self._make_offsets(array)
         values = array.flatten().slice(values_offset, values_length)
 
-        data = collections.OrderedDict()
+        data = {}
         _DataWriter(data, self.compression_level).accept(values)
 
         self.doc[DATA] = data
@@ -170,13 +169,13 @@ class _DataWriter(ArrayVisitor):
         self.doc[OFFSET] = self._compress(offsets)
 
     def visit_struct(self, array):
-        fields = collections.OrderedDict()
+        fields = {}
         for i, field in enumerate(array.type):
             assert field.name is not None
             assert len(field.name) > 0
 
             field_data = array.field(i)
-            field_doc = collections.OrderedDict()
+            field_doc = {}
             _DataWriter(field_doc, self.compression_level).accept(field_data)
             fields[field.name] = field_doc
 
@@ -185,10 +184,10 @@ class _DataWriter(ArrayVisitor):
         write_type(self.doc, array.type)
 
     def visit_dictionary(self, array):
-        index_doc = collections.OrderedDict()
+        index_doc = {}
         _DataWriter(index_doc, self.compression_level).accept(array.indices)
 
-        dict_doc = collections.OrderedDict()
+        dict_doc = {}
         _DataWriter(dict_doc, self.compression_level).accept(array.dictionary)
 
         self.doc[DATA] = {INDEX: index_doc, DICT: dict_doc}

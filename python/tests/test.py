@@ -4,17 +4,18 @@ import os
 sys.path.insert(0,
                 os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-import bson_dataframe
+from bson_dataframe import *
+import bson.raw_bson
 import numpy
 import pyarrow
 import unittest
 
 
-class TestArrayGenerator(bson_dataframe.TypeVisitor):
+class TestArrayGenerator(TypeVisitor):
     def __init__(self, n, typ, nullable):
         self.nullable = nullable
 
-        self.data = bson_dataframe.ArrayData()
+        self.data = ArrayData()
         self.data.length = n
         self.data.type = typ
 
@@ -151,62 +152,77 @@ class TestArrayGenerator(bson_dataframe.TypeVisitor):
                                                   False).array
 
 
-def test_table(n, types=None, offset=None, length=None, nullable=True):
-    if types is None:
-        types = [
-            pyarrow.null(),
-            pyarrow.bool_(),
-            pyarrow.int8(),
-            pyarrow.int16(),
-            pyarrow.int32(),
-            pyarrow.int64(),
-            pyarrow.uint8(),
-            pyarrow.uint16(),
-            pyarrow.uint32(),
-            pyarrow.uint64(),
-            pyarrow.float16(),
-            pyarrow.float32(),
-            pyarrow.float64(),
-            pyarrow.date32(),
-            pyarrow.date64(),
-            pyarrow.timestamp('s'),
-            pyarrow.timestamp('ms'),
-            pyarrow.timestamp('us'),
-            pyarrow.timestamp('ns'),
-            pyarrow.time32('s'),
-            pyarrow.time32('ms'),
-            pyarrow.time64('us'),
-            pyarrow.time64('ns'),
-            pyarrow.string(),
-            pyarrow.binary(),
-            pyarrow.binary(4),
-            pyarrow.dictionary(pyarrow.int32(), pyarrow.string(), True),
-            pyarrow.dictionary(pyarrow.int64(), pyarrow.int64(), True),
-            pyarrow.dictionary(pyarrow.int32(), pyarrow.string(), False),
-            pyarrow.dictionary(pyarrow.int64(), pyarrow.int64(), False),
-            pyarrow.list_(pyarrow.int32()),
-            pyarrow.struct([pyarrow.field('int32', pyarrow.int32())]),
-            pyarrow.list_(
-                pyarrow.struct([pyarrow.field('int32', pyarrow.int32())])),
-            pyarrow.struct(
-                [pyarrow.field('int32', pyarrow.list_(pyarrow.int32()))]),
-        ]
+TEST_TYPES = [
+    (pyarrow.null(), Null()),
+    (pyarrow.bool_(), Bool()),
+    (pyarrow.int8(), Int8()),
+    (pyarrow.int16(), Int16()),
+    (pyarrow.int32(), Int32()),
+    (pyarrow.int64(), Int64()),
+    (pyarrow.uint8(), UInt8()),
+    (pyarrow.uint16(), UInt16()),
+    (pyarrow.uint32(), UInt32()),
+    (pyarrow.uint64(), UInt64()),
+    (pyarrow.float16(), Float16()),
+    (pyarrow.float32(), Float32()),
+    (pyarrow.float64(), Float64()),
+    (pyarrow.date32(), Date('d')),
+    (pyarrow.date64(), Date('ms')),
+    (pyarrow.timestamp('s'), Timestamp('s')),
+    (pyarrow.timestamp('ms'), Timestamp('ms')),
+    (pyarrow.timestamp('us'), Timestamp('us')),
+    (pyarrow.timestamp('ns'), Timestamp('ns')),
+    (pyarrow.time32('s'), Time('s')),
+    (pyarrow.time32('ms'), Time('ms')),
+    (pyarrow.time64('us'), Time('us')),
+    (pyarrow.time64('ns'), Time('ns')),
+    (pyarrow.string(), Utf8()),
+    (pyarrow.binary(), Bytes()),
+    (pyarrow.binary(4), Opaque(4)),
+    (
+        pyarrow.dictionary(pyarrow.int32(), pyarrow.string(), True),
+        Dictionary(Int32(), Utf8(), True),
+    ),
+    (
+        pyarrow.dictionary(pyarrow.int64(), pyarrow.int64(), True),
+        Dictionary(Int64(), Int64(), True),
+    ),
+    (
+        pyarrow.dictionary(pyarrow.int32(), pyarrow.string(), False),
+        Dictionary(Int32(), Utf8(), False),
+    ),
+    (
+        pyarrow.dictionary(pyarrow.int64(), pyarrow.int64(), False),
+        Dictionary(Int64(), Int64(), False),
+    ),
+    (
+        pyarrow.list_(pyarrow.int32()),
+        List(Int32()),
+    ),
+    (
+        pyarrow.struct([pyarrow.field('int32', pyarrow.int32())]),
+        Struct([('int32', Int32())]),
+    ),
+    (
+        pyarrow.list_(pyarrow.struct([pyarrow.field('int32', pyarrow.int32())])),
+        List(Struct([('int32', Int32())])),
+    ),
+    (
+        pyarrow.struct([pyarrow.field('int32', pyarrow.list_(pyarrow.int32()))]),
+        Struct([('int32', List(Int32()))]),
+    ),
+]
 
+
+def test_table(n, offset=None, length=None, nullable=True):
     data = list()
 
-    for t in types:
+    for t, _ in TEST_TYPES:
         name = str(t)
-        array = TestArrayGenerator(n, t, False).array
+        array = TestArrayGenerator(n, t, nullable).array
         if offset is not None:
             array = array.slice(offset, length)
         data.append(pyarrow.column(name, array))
-
-        if nullable:
-            name = str(t) + ' (null)'
-            array = TestArrayGenerator(n, t, True).array
-            if offset is not None:
-                array = array.slice(offset, length)
-            data.append(pyarrow.column(name, array))
 
     return pyarrow.Table.from_arrays(data)
 
@@ -214,56 +230,82 @@ def test_table(n, types=None, offset=None, length=None, nullable=True):
 class TestArrowBSON(unittest.TestCase):
     def test_offsets_codec(self):
         val = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        enc = bson_dataframe.encode_offsets(val)
-        dec = bson_dataframe.decode_offsets(enc)
+        enc = encode_offsets(val)
+        dec = decode_offsets(enc)
         self.assertEqual(val.tobytes(), dec.tobytes())
         self.assertEqual(val.dtype, enc.dtype)
         self.assertEqual(val.dtype, dec.dtype)
 
         off = val + numpy.int32(10)
-        enc = bson_dataframe.encode_offsets(off)
-        dec = bson_dataframe.decode_offsets(enc)
+        enc = encode_offsets(off)
+        dec = decode_offsets(enc)
         self.assertEqual(val.tobytes(), dec.tobytes())
         self.assertEqual(val.dtype, enc.dtype)
         self.assertEqual(val.dtype, dec.dtype)
 
     def test_datetime_codec(self):
         val = numpy.array([1, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        enc = bson_dataframe.encode_datetime(val)
-        dec = bson_dataframe.decode_datetime(enc)
+        enc = encode_datetime(val)
+        dec = decode_datetime(enc)
         self.assertEqual(val.tobytes(), dec.tobytes())
         self.assertEqual(val.dtype, enc.dtype)
         self.assertEqual(val.dtype, dec.dtype)
 
     def test_write(self):
-        table = test_table(1000)
-        buf = bson_dataframe.write_table(table)
-        doc = bson_dataframe.validate(bson_dataframe.write_table(table))
-        with open('test.json', 'w') as out:
-            out.write(doc)
+        table = test_table(1000, nullable=True)
+        buf = write_table(table)
+        doc = bson.raw_bson.RawBSONDocument(buf)
+        for i, col in enumerate(table.columns):
+            TEST_TYPES[i][1].validate(doc[col.name], validate_data=True)
+
+        table = test_table(1000, nullable=False)
+        buf = write_table(table)
+        doc = bson.raw_bson.RawBSONDocument(buf)
+        for i, col in enumerate(table.columns):
+            TEST_TYPES[i][1].validate(doc[col.name], validate_data=True)
 
     def test_read(self):
-        table = test_table(1000)
-        buf = bson_dataframe.write_table(table)
-        ret = bson_dataframe.read_table(buf)
+        table = test_table(1000, nullable=True)
+        buf = write_table(table)
+        ret = read_table(buf)
+        self.assertTrue(ret.equals(table))
+
+        table = test_table(1000, nullable=False)
+        buf = write_table(table)
+        ret = read_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice(self):
-        table = test_table(1000, offset=100, length=500)
-        buf = bson_dataframe.write_table(table)
-        ret = bson_dataframe.read_table(buf)
+        table = test_table(1000, offset=100, length=500, nullable=True)
+        buf = write_table(table)
+        ret = read_table(buf)
+        self.assertTrue(ret.equals(table))
+
+        table = test_table(1000, offset=100, length=500, nullable=False)
+        buf = write_table(table)
+        ret = read_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice_head(self):
-        table = test_table(1000, offset=0, length=500)
-        buf = bson_dataframe.write_table(table)
-        ret = bson_dataframe.read_table(buf)
+        table = test_table(1000, offset=0, length=500, nullable=True)
+        buf = write_table(table)
+        ret = read_table(buf)
+        self.assertTrue(ret.equals(table))
+
+        table = test_table(1000, offset=0, length=500, nullable=False)
+        buf = write_table(table)
+        ret = read_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice_tail(self):
-        table = test_table(1000, offset=500, length=500)
-        buf = bson_dataframe.write_table(table)
-        ret = bson_dataframe.read_table(buf)
+        table = test_table(1000, offset=500, length=500, nullable=True)
+        buf = write_table(table)
+        ret = read_table(buf)
+        self.assertTrue(ret.equals(table))
+
+        table = test_table(1000, offset=500, length=500, nullable=False)
+        buf = write_table(table)
+        ret = read_table(buf)
         self.assertTrue(ret.equals(table))
 
 
