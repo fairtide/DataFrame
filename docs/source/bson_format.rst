@@ -30,8 +30,8 @@ Schema
 ~~~~~~
 
 Each array is encoded into a BSON document. There are five possible keys
-at top level. The exact contents are details later. Three are them are
-required
+at top level. The exact contents are details later. Three of them are
+required,
 
 .. code:: python3
 
@@ -314,8 +314,37 @@ JSON <https://github.com/mongodb/specifications/blob/master/source/extended-json
     mask: {m}
     ''')
 
+For each types described below, a JSON schema (with `MongoDB
+extensions <https://docs.mongodb.com/manual/reference/operator/query/jsonSchema/>`__)
+is shown first.
+
 Null
 ~~~~
+
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "long"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "null"
+               ]
+           }
+       }
+   }
 
 A ``null`` array is one with all values missing. The ``DATA`` is its
 encoded as a 64-bit BSON integer. Its mask is always an array of
@@ -376,6 +405,42 @@ encoded as a 64-bit BSON integer. Its mask is always an array of
 
 Numeric
 ~~~~~~~
+
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "binData"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "bool",
+                   "int8",
+                   "int16",
+                   "int32",
+                   "int64",
+                   "uint8",
+                   "uint16",
+                   "uint32",
+                   "uint64",
+                   "float16",
+                   "float32",
+                   "float64"
+               ]
+           }
+       }
+   }
 
 Numeric arrays are encoded as-is. The ``DATA`` is its underlying bytes.
 All the standard numeric types are supported.
@@ -447,6 +512,32 @@ All the standard numeric types are supported.
 
 Date
 ~~~~
+
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "binData"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "date[d]",
+                   "date[ms]"
+               ]
+           }
+       }
+   }
 
 Date array is similar to numeric types in that they also have flat
 memory layout. The values are the days or milliseconds from UNIX epoch.
@@ -621,6 +712,37 @@ bits integer for milliseconds unit.
 Timestamp
 ~~~~~~~~~
 
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "binData"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "timestamp[s]",
+                   "timestamp[ms]",
+                   "timestamp[us]",
+                   "timestamp[ns]"
+               ]
+           },
+           "p": {
+               "type": "string"
+           }
+       }
+   }
+
 Timestamp array is encoded the same way as the date array, with the
 following difference,
 
@@ -720,6 +842,34 @@ It is equivalent to ``numpy.datetime64`` type
 Time
 ~~~~
 
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "binData"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "time[s]",
+                   "time[ms]",
+                   "time[us]",
+                   "time[ns]"
+               ]
+           }
+       }
+   }
+
 Time array is used to represent time of day and has the same unit
 choices as timestamp array. The encoding is the same as numeric types.
 The underlying integer type is 32 bits signed integers for second and
@@ -815,6 +965,35 @@ unit.
 Opaque
 ~~~~~~
 
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t",
+           "p"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "binData"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "opaque"
+               ]
+           },
+           "p": {
+               "bsonType": "int"
+           }
+       }
+   }
+
 Opaque array has fixed length bytes as its element. It is encoded using
 the concatenated bytes and the length of each element.
 
@@ -894,6 +1073,36 @@ the concatenated bytes and the length of each element.
 
 Bytes and String
 ~~~~~~~~~~~~~~~~
+
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t",
+           "o"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "bsonType": "binData"
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "bytes",
+                   "utf8"
+               ]
+           },
+           "o": {
+               "bsonType": "binData"
+           }
+       }
+   }
 
 Byte and string arrays are identical in their encoding, with the later
 distinguish from the former in that its values may be decoded as UTF-8
@@ -1034,6 +1243,125 @@ not the characters. Each UTF-8 code point may occupy more than 1 byte.
 Dictionary
 ~~~~~~~~~~
 
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "type": "object",
+               "required": [
+                   "i",
+                   "d"
+               ],
+               "additionalProperties": false,
+               "properties": {
+                   "i": {
+                       "type": "object",
+                       "required": [
+                           "d",
+                           "m",
+                           "t"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "d": {
+                               "bsonType": "binData"
+                           },
+                           "m": {
+                               "bsonType": "binData"
+                           },
+                           "t": {
+                               "enum": [
+                                   "int32"
+                               ]
+                           }
+                       }
+                   },
+                   "d": {
+                       "type": "object",
+                       "required": [
+                           "d",
+                           "m",
+                           "t",
+                           "o"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "d": {
+                               "bsonType": "binData"
+                           },
+                           "m": {
+                               "bsonType": "binData"
+                           },
+                           "t": {
+                               "enum": [
+                                   "utf8"
+                               ]
+                           },
+                           "o": {
+                               "bsonType": "binData"
+                           }
+                       }
+                   }
+               }
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "ordered",
+                   "factor"
+               ]
+           },
+           "p": {
+               "type": "object",
+               "required": [
+                   "i",
+                   "d"
+               ],
+               "additionalProperties": false,
+               "properties": {
+                   "i": {
+                       "type": "object",
+                       "required": [
+                           "t"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "t": {
+                               "enum": [
+                                   "int32"
+                               ]
+                           }
+                       }
+                   },
+                   "d": {
+                       "type": "object",
+                       "required": [
+                           "t"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "t": {
+                               "enum": [
+                                   "utf8"
+                               ]
+                           }
+                       }
+                   }
+               }
+           }
+       }
+   }
+
 Dictionary encoding, also called categorical arrays is a compact way to
 encode data with values falls in a set of categories. For example,
 
@@ -1064,7 +1392,10 @@ The following relaton holds,
 
 Some languages such as R makes the distinction between ordered and
 unordered categorical arrays. The format allows such distinction but
-otherwise the encoding is identical for both:
+otherwise the encoding is identical. A dictionary type is defined by its
+index type and value type (the type of the dictionary). The schema show
+above is for 32-bits integer index type and a string dictionary. For
+other combinations of the types, the schema can be defined similarly.
 
 -  ``DATA`` is a BSON document with fields
 
@@ -1218,8 +1549,72 @@ values in the dictionary if such distinction is important.
 List
 ~~~~
 
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t",
+           "p",
+           "o"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "type": "object",
+               "required": [
+                   "d",
+                   "m",
+                   "t"
+               ],
+               "additionalProperties": false,
+               "properties": {
+                   "d": {
+                       "bsonType": "binData"
+                   },
+                   "m": {
+                       "bsonType": "binData"
+                   },
+                   "t": {
+                       "enum": [
+                           "int32"
+                       ]
+                   }
+               }
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "list"
+               ]
+           },
+           "p": {
+               "type": "object",
+               "required": [
+                   "t"
+               ],
+               "additionalProperties": false,
+               "properties": {
+                   "t": {
+                       "enum": [
+                           "int32"
+                       ]
+                   }
+               }
+           },
+           "o": {
+               "bsonType": "binData"
+           }
+       }
+   }
+
 List array is an array with each element being a list itself, with the
 same type. The data type is defined by the value type of the elements.
+The schema shown above is for 32-bits integer value type.
 
 It is encoded similar to that of bytes and string array,
 
@@ -1330,8 +1725,150 @@ Note that, the length of missing element may or may not be zero.
 Struct
 ~~~~~~
 
+::
+
+   {
+       "type": "object",
+       "required": [
+           "d",
+           "m",
+           "t",
+           "p"
+       ],
+       "additionalProperties": false,
+       "properties": {
+           "d": {
+               "type": "object",
+               "required": [
+                   "l",
+                   "f"
+               ],
+               "additionalProperties": false,
+               "properties": {
+                   "l": {
+                       "bsonType": "long"
+                   },
+                   "f": {
+                       "type": "object",
+                       "required": [
+                           "x",
+                           "y"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "x": {
+                               "type": "object",
+                               "required": [
+                                   "d",
+                                   "m",
+                                   "t"
+                               ],
+                               "additionalProperties": false,
+                               "properties": {
+                                   "d": {
+                                       "bsonType": "binData"
+                                   },
+                                   "m": {
+                                       "bsonType": "binData"
+                                   },
+                                   "t": {
+                                       "enum": [
+                                           "int64"
+                                       ]
+                                   }
+                               }
+                           },
+                           "y": {
+                               "type": "object",
+                               "required": [
+                                   "d",
+                                   "m",
+                                   "t"
+                               ],
+                               "additionalProperties": false,
+                               "properties": {
+                                   "d": {
+                                       "bsonType": "binData"
+                                   },
+                                   "m": {
+                                       "bsonType": "binData"
+                                   },
+                                   "t": {
+                                       "enum": [
+                                           "float64"
+                                       ]
+                                   }
+                               }
+                           }
+                       }
+                   }
+               }
+           },
+           "m": {
+               "bsonType": "binData"
+           },
+           "t": {
+               "enum": [
+                   "struct"
+               ]
+           },
+           "p": {
+               "type": "array",
+               "items": [
+                   {
+                       "type": "object",
+                       "required": [
+                           "t",
+                           "n"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "t": {
+                               "enum": [
+                                   "int64"
+                               ]
+                           },
+                           "n": {
+                               "enum": [
+                                   "x"
+                               ]
+                           }
+                       }
+                   },
+                   {
+                       "type": "object",
+                       "required": [
+                           "t",
+                           "n"
+                       ],
+                       "additionalProperties": false,
+                       "properties": {
+                           "t": {
+                               "enum": [
+                                   "float64"
+                               ]
+                           },
+                           "n": {
+                               "enum": [
+                                   "y"
+                               ]
+                           }
+                       }
+                   }
+               ],
+               "minItems": 2,
+               "maxItems": 2
+           },
+           "o": {
+               "bsonType": "binData"
+           }
+       }
+   }
+
 Struct array is similar to that of numpy structured array. Logically
-each element is a record with given fields.
+each element is a record with given fields. Each field has a name and
+type. The schema shown above is for a struct array with fields ``x`` and
+``y`` with 64-bits integer and floating points values, respectively.
 
 .. code:: python3
 
