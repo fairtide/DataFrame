@@ -1,4 +1,3 @@
-from .compress import *
 from .schema import *
 from .type_writer import *
 from .visitor import *
@@ -13,7 +12,7 @@ class _DataWriter(ArrayVisitor):
         self.compression_level = compression_level
 
     def _compress(self, data):
-        return bson.Binary(compress(data, self.compression_level))
+        return compress(data, self.compression_level)
 
     def _make_mask(self, array):
         if isinstance(array, pyarrow.NullArray):
@@ -37,9 +36,9 @@ class _DataWriter(ArrayVisitor):
         buf = array.buffers()[1].slice(i, l)
         n = len(buf) // t.nbytes
         v = numpy.ndarray(n, t, buf)
-        u = encode_offsets(v)
+        u = numpy.diff(v, prepend=v[0])
 
-        return u.tobytes(), v[0], v[-1] - v[0]
+        return u, v[0], v[-1] - v[0]
 
     def visit_null(self, array):
         self.doc[DATA] = bson.Int64(len(array))
@@ -53,7 +52,7 @@ class _DataWriter(ArrayVisitor):
         val = numpy.ndarray(len(buf), numpy.uint8, buf)
         bitmap = numpy.unpackbits(val, bitorder='little')[begin:end]
 
-        self.doc[DATA] = self._compress(bitmap.tobytes())
+        self.doc[DATA] = self._compress(bitmap)
         self._make_mask(array)
         write_type(self.doc, array.type)
 
@@ -115,7 +114,7 @@ class _DataWriter(ArrayVisitor):
         l = n * wid
         buf = array.buffers()[1].slice(i, l)
         v = numpy.ndarray(n, dtype, buf)
-        data = encode_datetime(v).tobytes()
+        data = numpy.diff(v, prepend=v.dtype.type(0))
 
         self.doc[DATA] = self._compress(data)
         self._make_mask(array)

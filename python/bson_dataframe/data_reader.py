@@ -1,5 +1,4 @@
 from .array_data import *
-from .compress import *
 from .schema import *
 from .type_reader import *
 from .visitor import *
@@ -47,7 +46,7 @@ class _DataReader(TypeVisitor):
 
         n = len(buf) // t.nbytes
         v = numpy.ndarray(n, t, buf)
-        u = decode_offsets(v)
+        u = numpy.cumsum(v, dtype=v.dtype)
 
         return pyarrow.py_buffer(u.tobytes()), n - 1
 
@@ -122,7 +121,7 @@ class _DataReader(TypeVisitor):
         assert len(buf) % wid == 0
 
         v = numpy.ndarray(len(buf) // wid, dtype, buf)
-        u = decode_datetime(v).tobytes()
+        u = numpy.cumsum(v, dtype=v.dtype).tobytes()
 
         self.data.length = len(v)
         self.data.buffers.append(self._make_mask())

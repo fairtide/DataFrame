@@ -228,29 +228,6 @@ def test_table(n, offset=None, length=None, nullable=True):
 
 
 class TestArrowBSON(unittest.TestCase):
-    def test_offsets_codec(self):
-        val = numpy.array([0, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        enc = encode_offsets(val)
-        dec = decode_offsets(enc)
-        self.assertEqual(val.tobytes(), dec.tobytes())
-        self.assertEqual(val.dtype, enc.dtype)
-        self.assertEqual(val.dtype, dec.dtype)
-
-        off = val + numpy.int32(10)
-        enc = encode_offsets(off)
-        dec = decode_offsets(enc)
-        self.assertEqual(val.tobytes(), dec.tobytes())
-        self.assertEqual(val.dtype, enc.dtype)
-        self.assertEqual(val.dtype, dec.dtype)
-
-    def test_datetime_codec(self):
-        val = numpy.array([1, 1, 3, 3, 4, 8, 9, 13], numpy.int32)
-        enc = encode_datetime(val)
-        dec = decode_datetime(enc)
-        self.assertEqual(val.tobytes(), dec.tobytes())
-        self.assertEqual(val.dtype, enc.dtype)
-        self.assertEqual(val.dtype, dec.dtype)
-
     def test_write(self):
         table = test_table(1000, nullable=True)
         buf = write_table(table)

@@ -1,3 +1,4 @@
+import bson
 import bson.json_util
 import bson.raw_bson
 import json
@@ -23,6 +24,31 @@ FIELDS = 'f'
 # dictionary
 INDEX = 'i'
 DICT = 'd'
+
+
+def compress(data, compression_level=0):
+    if isinstance(data, numpy.ndarray):
+        data = data.tobytes()
+
+    if compression_level > 0:
+        buf = lz4.block.compress(data,
+                                 mode='high_compression',
+                                 compression=compression_level)
+    else:
+        buf = lz4.block.compress(data)
+
+    return bson.Binary(buf)
+
+
+def decompress(data, dtype=None):
+    buf = lz4.block.decompress(data)
+    if dtype is None:
+        return buf
+
+    wid = numpy.dtype(dtype).itemsize
+    assert len(buf) % wid == 0
+
+    return numpy.ndarray(len(buf) // wid, dtype, buf)
 
 
 class SchemaTypes(object):
@@ -285,11 +311,12 @@ class Date(Numeric):
 class Timestamp(Numeric):
     byte_width = 8
 
-    def __init__(self, unit):
+    def __init__(self, unit, tz=None):
         if unit not in ('s', 'ms', 'us', 'ns'):
             raise ValueError(f'{self.name} invalid unit {unit}')
 
         self.name = f'timestamp[{unit}]'
+        self.tz = tz
 
     def array_schema(self, types=BSONTypes):
         ret = super().array_schema(types)

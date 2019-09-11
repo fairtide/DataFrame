@@ -1,5 +1,4 @@
 from .array_data import *
-from .compress import *
 from .data_reader import *
 from .data_writer import *
 from .schema import *
