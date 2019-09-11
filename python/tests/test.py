@@ -5,6 +5,8 @@ sys.path.insert(0,
                 os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from bson_dataframe import *
+from bson_dataframe.arrow import *
+
 import bson.raw_bson
 import numpy
 import pyarrow
@@ -204,11 +206,13 @@ TEST_TYPES = [
         Struct([('int32', Int32())]),
     ),
     (
-        pyarrow.list_(pyarrow.struct([pyarrow.field('int32', pyarrow.int32())])),
+        pyarrow.list_(pyarrow.struct([pyarrow.field('int32',
+                                                    pyarrow.int32())])),
         List(Struct([('int32', Int32())])),
     ),
     (
-        pyarrow.struct([pyarrow.field('int32', pyarrow.list_(pyarrow.int32()))]),
+        pyarrow.struct(
+            [pyarrow.field('int32', pyarrow.list_(pyarrow.int32()))]),
         Struct([('int32', List(Int32()))]),
     ),
 ]
