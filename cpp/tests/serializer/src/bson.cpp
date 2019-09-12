@@ -30,10 +30,13 @@ struct Output {
     ~Output()
     {
         ::dataframe::BSONWriter writer;
+        ::dataframe::BSONReader reader;
 
         writer.write(data);
-        auto bson_doc = writer.extract();
+        auto ret = reader.read(writer.size(), writer.data());
+        ret.table().Equals(data.table());
 
+        auto bson_doc = writer.extract();
         auto json_str = ::bsoncxx::to_json(
             bson_doc.view(), ::bsoncxx::ExtendedJsonMode::k_canonical);
 

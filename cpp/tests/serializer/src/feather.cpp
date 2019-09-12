@@ -24,8 +24,11 @@ struct Output {
     ~Output()
     {
         ::dataframe::FeatherWriter writer;
+        ::dataframe::FeatherReader reader;
 
         writer.write(data);
+        auto ret = reader.read(writer.size(), writer.data());
+        ret.table().Equals(data.table());
 
         std::ofstream bin("FeatherWriter", std::ios::out | std::ios::binary);
         bin.write(reinterpret_cast<const char *>(writer.data()),
