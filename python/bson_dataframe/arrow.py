@@ -1,873 +1,343 @@
 from .schema import *
+from .array import *
+from .codec import *
 
-import bson
-import bson.raw_bson
 import numpy
 import pyarrow
 
 
-class BaseVisitor(object):
-    def accept_type(self, typ, val):
-        if pyarrow.types.is_null(typ):
-            return self.visit_null(val)
+def _get_data(array):
+    vals = array.buffers()[1]
 
-        if pyarrow.types.is_boolean(typ):
-            return self.visit_bool(val)
+    wid = getattr(array.type, 'byte_width')
+    if wid is None:
+        wid = array.type.bit_width // 8
 
-        if pyarrow.types.is_int8(typ):
-            return self.visit_int8(val)
+    return vals.slice(array.offset * wid, len(array) * wid)
 
-        if pyarrow.types.is_int16(typ):
-            return self.visit_int16(val)
 
-        if pyarrow.types.is_int32(typ):
-            return self.visit_int32(val)
+def _get_mask(array: pyarrow.Array):
+    if array.null_count == 0:
+        return None
 
-        if pyarrow.types.is_int64(typ):
-            return self.visit_int64(val)
+    mask = array.buffers()[0]
+    vals = numpy.ndarray(len(mask), numpy.uint8, mask)
+    bits = numpy.unpackbits(vals, bitorder='little')
+    data = bits[array.offset:(array.offset + len(array))]
 
-        if pyarrow.types.is_uint8(typ):
-            return self.visit_uint8(val)
+    return numpy.packbits(data)
 
-        if pyarrow.types.is_uint16(typ):
-            return self.visit_uint16(val)
 
-        if pyarrow.types.is_uint32(typ):
-            return self.visit_uint32(val)
+def _get_offsets(buf: pyarrow.Buffer, array: pyarrow.Array):
+    offsets = buf.slice(array.offset * 4, len(array) * 4 + 4)
+    offsets_values = numpy.ndarray(len(array) + 1, numpy.int32, offsets)
+    values_offset = offsets_values[0]
+    values_length = offsets_values[-1] - data_offset
 
-        if pyarrow.types.is_uint64(typ):
-            return self.visit_uint64(val)
+    return offsets, values_offset, values_length
 
-        if pyarrow.types.is_float16(typ):
-            return self.visit_float16(val)
 
-        if pyarrow.types.is_float32(typ):
-            return self.visit_float32(val)
+def _make_mask(array: Array):
+    mask = array.numpy_mask()
 
-        if pyarrow.types.is_float64(typ):
-            return self.visit_float64(val)
+    if numpy.sum(mask) == len(array):
+        return None
 
-        if pyarrow.types.is_date32(typ):
-            return self.visit_date32(val)
+    return pyarrow.py_buffer(numpy.packbits(mask, bitorder='little'))
 
-        if pyarrow.types.is_date64(typ):
-            return self.visit_date64(val)
 
-        if pyarrow.types.is_timestamp(typ):
-            return self.visit_timestamp(val)
+def _make_offsets(array):
+    return pyarrow.py_buffer(
+        numpy.cumsum(array.counts, dtype=array.counts.dtype))
 
-        if pyarrow.types.is_time32(typ):
-            return self.visit_time32(val)
 
-        if pyarrow.types.is_time64(typ):
-            return self.visit_time64(val)
+class _ArrowEncoder():
+    def accept(self, array):
+        if pyarrow.types.is_null(array.type):
+            return self.visit_null(array)
 
-        if pyarrow.types.is_string(typ):
-            return self.visit_string(val)
+        if pyarrow.types.is_boolean(array.type):
+            return self.visit_bool(array)
 
-        if pyarrow.types.is_binary(typ):
-            return self.visit_binary(val)
+        if pyarrow.types.is_int8(array.type):
+            return self.visit_int8(array)
 
-        if pyarrow.types.is_fixed_size_binary(typ):
-            return self.visit_fixed_size_binary(val)
+        if pyarrow.types.is_int16(array.type):
+            return self.visit_int16(array)
 
-        if pyarrow.types.is_dictionary(typ):
-            return self.visit_dictionary(val)
+        if pyarrow.types.is_int32(array.type):
+            return self.visit_int32(array)
 
-        if pyarrow.types.is_list(typ):
-            return self.visit_list(val)
+        if pyarrow.types.is_int64(array.type):
+            return self.visit_int64(array)
 
-        if pyarrow.types.is_struct(typ):
-            return self.visit_struct(val)
+        if pyarrow.types.is_uint8(array.type):
+            return self.visit_uint8(array)
 
-        raise NotImplementedError(typ)
+        if pyarrow.types.is_uint16(array.type):
+            return self.visit_uint16(array)
 
-    def visit_null(self, val) -> None:
+        if pyarrow.types.is_uint32(array.type):
+            return self.visit_uint32(array)
+
+        if pyarrow.types.is_uint64(array.type):
+            return self.visit_uint64(array)
+
+        if pyarrow.types.is_float16(array.type):
+            return self.visit_float16(array)
+
+        if pyarrow.types.is_float32(array.type):
+            return self.visit_float32(array)
+
+        if pyarrow.types.is_float64(array.type):
+            return self.visit_float64(array)
+
+        if pyarrow.types.is_date32(array.type):
+            return self.visit_date32(array)
+
+        if pyarrow.types.is_date64(array.type):
+            return self.visit_date64(array)
+
+        if pyarrow.types.is_timestamp(array.type):
+            return self.visit_timestamp(array)
+
+        if pyarrow.types.is_time32(array.type):
+            return self.visit_time32(array)
+
+        if pyarrow.types.is_time64(array.type):
+            return self.visit_time64(array)
+
+        if pyarrow.types.is_string(array.type):
+            return self.visit_string(array)
+
+        if pyarrow.types.is_binary(array.type):
+            return self.visit_binary(array)
+
+        if pyarrow.types.is_fixed_size_binary(array.type):
+            return self.visit_fixed_size_binary(array)
+
+        if pyarrow.types.is_dictionary(array.type):
+            return self.visit_dictionary(array)
+
+        if pyarrow.types.is_list(array.type):
+            return self.visit_list(array)
+
+        if pyarrow.types.is_struct(array.type):
+            return self.visit_struct(array)
+
         raise NotImplementedError()
-
-    def visit_bool(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_int8(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_int16(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_int32(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_int64(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_uint8(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_uint16(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_uint32(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_uint64(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_float32(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_float64(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_date32(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_date64(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_string(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_binary(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_timestamp(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_time32(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_time64(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_fixed_size_binary(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_dictionary(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_list(self, val) -> None:
-        raise NotImplementedError()
-
-    def visit_struct(self, val) -> None:
-        raise NotImplementedError()
-
-
-class TypeVisitor(BaseVisitor):
-    def accept(self, typ: pyarrow.DataType) -> None:
-        return self.accept_type(typ, typ)
-
-
-class ArrayVisitor(BaseVisitor):
-    def accept(self, array: pyarrow.Array) -> None:
-        return self.accept_type(array.type, array)
-
-
-class ArrayData(object):
-    def __init__(self):
-        self.type = None
-        self.length = None
-        self.null_count = None
-        self.buffers = []
-        self.children = []
-        self.dictionary = None
-
-    def make_array(self):
-        if isinstance(self.type, pyarrow.DictionaryType):
-            if isinstance(self.dictionary, ArrayData):
-                values = self.dictionary.make_array()
-            else:
-                values = self.dictionary
-
-            return pyarrow.DictionaryArray.from_arrays(
-                self._make_array(self.type.index_type),
-                values,
-                ordered=self.type.ordered)
-        else:
-            return self._make_array(self.type)
-
-    def _make_array(self, typ):
-        return pyarrow.Array.from_buffers(typ,
-                                          self.length,
-                                          self.buffers,
-                                          self.null_count,
-                                          children=self.children)
-
-
-class _TypeWriter(TypeVisitor):
-    def __init__(self, doc):
-        self.doc = doc
-
-    def _visit_primitive(self, typename):
-        self.doc[TYPE] = typename
-
-    def visit_null(self, typ):
-        self._visit_primitive('null')
-
-    def visit_bool(self, typ):
-        self._visit_primitive('bool')
-
-    def visit_int8(self, typ):
-        self._visit_primitive('int8')
-
-    def visit_int16(self, typ):
-        self._visit_primitive('int16')
-
-    def visit_int32(self, typ):
-        self._visit_primitive('int32')
-
-    def visit_int64(self, typ):
-        self._visit_primitive('int64')
-
-    def visit_uint8(self, typ):
-        self._visit_primitive('uint8')
-
-    def visit_uint16(self, typ):
-        self._visit_primitive('uint16')
-
-    def visit_uint32(self, typ):
-        self._visit_primitive('uint32')
-
-    def visit_uint64(self, typ):
-        self._visit_primitive('uint64')
-
-    def visit_float16(self, typ):
-        self._visit_primitive('float16')
-
-    def visit_float32(self, typ):
-        self._visit_primitive('float32')
-
-    def visit_float64(self, typ):
-        self._visit_primitive('float64')
-
-    def visit_date32(self, typ):
-        self._visit_primitive('date[d]')
-
-    def visit_date64(self, typ):
-        self._visit_primitive('date[ms]')
-
-    def visit_binary(self, typ):
-        self._visit_primitive('bytes')
-
-    def visit_string(self, typ):
-        self._visit_primitive('utf8')
-
-    def visit_timestamp(self, typ):
-        assert typ.unit in ('s', 'ms', 'us', 'ns')
-
-        self.doc[TYPE] = f'timestamp[{typ.unit}]'
-        if typ.tz is not None:
-            self.doc[PARAM] = typ.tz
-
-    def visit_time32(self, typ):
-        if typ.equals(pyarrow.time32('s')):
-            unit = 's'
-        elif typ.equals(pyarrow.time32('ms')):
-            unit = 'ms'
-        else:
-            raise ValueError(f'Unspported type {typ}')
-
-        self.doc[TYPE] = f'time[{unit}]'
-
-    def visit_time64(self, typ):
-        if typ.equals(pyarrow.time64('us')):
-            unit = 'us'
-        elif typ.equals(pyarrow.time64('ns')):
-            unit = 'ns'
-        else:
-            raise ValueError(f'Unspported type {typ}')
-
-        self.doc[TYPE] = f'time[{unit}]'
-
-    def visit_fixed_size_binary(self, typ):
-        self.doc[TYPE] = 'opaque'
-        self.doc[PARAM] = typ.byte_width
-
-    def visit_list(self, typ):
-        param = {}
-        _TypeWriter(param).accept(typ.value_type)
-
-        self.doc[TYPE] = 'list'
-        self.doc[PARAM] = param
-
-    def visit_struct(self, typ):
-        param = []
-        for field in typ:
-            assert field.name is not None
-            assert len(field.name) > 0
-
-            field_doc = {}
-            field_doc[NAME] = field.name
-            _TypeWriter(field_doc).accept(field.type)
-            param.append(field_doc)
-
-        self.doc[TYPE] = 'struct'
-        self.doc[PARAM] = param
-
-    def visit_dictionary(self, typ):
-        index_doc = {}
-        _TypeWriter(index_doc).accept(typ.index_type)
-
-        dict_doc = {}
-        _TypeWriter(dict_doc).accept(typ.value_type)
-
-        if typ.ordered:
-            self.doc[TYPE] = 'ordered'
-        else:
-            self.doc[TYPE] = 'factor'
-
-        self.doc[PARAM] = {INDEX: index_doc, DICT: dict_doc}
-
-
-def write_type(doc, typ: pyarrow.DataType):
-    _TypeWriter(doc).accept(typ)
-
-    return doc
-
-
-def read_type(doc):
-    t = doc[TYPE]
-
-    if PARAM in doc:
-        tp = doc[PARAM]
-    else:
-        tp = None
-
-    if t == 'null':
-        return pyarrow.null()
-
-    if t == 'bool':
-        return pyarrow.bool_()
-
-    if t == 'int8':
-        return pyarrow.int8()
-
-    if t == 'int16':
-        return pyarrow.int16()
-
-    if t == 'int32':
-        return pyarrow.int32()
-
-    if t == 'int64':
-        return pyarrow.int64()
-
-    if t == 'uint8':
-        return pyarrow.uint8()
-
-    if t == 'uint16':
-        return pyarrow.uint16()
-
-    if t == 'uint32':
-        return pyarrow.uint32()
-
-    if t == 'uint64':
-        return pyarrow.uint64()
-
-    if t == 'float16':
-        return pyarrow.float16()
-
-    if t == 'float32':
-        return pyarrow.float32()
-
-    if t == 'float64':
-        return pyarrow.float64()
-
-    if t == 'date[d]':
-        return pyarrow.date32()
-
-    if t == 'date[ms]':
-        return pyarrow.date64()
-
-    if t == 'timestamp[s]':
-        return pyarrow.timestamp('s')
-
-    if t == 'timestamp[ms]':
-        return pyarrow.timestamp('ms')
-
-    if t == 'timestamp[us]':
-        return pyarrow.timestamp('us')
-
-    if t == 'timestamp[ns]':
-        return pyarrow.timestamp('ns')
-
-    if t == 'time[s]':
-        return pyarrow.time32('s')
-
-    if t == 'time[ms]':
-        return pyarrow.time32('ms')
-
-    if t == 'time[us]':
-        return pyarrow.time64('us')
-
-    if t == 'time[ns]':
-        return pyarrow.time64('ns')
-
-    if t == 'utf8':
-        return pyarrow.utf8()
-
-    if t == 'bytes':
-        return pyarrow.binary()
-
-    if t == 'factor':
-        if tp is None:
-            index_type = pyarrow.int32()
-            dict_type = pyarrow.utf8()
-        else:
-            index_type = read_type(tp[INDEX])
-            dict_type = read_type(tp[DICT])
-        return pyarrow.dictionary(index_type, dict_type, False)
-
-    if t == 'ordered':
-        if tp is None:
-            index_type = pyarrow.int32()
-            dict_type = pyarrow.utf8()
-        else:
-            index_type = read_type(tp[INDEX])
-            dict_type = read_type(tp[DICT])
-        return pyarrow.dictionary(index_type, dict_type, True)
-
-    if t == 'opaque':
-        return pyarrow.binary(tp)
-
-    if t == 'list':
-        return pyarrow.list_(read_type(tp))
-
-    if t == 'struct':
-        return pyarrow.struct(
-            [pyarrow.field(f[NAME], read_type(f)) for f in tp])
-
-    raise ValueError(f'{t} is not supported BSON DataFrame type')
-
-
-class _DataWriter(ArrayVisitor):
-    def __init__(self, doc, compression_level):
-        self.doc = doc
-        self.compression_level = compression_level
-
-    def _compress(self, data):
-        return compress(data, self.compression_level)
-
-    def _make_mask(self, array):
-        if isinstance(array, pyarrow.NullArray):
-            bitmap = numpy.zeros(len(array), dtype=numpy.bool)
-        elif array.null_count == 0:
-            bitmap = numpy.ones(len(array), dtype=numpy.bool)
-        else:
-            begin = array.offset
-            end = array.offset + len(array)
-            buf = array.buffers()[0]
-            val = numpy.ndarray(len(buf), numpy.uint8, buf)
-            bitmap = numpy.unpackbits(val, bitorder='little')[begin:end]
-
-        mask = numpy.packbits(bitmap, bitorder='big')
-        self.doc[MASK] = self._compress(mask)
-
-    def _make_offsets(self, array):
-        t = numpy.int32()
-        i = array.offset * t.nbytes
-        l = len(array) * t.nbytes + t.nbytes
-        buf = array.buffers()[1].slice(i, l)
-        n = len(buf) // t.nbytes
-        v = numpy.ndarray(n, t, buf)
-        u = numpy.diff(v, prepend=v[0])
-
-        return u, v[0], v[-1] - v[0]
 
     def visit_null(self, array):
-        self.doc[DATA] = bson.Int64(len(array))
-        self._make_mask(array)
-        write_type(self.doc, array.type)
+        raise NullArray(len(array))
 
     def visit_bool(self, array):
-        begin = array.offset
-        end = array.offset + len(array)
-        buf = array.buffers()[1]
-        val = numpy.ndarray(len(buf), numpy.uint8, buf)
-        bitmap = numpy.unpackbits(val, bitorder='little')[begin:end]
+        mask = array.buffers()[1]
+        vals = numpy.ndarray(len(mask), numpy.uint8, mask)
+        bits = numpy.unpackbits(vals, bitorder='little')
+        data = bits[array.offset:(array.offset + len(array))]
 
-        self.doc[DATA] = self._compress(bitmap)
-        self._make_mask(array)
-        write_type(self.doc, array.type)
-
-    def _visit_numeric(self, array):
-        wid = array.type.bit_width // 8
-
-        offset = array.offset * wid
-        length = len(array) * wid
-        buf = array.buffers()[1].slice(offset, length)
-
-        self.doc[DATA] = self._compress(buf)
-        self._make_mask(array)
-        write_type(self.doc, array.type)
+        return BoolArray(data, _get_mask(array))
 
     def visit_int8(self, array):
-        self._visit_numeric(array)
+        return Int8Array(_get_data(array), _get_mask(array))
 
     def visit_int16(self, array):
-        self._visit_numeric(array)
+        return Int16Array(_get_data(array), _get_mask(array))
 
     def visit_int32(self, array):
-        self._visit_numeric(array)
+        return Int32Array(_get_data(array), _get_mask(array))
 
     def visit_int64(self, array):
-        self._visit_numeric(array)
+        return Int64Array(_get_data(array), _get_mask(array))
 
     def visit_uint8(self, array):
-        self._visit_numeric(array)
+        return UInt8Array(_get_data(array), _get_mask(array))
 
     def visit_uint16(self, array):
-        self._visit_numeric(array)
+        return UInt16Array(_get_data(array), _get_mask(array))
 
     def visit_uint32(self, array):
-        self._visit_numeric(array)
+        return UInt32Array(_get_data(array), _get_mask(array))
 
     def visit_uint64(self, array):
-        self._visit_numeric(array)
+        return UInt64Array(_get_data(array), _get_mask(array))
 
     def visit_float16(self, array):
-        self._visit_numeric(array)
+        return Float16Array(_get_data(array), _get_mask(array))
 
     def visit_float32(self, array):
-        self._visit_numeric(array)
+        return Float32Array(_get_data(array), _get_mask(array))
 
     def visit_float64(self, array):
-        self._visit_numeric(array)
-
-    def visit_time32(self, array):
-        self._visit_numeric(array)
-
-    def visit_time64(self, array):
-        self._visit_numeric(array)
-
-    def _visit_datetime(self, array, dtype):
-        wid = array.type.bit_width // 8
-
-        n = len(array)
-        i = array.offset * wid
-        l = n * wid
-        buf = array.buffers()[1].slice(i, l)
-        v = numpy.ndarray(n, dtype, buf)
-        data = numpy.diff(v, prepend=v.dtype.type(0))
-
-        self.doc[DATA] = self._compress(data)
-        self._make_mask(array)
-        write_type(self.doc, array.type)
+        return Float64Array(_get_data(array), _get_mask(array))
 
     def visit_date32(self, array):
-        self._visit_datetime(array, numpy.int32)
+        return DateArray(_get_data(array), _get_mask(array), schema=Date('d'))
 
     def visit_date64(self, array):
-        self._visit_datetime(array, numpy.int64)
+        return DateArray(_get_data(array), _get_mask(array), schema=Date('ms'))
 
     def visit_timestamp(self, array):
-        self._visit_datetime(array, numpy.int64)
+        return TimestampArray(_get_data(array),
+                              _get_mask(array),
+                              schema=Timestamp(array.type.unit, array.type.tz))
+
+    def visit_time32(self, array):
+        assert array.type.unit in ('s', 'ms')
+
+        return TimeArray(_get_data(array),
+                         _get_mask(array),
+                         schema=Time(array.unit))
+
+    def visit_time64(self, array):
+        assert array.type.unit in ('us', 'ns')
+
+        return TimeArray(_get_data(array),
+                         _get_mask(array),
+                         schema=Time(array.unit))
 
     def visit_fixed_size_binary(self, array):
-        wid = array.type.byte_width
-
-        offset = array.offset * wid
-        length = len(array) * wid
-        buf = array.buffers()[1].slice(offset, length)
-
-        self.doc[DATA] = self._compress(buf)
-        self._make_mask(array)
-        write_type(self.doc, array.type)
+        return OpaqueArray(_get_data(array),
+                           _get_mask(array),
+                           schema=Opaque(array.unit))
 
     def visit_binary(self, array):
-        offsets, data_offset, data_length = self._make_offsets(array)
+        offsets, values_offset, values_length = _get_offsets(
+            array.buffers()[2], array)
+        values = array.buffers()[1].slice(values_offset, values_length)
 
-        data = b''
-        if data_length != 0:
-            data = array.buffers()[2].slice(data_offset, data_length)
-
-        self.doc[DATA] = self._compress(data)
-        self._make_mask(array)
-        write_type(self.doc, array.type)
-        self.doc[OFFSET] = self._compress(offsets)
+        return Bytes(values, _get_mask(array), offsets=offsets)
 
     def visit_string(self, array):
-        self.visit_binary(array)
+        offsets, values_offset, values_length = _get_offsets(
+            array.buffers()[2], array)
+        values = array.buffers()[1].slice(values_offset, values_length)
 
-    def visit_list(self, array):
-        offsets, values_offset, values_length = self._make_offsets(array)
-        values = array.flatten().slice(values_offset, values_length)
-
-        data = {}
-        _DataWriter(data, self.compression_level).accept(values)
-
-        self.doc[DATA] = data
-        self._make_mask(array)
-        write_type(self.doc, array.type)
-        self.doc[OFFSET] = self._compress(offsets)
-
-    def visit_struct(self, array):
-        fields = {}
-        for i, field in enumerate(array.type):
-            assert field.name is not None
-            assert len(field.name) > 0
-
-            field_data = array.field(i)
-            field_doc = {}
-            _DataWriter(field_doc, self.compression_level).accept(field_data)
-            fields[field.name] = field_doc
-
-        self.doc[DATA] = {LENGTH: bson.Int64(len(array)), FIELDS: fields}
-        self._make_mask(array)
-        write_type(self.doc, array.type)
+        return Utf8(values, _get_mask(array), offsets=offsets)
 
     def visit_dictionary(self, array):
-        index_doc = {}
-        _DataWriter(index_doc, self.compression_level).accept(array.indices)
+        index = self.accept(array.indices)
+        value = self.accept(array.dictionary)
 
-        dict_doc = {}
-        _DataWriter(dict_doc, self.compression_level).accept(array.dictionary)
+        if array.type.ordered:
+            return OrderedData(index, value)
+        else:
+            return FactorData(index, value)
 
-        self.doc[DATA] = {INDEX: index_doc, DICT: dict_doc}
-        self._make_mask(array)
-        write_type(self.doc, array.type)
+    def visit_list(self, array):
+        offsets, values_offset, values_length = _get_offsets(
+            array.buffers()[1], array)
+        values = self.accept(array.flatten().slice(values_offset,
+                                                   values_length))
 
+        return List(values, _get_mask(array), offsets=offsets)
 
-def write_data(doc, array: pyarrow.Array, compression_level=0):
-    _DataWriter(doc, compression_level).accept(array)
+    def visit_struct(self, array):
+        return Struct([(v.name, self.accept(array.field(i)))
+                       for i, v in enumerate(array.type)], _get_mask(array))
 
-    return doc
 
+def _ArrowDecoder(Visitor):
+    def visit_null(self, array):
+        return pyarrow.Array.from_buffers(pyarrow.null(), len(array), [None])
 
-class _DataReader(TypeVisitor):
-    def __init__(self, data, doc):
-        self.data = data
-        self._doc = doc
-
-    def _decompress(self, data):
-        return pyarrow.py_buffer(decompress(data))
-
-    def _make_mask(self):
-        assert self.data.length is not None
-
-        if self.data.type.equals(pyarrow.null()):
-            self.data.null_count = self.data.length
-            return None
-
-        if self.data.length == 0:
-            self.data.null_count = 0
-            return None
-
-        bits = self._decompress(self._doc[MASK])
-        vals = numpy.unpackbits(numpy.ndarray(len(bits), numpy.uint8, bits),
-                                bitorder='big')
-
-        self.data.null_count = self.data.length - numpy.sum(vals)
-        if self.data.null_count == 0:
-            return None
-
-        mask = numpy.packbits(vals, bitorder='little')
-
-        return pyarrow.py_buffer(mask.tobytes())
-
-    def _make_offsets(self):
-        t = numpy.int32()
-        buf = self._decompress(self._doc[OFFSET])
-
-        assert len(buf) % t.nbytes == 0
-
-        n = len(buf) // t.nbytes
-        v = numpy.ndarray(n, t, buf)
-        u = numpy.cumsum(v, dtype=v.dtype)
-
-        return pyarrow.py_buffer(u.tobytes()), n - 1
-
-    def visit_null(self, typ):
-        self.data.length = self._doc[DATA]
-        self.data.buffers.append(self._make_mask())
-
-    def visit_bool(self, typ):
-        buf = self._decompress(self._doc[DATA])
-        n = len(buf)
-        p = numpy.ndarray(n, numpy.uint8, buf)
-        bits = numpy.packbits(p, bitorder='little')
-        bitmap = pyarrow.py_buffer(bits.tobytes())
-
-        self.data.length = n
-        self.data.buffers.append(self._make_mask())
-        self.data.buffers.append(bitmap)
-
-    def _visit_numeric(self, typ):
-        buf = self._decompress(self._doc[DATA])
-
-        assert (len(buf) * 8) % typ.bit_width == 0
-
-        self.data.length = len(buf) * 8 // typ.bit_width
-        self.data.buffers.append(self._make_mask())
-        self.data.buffers.append(buf)
-
-    def visit_int8(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_int16(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_int32(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_int64(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_uint8(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_uint16(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_uint32(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_uint64(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_float16(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_float32(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_float64(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_time32(self, typ):
-        self._visit_numeric(typ)
-
-    def visit_time64(self, typ):
-        self._visit_numeric(typ)
-
-    def _visit_datetime(self, typ, dtype):
-        wid = typ.bit_width // 8
-
-        buf = self._decompress(self._doc[DATA])
-
-        assert len(buf) % wid == 0
-
-        v = numpy.ndarray(len(buf) // wid, dtype, buf)
-        u = numpy.cumsum(v, dtype=v.dtype).tobytes()
-
-        self.data.length = len(v)
-        self.data.buffers.append(self._make_mask())
-        self.data.buffers.append(pyarrow.py_buffer(u))
-
-    def visit_date32(self, typ):
-        self._visit_datetime(typ, numpy.int32)
-
-    def visit_date64(self, typ):
-        self._visit_datetime(typ, numpy.int64)
-
-    def visit_timestamp(self, typ):
-        self._visit_datetime(typ, numpy.int64)
-
-    def visit_binary(self, typ):
-        offsets, length = self._make_offsets()
-
-        self.data.length = length
-        self.data.buffers.append(self._make_mask())
-        self.data.buffers.append(offsets)
-        self.data.buffers.append(self._decompress(self._doc[DATA]))
-
-    def visit_string(self, typ):
-        self.visit_binary(typ)
-
-    def visit_fixed_size_binary(self, typ):
-        buf = self._decompress(self._doc[DATA])
-
-        assert len(buf) % typ.byte_width == 0
-
-        self.data.length = len(buf) // typ.byte_width
-        self.data.buffers.append(self._make_mask())
-        self.data.buffers.append(buf)
-
-    def visit_list(self, typ):
-        offsets, length = self._make_offsets()
-
-        self.data.length = length
-        self.data.buffers.append(self._make_mask())
-        self.data.buffers.append(offsets)
-
-        data = ArrayData()
-        data.type = typ.value_type
-        _DataReader(data, self._doc[DATA]).accept(data.type)
-
-        self.data.type = pyarrow.list_(data.type)
-        self.data.children.append(data.make_array())
-
-    def visit_struct(self, typ):
-        data_doc = self._doc[DATA]
-
-        self.data.length = data_doc[LENGTH]
-        self.data.buffers.append(self._make_mask())
-
-        field_docs = data_doc[FIELDS]
-
-        fields = []
-        for field in typ:
-            field_doc = field_docs[field.name]
-            field_data = ArrayData()
-            field_data.type = field.type
-            _DataReader(field_data, field_doc).accept(field_data.type)
-
-            fields.append(pyarrow.field(field.name, field_data.type))
-            self.data.children.append(field_data.make_array())
-
-        self.data.type = pyarrow.struct(fields)
-
-    def visit_dictionary(self, typ):
-        data_doc = self._doc[DATA]
-
-        index_doc = data_doc[INDEX]
-        self.data.type = read_type(index_doc)
-        _DataReader(self.data, index_doc).accept(self.data.type)
-
-        dict_doc = data_doc[DICT]
-        self.data.dictionary = ArrayData()
-        self.data.dictionary.type = read_type(dict_doc)
-        _DataReader(self.data.dictionary,
-                    dict_doc).accept(self.data.dictionary.type)
-
-        self.data.type = pyarrow.dictionary(self.data.type,
-                                            self.data.dictionary.type,
-                                            typ.ordered)
-
-
-def read_data(doc) -> ArrayData:
-    data = ArrayData()
-    data.type = read_type(doc)
-    _DataReader(data, doc).accept(data.type)
-
-    return data
-
-
-def write_array(array: pyarrow.Array, compression_level=0) -> bytes:
-    doc = write_data({}, array, compression_level)
-
-    return bson.encode(doc)
-
-
-def write_table(table: pyarrow.Table, compression_level=0) -> bytes:
-    table = table.combine_chunks()
-    doc = {}
-    for col in table.columns:
-        buf = write_array(col.data.chunks[0], compression_level)
-        doc[col.name] = bson.raw_bson.RawBSONDocument(buf)
-
-    return bson.encode(doc)
-
-
-def read_array(doc) -> pyarrow.Array:
-    if isinstance(doc, bytes):
-        doc = bson.raw_bson.RawBSONDocument(doc)
-
-    return read_data(doc).make_array()
-
-
-def read_table(doc) -> pyarrow.Table:
-    if isinstance(doc, bytes):
-        doc = bson.raw_bson.RawBSONDocument(doc)
-
-    data = [pyarrow.column(k, read_array(v)) for k, v in doc.items()]
-
-    return pyarrow.Table.from_arrays(data)
+    def visit_numeric(self, array):
+        typeclass = getattr(pyarrow, array.type.name)
+        dtype = typeclass()
+        buffers = [_make_mask(array), pyarrow.py_buffer(array.data)]
+
+        raise pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_bool(self, array):
+        dtype = pyarrow.bool_()
+        data = numpy.ndarray(len(array.data), numpy.uint8, array.data)
+        bits = pyarrow.py_buffer(numpy.packbits(data, bitorder='little'))
+        buffers = [_make_mask(array), bits]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_date(self, array):
+        typeclass = getattr(pyarrow, f'date{array.schema.byte_width * 8}')
+        dtype = typeclass()
+        buffers = [_make_mask(array), pyarrow.py_buffer(array.data)]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_timestamp(self, array):
+        dtype = pyarrow.timestamp(array.schema.unit, array.schema.tz)
+        buffers = [_make_mask(array), pyarrow.py_buffer(array.data)]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_time(self, array):
+        typeclass = getattr(pyarrow, f'date{array.schema.byte_width * 8}')
+        dtype = typeclass(array.schema.unit)
+        buffers = [_make_mask(array), pyarrow.py_buffer(array.data)]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_opaque(self, array):
+        dtype = pyarrow.fixed_size_binary(array.schema.byte_width)
+        buffers = [_make_mask(array), pyarrow.py_buffer(array.data)]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_bytes(self, array):
+        dtype = pyarrow.binary()
+
+        buffers = [
+            _make_mask(array),
+            pyarrow.py_buffer(array.values),
+            _make_offsets(array),
+        ]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_utf8(self, array):
+        dtype = pyarrow.utf8()
+
+        buffers = [
+            _make_mask(array),
+            pyarrow.py_buffer(array.values),
+            _make_offsets(array),
+        ]
+
+        return pyarrow.Array.from_buffers(dtype, len(array), buffers)
+
+    def visit_dictionary(self, array):
+        index = array.index.accept(self)
+        value = array.value.accept(self)
+        mask = _make_mask(array)
+        orderd = isinstance(array, OrderedArray)
+
+        return pyarrow.DictionaryArray.from_arrays(index,
+                                                   value,
+                                                   mask=mask,
+                                                   ordered=ordered)
+
+    def visit_list(self, array):
+        values = array.values.accept(self)
+        dtype = pyarrow.list_(values.type)
+        buffers = [_make_mask(array), _make_offsets(array)]
+        children = [values]
+
+        return pyarrow.Array.from_buffers(dtype,
+                                          len(array),
+                                          buffers,
+                                          children=children)
+
+    def visit_struct(self, array):
+        fields = list()
+        children = list()
+        for k, v in array.fields:
+            data = self.accept(v)
+            fields.append(pyarrow.field(k, data.type))
+            children.append(data)
+
+        dtype = pyarrow.struct(fields)
+        buffers = [_make_mask(array)]
+
+        return pyarrow.Array.from_buffers(dtype,
+                                          len(array),
+                                          buffers,
+                                          children=children)

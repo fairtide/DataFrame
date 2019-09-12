@@ -13,8 +13,8 @@ import pyarrow
 import unittest
 
 
-class TestArrayGenerator(TypeVisitor):
-    def __init__(self, n, typ, nullable):
+class TestArrayGenerator(SchemaVisitor):
+    def __init__(self, n, typ, Typ, nullable):
         self.nullable = nullable
 
         self.data = ArrayData()
@@ -35,7 +35,7 @@ class TestArrayGenerator(TypeVisitor):
             self.data.null_count = 0
             self.data.buffers.append(None)
 
-        self.accept(typ)
+        Typ.accept(self)
 
         self.array = self.data.make_array()
 
@@ -50,7 +50,7 @@ class TestArrayGenerator(TypeVisitor):
         self.data.buffers.append(pyarrow.py_buffer(buf))
 
     def _visit_flat(self, typ):
-        buf = numpy.random.bytes(self.data.length * typ.bit_width // 8)
+        buf = numpy.random.bytes(self.data.length * typ.byte_width)
         self.data.buffers.append(pyarrow.py_buffer(buf))
 
     def visit_int8(self, typ):
@@ -80,33 +80,23 @@ class TestArrayGenerator(TypeVisitor):
     def visit_float16(self, typ):
         self._visit_flat(typ)
 
-    def visit_time32(self, typ):
+    def visit_float32(self, typ):
         self._visit_flat(typ)
 
-    def visit_time64(self, typ):
+    def visit_float64(self, typ):
         self._visit_flat(typ)
 
-    def visit_date32(self, typ):
-        self._visit_flat(typ)
-
-    def visit_date64(self, typ):
+    def visit_date(self, typ):
         self._visit_flat(typ)
 
     def visit_timestamp(self, typ):
         self._visit_flat(typ)
 
-    def visit_fixed_size_binary(self, typ):
+    def visit_time(self, typ):
         self._visit_flat(typ)
 
-    def visit_float32(self, typ):
-        buf = numpy.random.rand(self.data.length).astype(
-            numpy.float32).tobytes()
-        self.data.buffers.append(pyarrow.py_buffer(buf))
-
-    def visit_float64(self, typ):
-        buf = numpy.random.rand(self.data.length).astype(
-            numpy.float64).tobytes()
-        self.data.buffers.append(pyarrow.py_buffer(buf))
+    def visit_opaque(self, typ):
+        self._visit_flat(typ)
 
     def _generate_offsets(self):
         counts = numpy.random.randint(0, 10, self.data.length + 1, numpy.int32)
@@ -126,13 +116,13 @@ class TestArrayGenerator(TypeVisitor):
 
         return offsets[-1]
 
-    def visit_binary(self, typ):
+    def visit_bytes(self, typ):
         n = self._generate_offsets()
         buf = numpy.random.bytes(n)
         self.data.buffers.append(pyarrow.py_buffer(buf))
 
-    def visit_string(self, typ):
-        self.visit_binary(typ)
+    def visit_utf8(self, typ):
+        self.visit_bytes(typ)
 
     def visit_list(self, typ):
         n = self._generate_offsets()
@@ -147,7 +137,7 @@ class TestArrayGenerator(TypeVisitor):
 
     def visit_dictionary(self, typ):
         index = numpy.random.randint(0, 10, self.data.length,
-                                     typ.index_type.to_pandas_dtype())
+                                     typ.index_type.name)
         buf = index.tobytes()
         self.data.buffers.append(pyarrow.py_buffer(buf))
         self.data.dictionary = TestArrayGenerator(10, typ.value_type,
@@ -221,9 +211,9 @@ TEST_TYPES = [
 def test_table(n, offset=None, length=None, nullable=True):
     data = list()
 
-    for t, _ in TEST_TYPES:
+    for t, T in TEST_TYPES:
         name = str(t)
-        array = TestArrayGenerator(n, t, nullable).array
+        array = TestArrayGenerator(n, t, T, nullable).array
         if offset is not None:
             array = array.slice(offset, length)
         data.append(pyarrow.column(name, array))
@@ -232,61 +222,61 @@ def test_table(n, offset=None, length=None, nullable=True):
 
 
 class TestArrowBSON(unittest.TestCase):
-    def test_write(self):
+    def test_encode(self):
         table = test_table(1000, nullable=True)
-        buf = write_table(table)
+        buf = encode_table(table)
         doc = bson.raw_bson.RawBSONDocument(buf)
         for i, col in enumerate(table.columns):
             TEST_TYPES[i][1].validate(doc[col.name], validate_data=True)
 
         table = test_table(1000, nullable=False)
-        buf = write_table(table)
+        buf = encode_table(table)
         doc = bson.raw_bson.RawBSONDocument(buf)
         for i, col in enumerate(table.columns):
             TEST_TYPES[i][1].validate(doc[col.name], validate_data=True)
 
-    def test_read(self):
+    def test_decode(self):
         table = test_table(1000, nullable=True)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
         table = test_table(1000, nullable=False)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice(self):
         table = test_table(1000, offset=100, length=500, nullable=True)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
         table = test_table(1000, offset=100, length=500, nullable=False)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice_head(self):
         table = test_table(1000, offset=0, length=500, nullable=True)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
         table = test_table(1000, offset=0, length=500, nullable=False)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
     def test_slice_tail(self):
         table = test_table(1000, offset=500, length=500, nullable=True)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
         table = test_table(1000, offset=500, length=500, nullable=False)
-        buf = write_table(table)
-        ret = read_table(buf)
+        buf = encode_table(table)
+        ret = decode_table(buf)
         self.assertTrue(ret.equals(table))
 
 

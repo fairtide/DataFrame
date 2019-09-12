@@ -3,8 +3,6 @@ import bson.json_util
 import bson.raw_bson
 import json
 import jsonschema
-import lz4.block
-import numpy
 
 DATA = 'd'
 MASK = 'm'
@@ -12,7 +10,7 @@ TYPE = 't'
 PARAM = 'p'
 
 # binary/string/list
-OFFSET = 'o'
+COUNT = 'o'
 
 # list
 LENGTH = 'l'
@@ -26,38 +24,11 @@ INDEX = 'i'
 DICT = 'd'
 
 
-def compress(data, compression_level=0):
-    if isinstance(data, numpy.ndarray):
-        data = data.tobytes()
-
-    if compression_level > 0:
-        buf = lz4.block.compress(data,
-                                 mode='high_compression',
-                                 compression=compression_level)
-    else:
-        buf = lz4.block.compress(data)
-
-    return bson.Binary(buf)
-
-
-def decompress(data, dtype=None):
-    buf = lz4.block.decompress(data)
-    if dtype is None:
-        return buf
-
-    wid = numpy.dtype(dtype).itemsize
-    assert len(buf) % wid == 0
-
-    return numpy.ndarray(len(buf) // wid, dtype, buf)
-
-
-class SchemaTypes(object):
+class _BSONTypes():
     @staticmethod
     def const(value):
         return {'enum': [value]}
 
-
-class BSONTypes(SchemaTypes):
     @staticmethod
     def int32():
         return {'bsonType': 'int'}
@@ -71,7 +42,11 @@ class BSONTypes(SchemaTypes):
         return {'bsonType': 'binData'}
 
 
-class CanonicalJSONTypes(SchemaTypes):
+class _JSONTypes():
+    @staticmethod
+    def const(value):
+        return {'enum': [value]}
+
     @staticmethod
     def int32():
         return {
@@ -122,26 +97,177 @@ class CanonicalJSONTypes(SchemaTypes):
         }
 
 
-class RelaxedJSONTypes(SchemaTypes):
-    @staticmethod
-    def int32():
-        return {'type': 'integer'}
-
-    @staticmethod
-    def int64():
-        return {'type': 'integer'}
-
-    @staticmethod
-    def binary():
-        return CanonicalJSONTypes.binary()
-
-
-class Schema(object):
-    def array_schema(self, types=BSONTypes):
+class Schema():
+    def accept(self, visitor):
         raise NotImplementedError()
 
-    def type_schema(self, types=BSONTypes):
-        sch = self.array_schema(types)
+    def bson_schema(self):
+        return self._array_schema(_BSONTypes)
+
+    def json_schema(self):
+        return self._array_schema(_JSONTypes)
+
+    def validate(self, doc):
+        '''Validate a BSON document against the schema
+
+        Args:
+            doc (bytes or dictionary type): BSON document or dictionary to be
+                encoded as BSON to be validated
+        '''
+
+        if isinstance(doc, bytes):
+            doc = bson.raw_bson.RawBSONDocument(doc)
+
+        json_mode = bson.json_util.JSONMode.CANONICAL
+        json_options = bson.json_util.JSONOptions(json_mode=json_mode)
+        json_doc = bson.json_util.dumps(doc, json_options=json_options)
+        instance = json.loads(json_doc)
+        schema = self.json_schema()
+        jsonschema.validate(instance=instance, schema=schema)
+
+    def encode(self):
+        return {TYPE: self.name}
+
+    @staticmethod
+    def decode(doc):
+        '''Decode the schema from BSON document
+
+        Args:
+            doc (bytes or dictionary type): BSON document or dictionary to be
+                encoded as BSON to be validated
+
+        Returns:
+            A ``Schema`` object with one of its derived class
+        '''
+
+        if isinstance(doc, bytes):
+            doc = bson.raw_bson.RawBSONDocument(doc)
+
+        t = doc[TYPE]
+
+        if PARAM in doc:
+            tp = doc[PARAM]
+        else:
+            tp = None
+
+        if t == 'null':
+            return Null()
+
+        if t == 'bool':
+            return Bool()
+
+        if t == 'int8':
+            return Int8()
+
+        if t == 'int16':
+            return Int16()
+
+        if t == 'int32':
+            return Int32()
+
+        if t == 'int64':
+            return Int64()
+
+        if t == 'uint8':
+            return UInt8()
+
+        if t == 'uint16':
+            return UInt16()
+
+        if t == 'uint32':
+            return UInt32()
+
+        if t == 'uint64':
+            return UInt64()
+
+        if t == 'float16':
+            return UIoat16()
+
+        if t == 'float32':
+            return UIoat32()
+
+        if t == 'float64':
+            return UIoat64()
+
+        if t == 'date[d]':
+            return Date('d')
+
+        if t == 'date[ms]':
+            return Date('ms')
+
+        if t == 'timestamp[s]':
+            return Timestamp('s', tp)
+
+        if t == 'timestamp[ms]':
+            return Timestamp('ms', tp)
+
+        if t == 'timestamp[us]':
+            return Timestamp('us', tp)
+
+        if t == 'timestamp[ns]':
+            return Timestamp('ns', tp)
+
+        if t == 'time[s]':
+            return Time('s')
+
+        if t == 'time[ms]':
+            return Time('ms')
+
+        if t == 'time[us]':
+            return Time('us')
+
+        if t == 'time[ns]':
+            return Time('ns')
+
+        if t == 'utf8':
+            return Utf8()
+
+        if t == 'bytes':
+            return Bytes()
+
+        if t == 'factor':
+            if tp is None:
+                index_type = Int32()
+                dict_type = Utf8()
+            else:
+                index_type = _decode_type(tp[INDEX])
+                dict_type = _decode_type(tp[DICT])
+            return Factor(index_type, dict_type)
+
+        if t == 'ordered':
+            if tp is None:
+                index_type = Int32()
+                dict_type = Utf8()
+            else:
+                index_type = _decode_type(tp[INDEX])
+                dict_type = _decode_type(tp[DICT])
+            return Ordered(index_type, dict_type)
+
+        if t == 'opaque':
+            return Opaque(tp)
+
+        if t == 'list':
+            return List(Schema.decode(tp))
+
+        if t == 'struct':
+            return Struct([(f[NAME], Schema.decode(f)) for f in tp])
+
+        raise ValueError(f'{t} is not supported BSON DataFrame type')
+
+    def _array_schema(self, types):
+        return {
+            'type': 'object',
+            'required': [DATA, MASK, TYPE],
+            'additionalProperties': False,
+            'properties': {
+                DATA: types.binary(),
+                MASK: types.binary(),
+                TYPE: types.const(self.name)
+            }
+        }
+
+    def _type_schema(self, types):
+        sch = self._array_schema(types)
 
         ret = {
             'type': 'object',
@@ -160,41 +286,14 @@ class Schema(object):
 
         return ret
 
-    def validate(self, doc, validate_data=False):
-        if isinstance(doc, bytes):
-            doc = bson.raw_bson.RawBSONDocument(doc)
-
-        json_mode = bson.json_util.JSONMode.CANONICAL
-        json_options = bson.json_util.JSONOptions(json_mode=json_mode)
-        json_doc = bson.json_util.dumps(doc, json_options=json_options)
-
-        jsonschema.validate(instance=json.loads(json_doc),
-                            schema=self.array_schema(CanonicalJSONTypes))
-
-        if not validate_data:
-            return
-
-        length = self.validate_data(doc)
-
-        bits = lz4.block.decompress(doc[MASK])
-
-        expected = length // 8
-        if length % 8 != 0:
-            expected += 1
-
-        if len(bits) != expected:
-            raise ValueError(
-                f'{self.name} mask length {len(bits)} differs from expected {expected}'
-            )
-
-    def validate_data(self, doc):
-        raise NotImplementedError()
-
 
 class Null(Schema):
     name = 'null'
 
-    def array_schema(self, types=BSONTypes):
+    def accept(self, visitor):
+        return visitor.visit_null(self)
+
+    def _array_schema(self, types):
         return {
             'type': 'object',
             'required': [DATA, MASK, TYPE],
@@ -206,130 +305,176 @@ class Null(Schema):
             }
         }
 
-    def validate_data(self, doc):
-        return int(doc[DATA])
 
-
-class Numeric(Schema):
-    def array_schema(self, types=BSONTypes):
-        return {
-            'type': 'object',
-            'required': [DATA, MASK, TYPE],
-            'additionalProperties': False,
-            'properties': {
-                DATA: types.binary(),
-                MASK: types.binary(),
-                TYPE: types.const(self.name)
-            }
-        }
-
-    def validate_data(self, doc):
-        buf = lz4.block.decompress(doc[DATA])
-
-        if len(buf) % self.byte_width != 0:
-            raise ValueError(
-                f'{self.name} buffer is not a multiple of byte width {self.byte_width}'
-            )
-
-        return len(buf) // self.byte_width
-
-
-class Bool(Numeric):
+class Bool(Schema):
     name = 'bool'
     byte_width = 1
 
+    def accept(self, visitor):
+        return visitor.visit_bool(self)
 
-class Int8(Numeric):
+
+class Int8(Schema):
     name = 'int8'
     byte_width = 1
 
+    def accept(self, visitor):
+        return visitor.visit_int8(self)
 
-class Int16(Numeric):
+
+class Int16(Schema):
     name = 'int16'
     byte_width = 2
 
+    def accept(self, visitor):
+        return visitor.visit_int16(self)
 
-class Int32(Numeric):
+
+class Int32(Schema):
     name = 'int32'
     byte_width = 4
 
+    def accept(self, visitor):
+        return visitor.visit_int32(self)
 
-class Int64(Numeric):
+
+class Int64(Schema):
     name = 'int64'
     byte_width = 8
 
+    def accept(self, visitor):
+        return visitor.visit_int64(self)
 
-class UInt8(Numeric):
+
+class UInt8(Schema):
     name = 'uint8'
     byte_width = 1
 
+    def accept(self, visitor):
+        return visitor.visit_uint8(self)
 
-class UInt16(Numeric):
+
+class UInt16(Schema):
     name = 'uint16'
     byte_width = 2
 
+    def accept(self, visitor):
+        return visitor.visit_uint16(self)
 
-class UInt32(Numeric):
+
+class UInt32(Schema):
     name = 'uint32'
     byte_width = 4
 
+    def accept(self, visitor):
+        return visitor.visit_uint32(self)
 
-class UInt64(Numeric):
+
+class UInt64(Schema):
     name = 'uint64'
     byte_width = 8
 
+    def accept(self, visitor):
+        return visitor.visit_uint64(self)
 
-class Float16(Numeric):
+
+class Float16(Schema):
     name = 'float16'
     byte_width = 2
 
+    def accept(self, visitor):
+        return visitor.visit_float16(self)
 
-class Float32(Numeric):
+
+class Float32(Schema):
     name = 'float32'
     byte_width = 4
 
+    def accept(self, visitor):
+        return visitor.visit_float32(self)
 
-class Float64(Numeric):
+
+class Float64(Schema):
     name = 'float64'
     byte_width = 8
 
+    def accept(self, visitor):
+        return visitor.visit_float64(self)
 
-class Date(Numeric):
+
+class Date(Schema):
     def __init__(self, unit):
-        if unit not in ('d', 'ms'):
-            raise ValueError(f'{self.name} invalid unit {unit}')
+        assert unit in ('d', 'ms')
 
-        self.name = f'date[{unit}]'
+        self._unit = unit
+        self._name = f'date[{unit}]'
 
         if unit == 'd':
-            self.byte_width = 4
+            self._byte_width = 4
 
         if unit == 'ms':
-            self.byte_width = 8
+            self._byte_width = 8
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def byte_width(self):
+        return self._byte_width
+
+    def accept(self, visitor):
+        return visitor.visit_date(self)
 
 
-class Timestamp(Numeric):
+class Timestamp(Schema):
     byte_width = 8
 
     def __init__(self, unit, tz=None):
-        if unit not in ('s', 'ms', 'us', 'ns'):
-            raise ValueError(f'{self.name} invalid unit {unit}')
+        assert unit in ('s', 'ms', 'us', 'ns')
 
-        self.name = f'timestamp[{unit}]'
-        self.tz = tz
+        self._unit = unit
+        self._name = f'timestamp[{unit}]'
+        self._tz = tz
 
-    def array_schema(self, types=BSONTypes):
-        ret = super().array_schema(types)
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def tz(self):
+        return self._tz
+
+    def encode(self):
+        ret = {TYPE: self.name}
+        if isinstance(self.tz, str):
+            ret[PARAM] = self.tz
+
+        return ret
+
+    def accept(self, visitor):
+        return visitor.visit_timestamp(self)
+
+    def _array_schema(self, types):
+        ret = super()._array_schema(types)
         ret['properties'][PARAM] = {'type': 'string'}
 
         return ret
 
 
-class Time(Numeric):
+class Time(Schema):
     def __init__(self, unit):
-        if unit not in ('s', 'ms', 'us', 'ns'):
-            raise ValueError(f'{self.name} invalid unit {unit}')
+        assert unit in ('s', 'ms', 'us', 'ns')
 
+        self.unit == unit
         self.name = f'time[{unit}]'
 
         if unit == 's' or unit == 'ms':
@@ -338,58 +483,40 @@ class Time(Numeric):
         if unit == 'us' or unit == 'ns':
             self.byte_width = 8
 
-
-class Binary(Schema):
-    def array_schema(self, types=BSONTypes):
-        return {
-            'type': 'object',
-            'required': [DATA, MASK, TYPE, OFFSET],
-            'additionalProperties': False,
-            'properties': {
-                DATA: types.binary(),
-                MASK: types.binary(),
-                TYPE: types.const(self.name),
-                OFFSET: types.binary()
-            }
-        }
-
-    def validate_data(self, doc):
-        values = lz4.block.decompress(doc[DATA])
-
-        offsets = lz4.block.decompress(doc[OFFSET])
-        if len(offsets) % 4 != 0:
-            raise ValueError(
-                'Offsets buffer is not a multiple of byte width 4')
-
-        counts = numpy.ndarray(len(offsets) // 4, numpy.int32, offsets)
-        if not all(counts >= 0):
-            raise ValueError(
-                f'{self.name} offsets differences are not all non-negative')
-
-        total = numpy.sum(counts)
-        if total != len(values):
-            raise ValueError(
-                f'{self.name} length of values {len(values)} is different from the last offset {total}'
-            )
-
-        return len(counts) - 1
+    @property
+    def unit(self):
+        return self._unit
 
 
-class Bytes(Binary):
-    name = 'bytes'
+    @property
+    def name(self):
+        return self._name
 
+    @property
+    def byte_wdith(self):
+        return self._byte_wdith
 
-class Utf8(Binary):
-    name = 'utf8'
+    def accept(self, visitor):
+        return visitor.visit_time(self)
 
 
 class Opaque(Schema):
     name = 'opaque'
 
     def __init__(self, byte_width):
-        self.byte_width = byte_width
+        self._byte_width = byte_width
 
-    def array_schema(self, types=BSONTypes):
+    @property
+    def byte_wdith(self):
+        return self._byte_wdith
+
+    def accept(self, visitor):
+        return visitor.visit_opaque(self)
+
+    def encode(self):
+        return {TYPE: self.name, PARAM: self.byte_width}
+
+    def _array_schema(self, types):
         return {
             'type': 'object',
             'required': [DATA, MASK, TYPE, PARAM],
@@ -402,30 +529,59 @@ class Opaque(Schema):
             }
         }
 
-    def validate_data(self, doc):
-        values = lz4.block.decompress(doc[DATA])
 
-        byte_width = int(doc[PARAM])
-        if byte_width != self.byte_width:
-            raise ValueError(
-                f'Expected byte width {self.byte_width} differs from that in data {byte_width}'
-            )
+class Binary(Schema):
+    def _array_schema(self, types):
+        return {
+            'type': 'object',
+            'required': [DATA, MASK, TYPE, COUNT],
+            'additionalProperties': False,
+            'properties': {
+                DATA: types.binary(),
+                MASK: types.binary(),
+                TYPE: types.const(self.name),
+                COUNT: types.binary()
+            }
+        }
 
-        if len(values) % byte_width != 0:
-            raise ValueError(
-                f'{self.name} buffer is not a multiple of byte width {byte_width}'
-            )
 
-        return len(values) // byte_width
+class Bytes(Binary):
+    name = 'bytes'
+
+    def accept(self, visitor):
+        return visitor.visit_bytes(self)
+
+
+class Utf8(Binary):
+    name = 'utf8'
+
+    def accept(self, visitor):
+        return visitor.visit_utf8(self)
 
 
 class Dictionary(Schema):
-    def __init__(self, index_type, value_type, ordered):
-        self.index_type = index_type
-        self.value_type = value_type
-        self.name = 'ordered' if ordered else 'factor'
+    def __init__(self, index_type, value_type):
+        self._index_type = index_type
+        self._value_type = value_type
 
-    def array_schema(self, types=BSONTypes):
+    @property
+    def index_type(self):
+        return self._index_type
+
+    @property
+    def value_type(self):
+        return self._value_type
+
+    def encode(self):
+        return {
+            TYPE: self.name,
+            PARAM: {
+                INDEX: self.index_type.encode(),
+                DICT: self.value_type.encode()
+            }
+        }
+
+    def _array_schema(self, types):
         return {
             'type': 'object',
             'required': [DATA, MASK, TYPE],
@@ -436,8 +592,8 @@ class Dictionary(Schema):
                     'required': [INDEX, DICT],
                     'additionalProperties': False,
                     'properties': {
-                        INDEX: self.index_type.array_schema(types),
-                        DICT: self.value_type.array_schema(types)
+                        INDEX: self.index_type._array_schema(types),
+                        DICT: self.value_type._array_schema(types)
                     }
                 },
                 MASK: types.binary(),
@@ -447,68 +603,70 @@ class Dictionary(Schema):
                     'required': [INDEX, DICT],
                     'additionalProperties': False,
                     'properties': {
-                        INDEX: self.index_type.type_schema(types),
-                        DICT: self.value_type.type_schema(types)
+                        INDEX: self.index_type._type_schema(types),
+                        DICT: self.value_type._type_schema(types)
                     }
                 }
             }
         }
 
-    def validate_data(self, doc):
-        self.value_type.validate_data(doc[DATA][DICT])
 
-        return self.index_type.validate_data(doc[DATA][INDEX])
+class Ordered(Dictionary):
+    name = 'ordered'
+
+
+class Factor(Dictionary):
+    name = 'factor'
 
 
 class List(Schema):
     name = 'list'
 
     def __init__(self, value_type):
-        self.value_type = value_type
+        self._value_type = value_type
 
-    def array_schema(self, types=BSONTypes):
+    @property
+    def value_type(self):
+        return self._value_type
+
+    def encode(self):
+        return {TYPE: self.name, PARAM: self.value_type.encode()}
+
+    def _array_schema(self, types):
         return {
             'type': 'object',
-            'required': [DATA, MASK, TYPE, PARAM, OFFSET],
+            'required': [DATA, MASK, TYPE, PARAM, COUNT],
             'additionalProperties': False,
             'properties': {
-                DATA: self.value_type.array_schema(types),
+                DATA: self.value_type._array_schema(types),
                 MASK: types.binary(),
                 TYPE: types.const(self.name),
-                PARAM: self.value_type.type_schema(types),
-                OFFSET: types.binary()
+                PARAM: self.value_type._type_schema(types),
+                COUNT: types.binary()
             }
         }
-
-    def validate_data(self, doc):
-        offsets = lz4.block.decompress(doc[OFFSET])
-        if len(offsets) % 4 != 0:
-            raise ValueError(
-                'Offsets buffer is not a multiple of byte width 4')
-
-        counts = numpy.ndarray(len(offsets) // 4, numpy.int32, offsets)
-        if not all(counts >= 0):
-            raise ValueError(
-                f'{self.name} offsets differences are not all non-negative')
-
-        total = numpy.sum(counts)
-        length = self.value_type.validate_data(doc[DATA])
-
-        if length != total:
-            raise ValueError(
-                f'{self.name} length of values {len(values)} is different from the last offset {total}'
-            )
-
-        return len(counts) - 1
 
 
 class Struct(Schema):
     name = 'struct'
 
     def __init__(self, fields):
-        self.fields = fields
+        self._fields = [(k, v) for k, v in fields]
 
-    def array_schema(self, types=BSONTypes):
+    @property
+    def fields(self):
+        return self._fields
+
+    def encode(self):
+        param = list()
+        for k, v in self.fields:
+            p = {NAME: k}
+            p.update(v.encode())
+            param.append(p)
+
+        return {TYPE: self.name, PARAM: param}
+
+    def _array_schema(self, types):
         fields = {
             'type': 'object',
             'required': [],
@@ -517,11 +675,11 @@ class Struct(Schema):
         }
         for k, v in self.fields:
             fields['required'].append(k)
-            fields['properties'][k] = v.array_schema(types)
+            fields['properties'][k] = v._array_schema(types)
 
         param = []
         for k, v in self.fields:
-            p = v.type_schema(types)
+            p = v._type_schema(types)
             p['required'].append(NAME)
             p['properties'][NAME] = types.const(k)
             param.append(p)
@@ -548,32 +706,83 @@ class Struct(Schema):
                     'minItems': len(param),
                     'maxItems': len(param)
                 },
-                OFFSET: types.binary()
+                COUNT: types.binary()
             }
         }
 
-    def validate_data(self, doc):
-        length = int(doc[DATA][LENGTH])
-        for k, v in self.fields:
-            n = v.validate_data(doc[DATA][FIELDS][k])
-            if n != length:
-                raise (
-                    f'{self.name} field {k} length {n} differs from array length {length}'
-                )
 
-        return length
+class Visitor():
+    def visit_null(self, obj):
+        raise NotImplementedError()
 
+    def visit_numeric(self, obj):
+        raise NotImplementedError()
 
-def table_schema(fields, types=BSONTypes):
-    ret = {
-        'type': 'object',
-        'required': [],
-        'additionalProperties': False,
-        'properties': {}
-    }
+    def visit_bool(self, obj):
+        return self.visit_numeric(obj)
 
-    for k, v in fields:
-        ret['required'].append(k)
-        ret['properties'][k] = v.array_schema(types)
+    def visit_int8(self, obj):
+        return self.visit_numeric(obj)
 
-    return ret
+    def visit_int16(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_int32(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_int64(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_uint8(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_uint16(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_uint32(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_uint64(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_float32(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_float64(self, obj):
+        return self.visit_numeric(obj)
+
+    def visit_date(self, obj):
+        raise NotImplementedError()
+
+    def visit_timestamp(self, obj):
+        raise NotImplementedError()
+
+    def visit_time(self, obj):
+        raise NotImplementedError()
+
+    def visit_opaque(self, obj):
+        raise NotImplementedError()
+
+    def visit_binary(self, obj):
+        raise NotImplementedError()
+
+    def visit_bytes(self, obj):
+        raise self.visit_binary(obj)
+
+    def visit_utf8(self, obj):
+        raise self.visit_binary(obj)
+
+    def visit_dictionary(self, obj):
+        raise NotImplementedError()
+
+    def visit_ordered(self, obj):
+        raise self.visit_dictionary(obj)
+
+    def visit_factor(self, obj):
+        raise self.visit_factor(obj)
+
+    def visit_list(self, obj):
+        raise NotImplementedError()
+
+    def visit_struct(self, obj):
+        raise NotImplementedError()
