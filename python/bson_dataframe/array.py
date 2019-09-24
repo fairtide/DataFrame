@@ -1,73 +1,162 @@
 from .schema import *
 
+import abc
+import bson
+import lz4.block
 import numpy
 
 
-def _make_mask(value, length):
-    if value is None:
-        return _make_mask(True, length)
+def array_type(schema: Schema):
+    assert isinstance(schema, Schema)
 
-    if isinstance(value, bool):
-        assert length >= 0
-
-        if length == 0:
-            return b''
-
-        n = length // 8
-
-        m = length % 8
-        if m != 0:
-            n += 1
-
-        if value:
-            mask = numpy.repeat(numpy.uint8(255), n)
-        else:
-            mask = numpy.zeros(n, numpy.uint8)
-
-        mask[-1] >>= m
-        mask[-1] <<= m
-
-        return mask
-
-    with memoryview(value) as view:
-        if length % 8 == 0:
-            assert len(view) == length // 8
-        else:
-            assert len(view) == length // 8 + 1
-
-    return value
+    return globals()[f'{type(schema).__name__}Array']
 
 
-def _inspect_offsets(values, offsets=None, counts=None):
-    if counts is not None:
-        counts = numpy.array(counts, numpy.int32, copy=False)
+def _compress(data, compression):
+    assert isinstance(data, bytes)
+
+    if compression == 0:
+        mode = 'default'
     else:
-        with memoryview(offsets) as view:
-            assert len(view) % 4 == 0
-            length = len(view) // 4
-            assert length > 0
+        mode = 'high_compression'
 
-            counts = numpy.ndarray(length, numpy.int32, view)
-            counts = numpy.diff(counts, prepend=counts[0])
-
-    assert numpy.sum(counts) == len(values)
-    assert all(counts >= 0)
-
-    return counts
+    return bson.Binary(
+        lz4.block.compress(data, mode=mode, compression=compression))
 
 
-class Array():
+def _decompress(data):
+    return lz4.block.decompress(data)
+
+
+def _tobytes(data):
+    if isinstance(data, bytes):
+        return data
+
+    if isinstance(data, numpy.ndarray):
+        return data.tobytes()
+
+    with memoryview(data) as view:
+        return view.tobytes()
+
+
+def _make_mask(length, mask=None):
+    assert length >= 0
+
+    if length == 0:
+        return b''
+
+    nbytes = length // 8
+    ntails = length % 8
+    if ntails != 0:
+        nbytes += 1
+
+    if mask is None:
+        mask = True
+
+    if isinstance(mask, bool):
+        if mask:
+            mask = numpy.repeat(numpy.uint8(255), nbytes)
+        else:
+            mask = numpy.zeros(nbytes, numpy.uint8)
+        nzeros = 8 - ntails
+        mask[-1] >>= nzeros
+        mask[-1] <<= nzeros
+
+    ret = _tobytes(mask)
+
+    assert len(ret) == nbytes
+    if ntails != 0:
+        vals = numpy.frombuffer(ret[-1:], numpy.uint8)
+        bits = numpy.unpackbits(vals)
+        assert not any(bits[ntails:])
+
+    return ret
+
+
+def _make_counts(value, counts):
+    if isinstance(counts, numpy.ndarray):
+        elems = counts.astype(numpy.int32)
+        ret = elems.tobytes()
+    else:
+        ret = _tobytes(counts)
+        elems = numpy.frombuffer(ret, numpy.int32)
+
+    assert elems[0] == 0
+    assert numpy.sum(elems) == len(value)
+    assert all(elems >= 0)
+
+    return len(elems) - 1, ret
+
+
+def _encode_data(data, mask, compression):
+    return {
+        DATA: _compress(data, compression),
+        MASK: _compress(mask, compression)
+    }
+
+
+def _decode_data(doc):
+    return _decompress(doc[DATA]), _decompress(doc[MASK])
+
+
+def _encode_datetime(obj, compression):
+    data = numpy.frombuffer(obj.data, f'i{obj.schema.byte_width}')
+    data = numpy.diff(data, prepend=data.dtype.type(0)).tobytes()
+    return _encode_data(data, obj.mask, compression)
+
+
+def _decode_datetime(schema, doc):
+    data, mask = _decode_data(doc)
+    data = numpy.frombuffer(data, f'i{schema.byte_width}')
+    data = numpy.cumsum(data, dtype=data.dtype)
+    return data.tobytes(), mask
+
+
+class Array(abc.ABC):
     def __init__(self, data, mask=None):
-        self._data = data
+        self._data = _tobytes(data)
+        self._length = len(self._data) // self.schema.byte_width
+        self._mask = _make_mask(self._length, mask)
 
-        with memoryview(self._data) as view:
-            assert len(view) % self.schema.byte_width == 0
-            self._length = len(view) // self.schema.byte_width
+    @abc.abstractmethod
+    def accept(self, visitor):
+        pass
 
-        self._mask = _make_mask(mask, self._length)
+    def encode(self, compression=0):
+        doc = self._encode_array(compression)
+        doc.update(self.schema.encode())
+
+        return doc
+
+    @staticmethod
+    def decode(doc):
+        schema = Schema.decode(doc)
+        ret = array_type(schema)._decode_array(schema, doc)
+
+        assert ret.schema == schema
+
+        return ret
 
     def __len__(self):
         return self._length
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+
+        if self.schema != other.schema:
+            return False
+
+        if len(self) != len(other):
+            return False
+
+        if self.data != other.data:
+            return False
+
+        if self.mask != other.mask:
+            return False
+
+        return True
 
     @property
     def data(self):
@@ -77,27 +166,34 @@ class Array():
     def mask(self):
         return self._mask
 
-    def numpy_data(self):
-        return numpy.ndarray(len(self), self.schema.name, self.data)
+    def _encode_array(self, compression):
+        return _encode_data(self.data, self.mask, compression)
 
-    def numpy_mask(self):
-        values = numpy.unpackbits(self.mask).astype(bool)
-
-        assert length <= len(values) < length + 8
-        assert not any(values[length:])
-
-        return values[:length]
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(*_decode_data(doc))
 
 
 class NullArray(Array):
     schema = Null()
 
     def __init__(self, length):
-        self._length = length
-        self._mask = _make_mask(False, length)
+        self._length = int(length)
+        self._data = None
+        self._mask = _make_mask(length, False)
 
-    def numpy_data(self):
-        return numpy.repeat(None, self._length)
+    def accept(self, visitor):
+        return visitor.visit_null(self)
+
+    def _encode_array(self, compression):
+        return {
+            DATA: bson.Int64(len(self)),
+            MASK: _compress(self.mask, compression)
+        }
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(doc[DATA])
 
 
 class BoolArray(Array):
@@ -197,6 +293,13 @@ class DateArray(Array):
     def schema(self):
         return self._schema
 
+    def _encode_array(self, compression):
+        return _encode_datetime(self, compression)
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(*_decode_datetime(schema, doc), schema=schema)
+
 
 class TimestampArray(Array):
     def __init__(self, data, mask=None, *, schema=None):
@@ -210,6 +313,13 @@ class TimestampArray(Array):
     @property
     def schema(self):
         return self._schema
+
+    def _encode_array(self, compression):
+        return _encode_datetime(self, compression)
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(*_decode_datetime(schema, doc), schema=schema)
 
 
 class TimeArray(Array):
@@ -225,11 +335,19 @@ class TimeArray(Array):
     def schema(self):
         return self._schema
 
+    def _encode_array(self, compression):
+        return _encode_data(self.data, self.mask, compression)
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(*_decode_data(doc), schema=schema)
+
 
 class OpaqueArray(Array):
     def __init__(self, data, mask=None, *, schema=None):
         assert isinstance(schema, Opaque)
         self._schema = schema
+        super().__init__(data, mask)
 
     def accept(self, visitor):
         return visitor.visit_opaque(self)
@@ -238,59 +356,108 @@ class OpaqueArray(Array):
     def schema(self):
         return self._schema
 
+    def _encode_array(self, compression):
+        return _encode_data(self.data, self.mask, compression)
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(*_decode_data(doc), schema=schema)
+
 
 class BinaryArray(Array):
-    def __init__(self, values, mask=None, *, offsets=None, counts=None):
-        self._counts = _inspect_offsets(values, offsets, counts)
-        self._length = len(self._counts) - 1
-        self._values = values
-        self._mask = _make_mask(mask, self._length)
-
-    @property
-    def values(self):
-        return self._values
+    def __init__(self, data, mask=None, *, counts=None):
+        self._data = _tobytes(data)
+        self._length, self._counts = _make_counts(self._data, counts)
+        self._mask = _make_mask(self._length, mask)
 
     @property
     def counts(self):
         return self._counts
 
-    @property
-    def data(self):
-        raise NotImplementedError()
+    def _encode_array(self, compression):
+        ret = _encode_data(self.data, self.mask, compression)
+        ret[COUNT] = _compress(self.counts, compression)
 
-    def numpy_data(self):
-        raise NotImplementedError()
+        return ret
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(*_decode_data(doc), counts=_decompress(doc[COUNT]))
 
 
 class BytesArray(BinaryArray):
     schema = Bytes()
 
+    def accept(self, visitor):
+        return visitor.visit_bytes(self)
+
 
 class Utf8Array(BinaryArray):
     schema = Utf8()
 
+    def accept(self, visitor):
+        return visitor.visit_utf8(self)
+
 
 class DictionaryArray(Array):
     def __init__(self, index: Array, value: Array):
+        assert isinstance(index, Array)
+        assert isinstance(value, Array)
+
         self._index = index
         self._value = value
 
     def __len__(self):
         return len(self._index)
 
+    def __eq__(self, other):
+        if self is other:
+            return True
+
+        if self.schema != other.schema:
+            return False
+
+        if self.index != other.index:
+            return False
+
+        if self.value != other.value:
+            return False
+
+        return True
+
+    @property
+    def schema(self):
+        return self._schema
+
     @property
     def data(self):
-        return self._index.data
+        raise NotImplementedError()
 
     @property
     def mask(self):
         return self._index.mask
 
-    def numpy_data(self):
-        raise self._index.numpy_data()
+    @property
+    def index(self):
+        return self._index
 
-    def numpy_mask(self):
-        raise self._index.numpy_mask()
+    @property
+    def value(self):
+        return self._value
+
+    def _encode_array(self, compression):
+        return {
+            DATA: {
+                INDEX: self.index.encode(compression),
+                VALUE: self.value.encode(compression)
+            },
+            MASK: _compress(self.mask, compression)
+        }
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(Array.decode(doc[DATA][INDEX]),
+                   Array.decode(doc[DATA][VALUE]))
 
 
 class OrderedArray(DictionaryArray):
@@ -312,63 +479,97 @@ class FactorArray(DictionaryArray):
 
 
 class ListArray(Array):
-    def __init__(self, values: Array, mask=None, *, offsets=None, counts=None):
-        self._schema = List(values.schema)
-        self._counts = _inspect_offsets(values, offsets, counts)
-        self._length = len(self._counts) - 1
-        self._values = values
-        self._mask = _make_mask(mask, self._length)
+    def __init__(self, data: Array, mask=None, *, counts=None):
+        assert isinstance(data, Array)
 
-    @property
-    def schema(self):
-        return self._schema
+        self._schema = List(data.schema)
+        self._data = data
+        self._length, self._counts = _make_counts(self._data, counts)
+        self._mask = _make_mask(self._length, mask)
 
     def accept(self, visitor):
         return visitor.visit_list(self)
 
     @property
-    def values(self):
-        return self._values
+    def schema(self):
+        return self._schema
+
+    @property
+    def value(self):
+        return self.data
 
     @property
     def counts(self):
         return self._counts
 
-    @property
-    def data(self):
-        raise NotImplementedError()
+    def _encode_array(self, compression):
+        return {
+            DATA: self.data.encode(compression),
+            MASK: _compress(self.mask, compression),
+            COUNT: _compress(self.counts, compression)
+        }
 
-    def numpy_data(self):
-        raise NotImplementedError()
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        return cls(Array.decode(doc[DATA]),
+                   _decompress(doc[MASK]),
+                   counts=_decompress(doc[COUNT]))
 
 
 class StructArray(Array):
-    def __init__(self, fields, mask=None):
-        self.schema = Struct([(k, v.schema) for k, v in fields])
-        self._fields = fields
-        self._mask = _make_mask(mask, self._length)
-
+    def __init__(self, data, mask=None, *, schema=None):
+        fields = list()
         self._length = None
-        for _, v in fields:
+        self._data = list()
+        for k, v in data:
+            assert isinstance(k, str)
+            assert isinstance(v, Array)
+            fields.append((k, v.schema))
+            self._data.append((k, v))
             if self._length is None:
                 self._length = len(v)
             else:
                 assert self._length == len(v)
 
-    @property
-    def schema(self):
-        return self._schema
+        if schema is None:
+            schema = Struct(fields)
+        else:
+            fields = {k: v for k, v in fields}
+            assert isinstance(schema, Struct)
+            assert len(schema.fields) == len(fields)
+            for k, v in schema.fields:
+                assert v == fields[k]
+
+        self._schema = schema
+        self._mask = _make_mask(self._length, mask)
 
     def accept(self, visitor):
         return visitor.visit_struct(self)
 
     @property
-    def fields(self):
-        raise self._fields
+    def schema(self):
+        return self._schema
 
     @property
-    def data(self):
-        raise NotImplementedError()
+    def fields(self):
+        raise self.data
 
-    def numpy_data(self):
-        raise NotImplementedError()
+    def _encode_array(self, compression):
+        data = {k: v.encode(compression) for k, v in self.data}
+
+        return {
+            DATA: {
+                LENGTH: bson.Int64(len(self)),
+                FIELDS: data
+            },
+            MASK: _compress(self.mask, compression)
+        }
+
+    @classmethod
+    def _decode_array(cls, schema, doc):
+        data = ((k, Array.decode(v)) for k, v in doc[DATA][FIELDS].items())
+        ret = cls(data, _decompress(doc[MASK]), schema=schema)
+
+        assert len(ret) == doc[DATA][LENGTH]
+
+        return ret

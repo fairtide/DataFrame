@@ -1,4 +1,4 @@
-import bson
+import abc
 import bson.json_util
 import bson.raw_bson
 import json
@@ -21,7 +21,7 @@ FIELDS = 'f'
 
 # dictionary
 INDEX = 'i'
-DICT = 'd'
+VALUE = 'd'
 
 
 class _BSONTypes():
@@ -97,9 +97,16 @@ class _JSONTypes():
         }
 
 
-class Schema():
+class Schema(abc.ABC):
+    @abc.abstractmethod
     def accept(self, visitor):
-        raise NotImplementedError()
+        pass
+
+    def __str__(self):
+        return self.name
+
+    def __eq__(self, other):
+        return type(self) == type(other)
 
     def bson_schema(self):
         return self._array_schema(_BSONTypes)
@@ -181,13 +188,13 @@ class Schema():
             return UInt64()
 
         if t == 'float16':
-            return UIoat16()
+            return Float16()
 
         if t == 'float32':
-            return UIoat32()
+            return Float32()
 
         if t == 'float64':
-            return UIoat64()
+            return Float64()
 
         if t == 'date[d]':
             return Date('d')
@@ -225,23 +232,15 @@ class Schema():
         if t == 'bytes':
             return Bytes()
 
-        if t == 'factor':
+        if t == 'factor' or t == 'ordered':
+            cls = Factor if t == 'factor' else Ordered
             if tp is None:
-                index_type = Int32()
-                dict_type = Utf8()
+                index = Int32()
+                value = Utf8()
             else:
-                index_type = _decode_type(tp[INDEX])
-                dict_type = _decode_type(tp[DICT])
-            return Factor(index_type, dict_type)
-
-        if t == 'ordered':
-            if tp is None:
-                index_type = Int32()
-                dict_type = Utf8()
-            else:
-                index_type = _decode_type(tp[INDEX])
-                dict_type = _decode_type(tp[DICT])
-            return Ordered(index_type, dict_type)
+                index = Schema.decode(tp[INDEX])
+                value = Schema.decode(tp[VALUE])
+            return cls(index, value)
 
         if t == 'opaque':
             return Opaque(tp)
@@ -306,7 +305,11 @@ class Null(Schema):
         }
 
 
-class Bool(Schema):
+class Numeric(Schema):
+    pass
+
+
+class Bool(Numeric):
     name = 'bool'
     byte_width = 1
 
@@ -314,7 +317,7 @@ class Bool(Schema):
         return visitor.visit_bool(self)
 
 
-class Int8(Schema):
+class Int8(Numeric):
     name = 'int8'
     byte_width = 1
 
@@ -322,7 +325,7 @@ class Int8(Schema):
         return visitor.visit_int8(self)
 
 
-class Int16(Schema):
+class Int16(Numeric):
     name = 'int16'
     byte_width = 2
 
@@ -330,7 +333,7 @@ class Int16(Schema):
         return visitor.visit_int16(self)
 
 
-class Int32(Schema):
+class Int32(Numeric):
     name = 'int32'
     byte_width = 4
 
@@ -338,7 +341,7 @@ class Int32(Schema):
         return visitor.visit_int32(self)
 
 
-class Int64(Schema):
+class Int64(Numeric):
     name = 'int64'
     byte_width = 8
 
@@ -346,7 +349,7 @@ class Int64(Schema):
         return visitor.visit_int64(self)
 
 
-class UInt8(Schema):
+class UInt8(Numeric):
     name = 'uint8'
     byte_width = 1
 
@@ -354,7 +357,7 @@ class UInt8(Schema):
         return visitor.visit_uint8(self)
 
 
-class UInt16(Schema):
+class UInt16(Numeric):
     name = 'uint16'
     byte_width = 2
 
@@ -362,7 +365,7 @@ class UInt16(Schema):
         return visitor.visit_uint16(self)
 
 
-class UInt32(Schema):
+class UInt32(Numeric):
     name = 'uint32'
     byte_width = 4
 
@@ -370,7 +373,7 @@ class UInt32(Schema):
         return visitor.visit_uint32(self)
 
 
-class UInt64(Schema):
+class UInt64(Numeric):
     name = 'uint64'
     byte_width = 8
 
@@ -378,7 +381,7 @@ class UInt64(Schema):
         return visitor.visit_uint64(self)
 
 
-class Float16(Schema):
+class Float16(Numeric):
     name = 'float16'
     byte_width = 2
 
@@ -386,7 +389,7 @@ class Float16(Schema):
         return visitor.visit_float16(self)
 
 
-class Float32(Schema):
+class Float32(Numeric):
     name = 'float32'
     byte_width = 4
 
@@ -394,7 +397,7 @@ class Float32(Schema):
         return visitor.visit_float32(self)
 
 
-class Float64(Schema):
+class Float64(Numeric):
     name = 'float64'
     byte_width = 8
 
@@ -415,6 +418,12 @@ class Date(Schema):
         if unit == 'ms':
             self._byte_width = 8
 
+    def accept(self, visitor):
+        return visitor.visit_date(self)
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.unit == other.unit
+
     @property
     def unit(self):
         return self._unit
@@ -427,9 +436,6 @@ class Date(Schema):
     def byte_width(self):
         return self._byte_width
 
-    def accept(self, visitor):
-        return visitor.visit_date(self)
-
 
 class Timestamp(Schema):
     byte_width = 8
@@ -440,6 +446,18 @@ class Timestamp(Schema):
         self._unit = unit
         self._name = f'timestamp[{unit}]'
         self._tz = tz
+
+    def accept(self, visitor):
+        return visitor.visit_timestamp(self)
+
+    def __str__(self):
+        if self.tz is None:
+            return self.name
+        return self.name + ' ' + self.tz
+
+    def __eq__(self, other):
+        return type(self) == type(other) and \
+                self.unit == other.unit and self.tz == other.tz
 
     @property
     def unit(self):
@@ -460,9 +478,6 @@ class Timestamp(Schema):
 
         return ret
 
-    def accept(self, visitor):
-        return visitor.visit_timestamp(self)
-
     def _array_schema(self, types):
         ret = super()._array_schema(types)
         ret['properties'][PARAM] = {'type': 'string'}
@@ -474,44 +489,53 @@ class Time(Schema):
     def __init__(self, unit):
         assert unit in ('s', 'ms', 'us', 'ns')
 
-        self.unit == unit
-        self.name = f'time[{unit}]'
+        self._unit = unit
+        self._name = f'time[{unit}]'
 
         if unit == 's' or unit == 'ms':
-            self.byte_width = 4
+            self._byte_width = 4
 
         if unit == 'us' or unit == 'ns':
-            self.byte_width = 8
+            self._byte_width = 8
+
+    def accept(self, visitor):
+        return visitor.visit_time(self)
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.unit == other.unit
 
     @property
     def unit(self):
         return self._unit
-
 
     @property
     def name(self):
         return self._name
 
     @property
-    def byte_wdith(self):
-        return self._byte_wdith
-
-    def accept(self, visitor):
-        return visitor.visit_time(self)
+    def byte_width(self):
+        return self._byte_width
 
 
 class Opaque(Schema):
     name = 'opaque'
 
     def __init__(self, byte_width):
-        self._byte_width = byte_width
-
-    @property
-    def byte_wdith(self):
-        return self._byte_wdith
+        self._byte_width = int(byte_width)
 
     def accept(self, visitor):
         return visitor.visit_opaque(self)
+
+    def __str__(self):
+        return f'{self.name}[{self.byte_width}]'
+
+    def __eq__(self, other):
+        return type(self) == type(
+            other) and self.byte_width == other.byte_width
+
+    @property
+    def byte_width(self):
+        return self._byte_width
 
     def encode(self):
         return {TYPE: self.name, PARAM: self.byte_width}
@@ -560,24 +584,35 @@ class Utf8(Binary):
 
 
 class Dictionary(Schema):
-    def __init__(self, index_type, value_type):
-        self._index_type = index_type
-        self._value_type = value_type
+    def __init__(self, index, value):
+        assert isinstance(index, Schema)
+        assert isinstance(value, Schema)
+        assert type(index) in (Int8, Int16, Int32, Int64)
+
+        self._index = index
+        self._value = value
+
+    def __str__(self):
+        return f'{self.name}[{str(self.index)}, {str(self.value)}]'
+
+    def __eq__(self, other):
+        return type(self) == type(
+            other) and self.index == other.index and self.value == other.value
 
     @property
-    def index_type(self):
-        return self._index_type
+    def index(self):
+        return self._index
 
     @property
-    def value_type(self):
-        return self._value_type
+    def value(self):
+        return self._value
 
     def encode(self):
         return {
             TYPE: self.name,
             PARAM: {
-                INDEX: self.index_type.encode(),
-                DICT: self.value_type.encode()
+                INDEX: self.index.encode(),
+                VALUE: self.value.encode()
             }
         }
 
@@ -589,22 +624,22 @@ class Dictionary(Schema):
             'properties': {
                 DATA: {
                     'type': 'object',
-                    'required': [INDEX, DICT],
+                    'required': [INDEX, VALUE],
                     'additionalProperties': False,
                     'properties': {
-                        INDEX: self.index_type._array_schema(types),
-                        DICT: self.value_type._array_schema(types)
+                        INDEX: self.index._array_schema(types),
+                        VALUE: self.value._array_schema(types)
                     }
                 },
                 MASK: types.binary(),
                 TYPE: types.const(self.name),
                 PARAM: {
                     'type': 'object',
-                    'required': [INDEX, DICT],
+                    'required': [INDEX, VALUE],
                     'additionalProperties': False,
                     'properties': {
-                        INDEX: self.index_type._type_schema(types),
-                        DICT: self.value_type._type_schema(types)
+                        INDEX: self.index._type_schema(types),
+                        VALUE: self.value._type_schema(types)
                     }
                 }
             }
@@ -614,23 +649,40 @@ class Dictionary(Schema):
 class Ordered(Dictionary):
     name = 'ordered'
 
+    def accept(self, visitor):
+        return visitor.visit_ordered(self)
+
 
 class Factor(Dictionary):
     name = 'factor'
+
+    def accept(self, visitor):
+        return visitor.visit_factor(self)
 
 
 class List(Schema):
     name = 'list'
 
-    def __init__(self, value_type):
-        self._value_type = value_type
+    def __init__(self, value):
+        assert isinstance(value, Schema)
+
+        self._value = value
+
+    def accept(self, visitor):
+        return visitor.visit_list(self)
+
+    def __str__(self):
+        return f'{self.name}[{str(self.value)}]'
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.value == other.value
 
     @property
-    def value_type(self):
-        return self._value_type
+    def value(self):
+        return self._value
 
     def encode(self):
-        return {TYPE: self.name, PARAM: self.value_type.encode()}
+        return {TYPE: self.name, PARAM: self.value.encode()}
 
     def _array_schema(self, types):
         return {
@@ -638,10 +690,10 @@ class List(Schema):
             'required': [DATA, MASK, TYPE, PARAM, COUNT],
             'additionalProperties': False,
             'properties': {
-                DATA: self.value_type._array_schema(types),
+                DATA: self.value._array_schema(types),
                 MASK: types.binary(),
                 TYPE: types.const(self.name),
-                PARAM: self.value_type._type_schema(types),
+                PARAM: self.value._type_schema(types),
                 COUNT: types.binary()
             }
         }
@@ -651,7 +703,21 @@ class Struct(Schema):
     name = 'struct'
 
     def __init__(self, fields):
-        self._fields = [(k, v) for k, v in fields]
+        self._fields = list()
+        for k, v in fields:
+            assert isinstance(k, str)
+            assert isinstance(v, Schema)
+            self._fields.append((k, v))
+
+    def accept(self, visitor):
+        return visitor.visit_struct(self)
+
+    def __str__(self):
+        fields = ', '.join([k + ': ' + str(v) for k, v in self.fields])
+        return f'{self.name}[{fields}]'
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.fields == other.fields
 
     @property
     def fields(self):
@@ -709,80 +775,3 @@ class Struct(Schema):
                 COUNT: types.binary()
             }
         }
-
-
-class Visitor():
-    def visit_null(self, obj):
-        raise NotImplementedError()
-
-    def visit_numeric(self, obj):
-        raise NotImplementedError()
-
-    def visit_bool(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_int8(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_int16(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_int32(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_int64(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_uint8(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_uint16(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_uint32(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_uint64(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_float32(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_float64(self, obj):
-        return self.visit_numeric(obj)
-
-    def visit_date(self, obj):
-        raise NotImplementedError()
-
-    def visit_timestamp(self, obj):
-        raise NotImplementedError()
-
-    def visit_time(self, obj):
-        raise NotImplementedError()
-
-    def visit_opaque(self, obj):
-        raise NotImplementedError()
-
-    def visit_binary(self, obj):
-        raise NotImplementedError()
-
-    def visit_bytes(self, obj):
-        raise self.visit_binary(obj)
-
-    def visit_utf8(self, obj):
-        raise self.visit_binary(obj)
-
-    def visit_dictionary(self, obj):
-        raise NotImplementedError()
-
-    def visit_ordered(self, obj):
-        raise self.visit_dictionary(obj)
-
-    def visit_factor(self, obj):
-        raise self.visit_factor(obj)
-
-    def visit_list(self, obj):
-        raise NotImplementedError()
-
-    def visit_struct(self, obj):
-        raise NotImplementedError()

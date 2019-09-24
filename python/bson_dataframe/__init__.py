@@ -1,3 +1,3 @@
-from .schema import *
 from .array import *
-from .codec import *
+from .schema import *
+from .visitor import *
