@@ -53,7 +53,7 @@ def _make_mask(length, mask=None):
     if mask is None:
         mask = True
 
-    if isinstance(mask, bool):
+    if isinstance(mask, bool) or isinstance(mask, numpy.bool_):
         if mask:
             mask = numpy.repeat(numpy.uint8(255), nbytes)
         else:
@@ -200,7 +200,7 @@ class BoolArray(Array):
     schema = Bool()
 
     def accept(self, visitor):
-        return visitor.visit_null(self)
+        return visitor.visit_bool(self)
 
 
 class Int8Array(Array):
@@ -369,6 +369,10 @@ class BinaryArray(Array):
         self._data = _tobytes(data)
         self._length, self._counts = _make_counts(self._data, counts)
         self._mask = _make_mask(self._length, mask)
+
+    @property
+    def value(self):
+        return self.data
 
     @property
     def counts(self):

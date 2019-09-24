@@ -1,10 +1,8 @@
 from test_data import *
 
-import unittest
-
 
 class TestSchema(unittest.TestCase):
-    def test_codec(self):
+    def test_type(self):
         for sch in TEST_SCHEMAS:
             with self.subTest(schema=str(sch)):
                 enc = sch.encode()
@@ -14,7 +12,16 @@ class TestSchema(unittest.TestCase):
     def test_array(self):
         for sch in TEST_SCHEMAS:
             with self.subTest(schema=str(sch)):
-                ary = test_array(sch, 1)
+                ary = test_array(sch, 1000, False)
+                enc = ary.encode()
+                sch.validate(enc)
+                dec = Array.decode(enc)
+                self.assertEqual(ary, dec)
+
+    def test_nullable_array(self):
+        for sch in TEST_SCHEMAS:
+            with self.subTest(schema=str(sch)):
+                ary = test_array(sch, 1000, True)
                 enc = ary.encode()
                 sch.validate(enc)
                 dec = Array.decode(enc)

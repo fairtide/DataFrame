@@ -4,8 +4,10 @@ import os
 sys.path.insert(0,
                 os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-import numpy
 from bson_dataframe import *
+
+import numpy
+import unittest
 
 
 class TestArray(Visitor):
@@ -20,10 +22,13 @@ class TestArray(Visitor):
             n = length
             m = n // 8 + 1
             mask = numpy.ndarray(m, numpy.uint8, numpy.random.bytes(m))
-            mask = numpy.unpackbits(mask)[:n]
+            mask = numpy.unpackbits(mask)[:n].astype(bool, copy=False)
+            if n > 1:
+                mask[0] = True
+                mask[1] = False
             for i, v in enumerate(mask):
                 if not v:
-                    counts[i + 1] = 0
+                    self.counts[i + 1] = 0
             self.mask = numpy.packbits(mask).tobytes()
         else:
             self.mask = None
@@ -54,7 +59,7 @@ class TestArray(Visitor):
         return OpaqueArray(data, self.mask, schema=schema)
 
     def visit_binary(self, schema):
-        data = numpy.random.bytes(self.total)
+        data = numpy.random.randint(65, 97, self.total, numpy.int8).tobytes()
         return array_type(schema)(data, self.mask, counts=self.counts)
 
     def visit_dictionary(self, schema):
@@ -78,43 +83,43 @@ def test_array(schema, length, nullable=False):
 
 
 TEST_SCHEMAS = (
-    Null(),
-    Bool(),
-    Int8(),
-    Int16(),
-    Int32(),
-    Int64(),
-    UInt8(),
-    UInt16(),
-    UInt32(),
-    UInt64(),
-    Float16(),
-    Float32(),
-    Float64(),
-    Date('d'),
-    Date('ms'),
-    Timestamp('s'),
-    Timestamp('ms'),
-    Timestamp('us'),
-    Timestamp('ns'),
-    Timestamp('s', 'Asia/Singapore'),
-    Timestamp('ms', 'Asia/Singapore'),
-    Timestamp('us', 'Asia/Singapore'),
-    Timestamp('ns', 'Asia/Singapore'),
-    Time('s'),
-    Time('ms'),
-    Time('us'),
-    Time('ns'),
-    Opaque(3),
-    Opaque(7),
-    Bytes(),
-    Utf8(),
-    Ordered(Int32(), Utf8()),
-    Ordered(Int64(), UInt64()),
-    Factor(Int32(), Utf8()),
-    Factor(Int64(), UInt64()),
+    # Null(),
+    # Bool(),
+    # Int8(),
+    # Int16(),
+    # Int32(),
+    # Int64(),
+    # UInt8(),
+    # UInt16(),
+    # UInt32(),
+    # UInt64(),
+    # Float16(),
+    # Float32(),
+    # Float64(),
+    # Date('d'),
+    # Date('ms'),
+    # Timestamp('s'),
+    # Timestamp('ms'),
+    # Timestamp('us'),
+    # Timestamp('ns'),
+    # Timestamp('s', 'Asia/Singapore'),
+    # Timestamp('ms', 'Asia/Singapore'),
+    # Timestamp('us', 'Asia/Singapore'),
+    # Timestamp('ns', 'Asia/Singapore'),
+    # Time('s'),
+    # Time('ms'),
+    # Time('us'),
+    # Time('ns'),
+    # Opaque(3),
+    # Opaque(7),
+    # Bytes(),
+    # Utf8(),
+    # Ordered(Int32(), Utf8()),
+    # Ordered(Int64(), UInt64()),
+    # Factor(Int32(), Utf8()),
+    # Factor(Int64(), UInt64()),
     List(Int32()),
-    Struct([('x', Int32()), ('y', Int64())]),
-    List(Struct([('x', Int32()), ('y', Int64())])),
-    Struct([('x', List(Int32())), ('y', List(Int64()))]),
+    # Struct([('x', Int32()), ('y', Int64())]),
+    # List(Struct([('x', Int32()), ('y', Int64())])),
+    # Struct([('x', List(Int32())), ('y', List(Int64()))]),
 )

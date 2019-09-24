@@ -41,17 +41,14 @@ class Visitor():
     def visit_float64(self, obj):
         return self.visit_numeric(obj)
 
-    def visit_datetime(self, obj):
-        raise NotImplementedError()
-
     def visit_date(self, obj):
-        raise self.visit_datetime(obj)
+        return self.visit_datetime(obj)
 
     def visit_timestamp(self, obj):
-        raise self.visit_datetime(obj)
+        return self.visit_datetime(obj)
 
     def visit_time(self, obj):
-        raise self.visit_datetime(obj)
+        return self.visit_datetime(obj)
 
     def visit_opaque(self, obj):
         raise NotImplementedError()
