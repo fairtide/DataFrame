@@ -305,11 +305,7 @@ class Null(Schema):
         }
 
 
-class Numeric(Schema):
-    pass
-
-
-class Bool(Numeric):
+class Bool(Schema):
     name = 'bool'
     byte_width = 1
 
@@ -317,7 +313,7 @@ class Bool(Numeric):
         return visitor.visit_bool(self)
 
 
-class Int8(Numeric):
+class Int8(Schema):
     name = 'int8'
     byte_width = 1
 
@@ -325,7 +321,7 @@ class Int8(Numeric):
         return visitor.visit_int8(self)
 
 
-class Int16(Numeric):
+class Int16(Schema):
     name = 'int16'
     byte_width = 2
 
@@ -333,7 +329,7 @@ class Int16(Numeric):
         return visitor.visit_int16(self)
 
 
-class Int32(Numeric):
+class Int32(Schema):
     name = 'int32'
     byte_width = 4
 
@@ -341,7 +337,7 @@ class Int32(Numeric):
         return visitor.visit_int32(self)
 
 
-class Int64(Numeric):
+class Int64(Schema):
     name = 'int64'
     byte_width = 8
 
@@ -349,7 +345,7 @@ class Int64(Numeric):
         return visitor.visit_int64(self)
 
 
-class UInt8(Numeric):
+class UInt8(Schema):
     name = 'uint8'
     byte_width = 1
 
@@ -357,7 +353,7 @@ class UInt8(Numeric):
         return visitor.visit_uint8(self)
 
 
-class UInt16(Numeric):
+class UInt16(Schema):
     name = 'uint16'
     byte_width = 2
 
@@ -365,7 +361,7 @@ class UInt16(Numeric):
         return visitor.visit_uint16(self)
 
 
-class UInt32(Numeric):
+class UInt32(Schema):
     name = 'uint32'
     byte_width = 4
 
@@ -373,7 +369,7 @@ class UInt32(Numeric):
         return visitor.visit_uint32(self)
 
 
-class UInt64(Numeric):
+class UInt64(Schema):
     name = 'uint64'
     byte_width = 8
 
@@ -381,7 +377,7 @@ class UInt64(Numeric):
         return visitor.visit_uint64(self)
 
 
-class Float16(Numeric):
+class Float16(Schema):
     name = 'float16'
     byte_width = 2
 
@@ -389,7 +385,7 @@ class Float16(Numeric):
         return visitor.visit_float16(self)
 
 
-class Float32(Numeric):
+class Float32(Schema):
     name = 'float32'
     byte_width = 4
 
@@ -397,7 +393,7 @@ class Float32(Numeric):
         return visitor.visit_float32(self)
 
 
-class Float64(Numeric):
+class Float64(Schema):
     name = 'float64'
     byte_width = 8
 
