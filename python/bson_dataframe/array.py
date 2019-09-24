@@ -150,10 +150,10 @@ class Array(abc.ABC):
         if len(self) != len(other):
             return False
 
-        if self.data != other.data:
+        if self.mask != other.mask:
             return False
 
-        if self.mask != other.mask:
+        if self.data != other.data:
             return False
 
         return True
@@ -535,10 +535,13 @@ class StructArray(Array):
             schema = Struct(fields)
         else:
             fields = {k: v for k, v in fields}
+            data = {k: v for k, v in self._data}
+            self._data = list()
             assert isinstance(schema, Struct)
             assert len(schema.fields) == len(fields)
             for k, v in schema.fields:
                 assert v == fields[k]
+                self._data.append((k, data[k]))
 
         self._schema = schema
         self._mask = _make_mask(self._length, mask)
@@ -552,7 +555,7 @@ class StructArray(Array):
 
     @property
     def fields(self):
-        raise self.data
+        return self.data
 
     def _encode_array(self, compression):
         data = {k: v.encode(compression) for k, v in self.data}
