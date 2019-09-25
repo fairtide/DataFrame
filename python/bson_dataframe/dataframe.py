@@ -269,7 +269,7 @@ def _numpy_schema(data):
     if t == 'bytes':
         return Bytes()
 
-    if t is 'object':
+    if t == 'object':
         if all(v is None for v in data):
             return Null()
 
@@ -304,5 +304,5 @@ def to_pandas(array):
     return pandas.Series(to_numpy(array))
 
 
-def from_pandas(array, mask=None, *, shcema=None):
+def from_pandas(array, mask=None, *, schema=None):
     return from_numpy(array.values, mask, schema=schema)
