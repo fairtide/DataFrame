@@ -279,7 +279,7 @@ def _numpy_schema(data):
         if all(v is None or isinstance(v, bytes) for v in data):
             return Bytes()
 
-        if all(v is None isinstance(v, numpy.ndarray) for v in data):
+        if all(v is None or isinstance(v, numpy.ndarray) for v in data):
             return List()
 
     if data.dtype.kind == 'S':
