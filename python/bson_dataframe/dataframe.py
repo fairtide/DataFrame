@@ -269,17 +269,17 @@ def _numpy_schema(data):
     if t == 'bytes':
         return Bytes()
 
-    if t is 'object':
+    if t == 'object':
         if all(v is None for v in data):
             return Null()
 
-        if all(isinstance(v, str) for v in data):
+        if all(v is None or isinstance(v, str) for v in data):
             return Utf8()
 
-        if all(isinstance(v, bytes) for v in data):
-            return Utf8()
+        if all(v is None or isinstance(v, bytes) for v in data):
+            return Bytes()
 
-        if all(isinstance(v, numpy.ndarray) for v in data):
+        if all(v is None isinstance(v, numpy.ndarray) for v in data):
             return List()
 
     if data.dtype.kind == 'S':
@@ -304,5 +304,5 @@ def to_pandas(array):
     return pandas.Series(to_numpy(array))
 
 
-def from_pandas(array, mask=None, *, shcema=None):
+def from_pandas(array, mask=None, *, schema=None):
     return from_numpy(array.values, mask, schema=schema)
