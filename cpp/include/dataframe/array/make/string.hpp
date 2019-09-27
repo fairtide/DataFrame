@@ -29,7 +29,8 @@ struct ArrayMaker<std::string> {
     {
         DF_ARROW_ERROR_HANDLER(builder->Reserve(std::distance(first, last)));
         for (auto iter = first; iter != last; ++iter) {
-            std::string_view v(*iter);
+            auto &&u = *iter;
+            std::string_view v(u);
             DF_ARROW_ERROR_HANDLER(builder->Append(
                 v.data(), static_cast<std::int32_t>(v.size())));
         }
