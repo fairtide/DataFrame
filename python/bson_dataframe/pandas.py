@@ -17,7 +17,7 @@
 from .schema import *
 from .array import *
 from .visitor import *
-from .numpy import numpy_schema, _ToNumpy, _FromNumpy
+from .numpy import numpy_schema, from_numpy, _ToNumpy, _FromNumpy
 
 import datetime
 import numpy
@@ -30,7 +30,7 @@ class _ToPandas(_ToNumpy):
 
     def visit_dictionary(self, array):
         mask = array.numpy_mask()
-        index = array.index.accept(self)
+        index = array.index.accept(self).copy()
         value = array.value.accept(self)
         index[mask] = index.dtype.type(-1)
         ordered = isinstance(array.schema, Ordered)
@@ -39,10 +39,14 @@ class _ToPandas(_ToNumpy):
 
 
 class _FromPandas(_FromNumpy):
-    def __init__(self, series, mask):
+    def __init__(self, series):
         self.series = series
 
+        if isinstance(self.series.values, pandas.Categorical):
+            return
+
         data = series.values
+        mask = None
 
         if mask is None:
             try:
@@ -70,10 +74,9 @@ class _FromPandas(_FromNumpy):
             return
 
     def visit_dictionary(self, schema):
-        index = schema.index.accept(
-            _FromPandas(self.series.cat.codes, self.series.isna()))
-        value = schema.value.accept(
-            _FromPandas(self.series.cat.categories.to_series(), None))
+        index = from_numpy(self.series.cat.codes.values,
+                           ~self.series.isna().values)
+        value = from_numpy(self.series.cat.categories.values)
         return array_type(schema)(index, value)
 
 
@@ -254,7 +257,7 @@ def to_pandas(array):
     return pandas.Series(values)
 
 
-def from_pandas(data, mask=None, *, schema=None):
+def from_pandas(data, *, schema=None):
     assert isinstance(data, pandas.Series)
 
     if schema is None:
@@ -263,4 +266,4 @@ def from_pandas(data, mask=None, *, schema=None):
     if schema is None:
         raise ValueError(f'Unable to deduce schema from dtype {data.dtype}')
 
-    return schema.accept(_FromPandas(data, mask))
+    return schema.accept(_FromPandas(data))

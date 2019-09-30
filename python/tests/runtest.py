@@ -21,6 +21,7 @@ sys.path.insert(0,
                 os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from bson_dataframe import *
+from bson_dataframe.arrow import *
 
 import numpy
 import unittest
@@ -79,10 +80,8 @@ BINARY = [
 ]
 
 DICTIONARY = [
-    Ordered(Int32(), Utf8()),
-    Ordered(Int64(), UInt64()),
-    Factor(Int32(), Utf8()),
-    Factor(Int64(), UInt64()),
+    Ordered(Int8(), Utf8()),
+    Factor(Int8(), Utf8()),
 ]
 
 LIST = [
@@ -134,12 +133,13 @@ PANDAS_SCHEMAS = sum([
     [Time('ns')],
     OPAQUE,
     BINARY,
+    DICTIONARY,
     LIST,
     STRUCT,
     NESTED,
 ], [])
 
-ARRAY_LENGTH = 1000
+ARRAY_LENGTH = 5
 
 
 class TestArray(Visitor):
@@ -147,7 +147,7 @@ class TestArray(Visitor):
         self.length = length
         self.nullable = nullable
 
-        self.counts = numpy.random.randint(0, 10, self.length + 1, numpy.int32)
+        self.counts = numpy.random.randint(10, 20, self.length + 1, numpy.int32)
         self.counts[0] = 0
 
         if self.nullable:
@@ -276,6 +276,25 @@ class TestBSONDataFrame(unittest.TestCase):
                 enc = to_pandas(ary)
                 dec = from_pandas(enc, schema=sch)
                 self.assertEqual(ary, dec)
+
+    def test_arrow_schema(self):
+        for sch in ARRAY_SCHEMAS:
+            for nullable in [False, True]:
+                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
+                    ary = array(sch, ARRAY_LENGTH, False)
+                    enc = to_arrow(ary)
+                    dec = arrow_schema(enc)
+                    self.assertEqual(sch, dec)
+
+    @unittest.skip("")
+    def test_arrow_array(self):
+        for sch in ARRAY_SCHEMAS:
+            for nullable in [False, True]:
+                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
+                    ary = array(sch, ARRAY_LENGTH, nullable)
+                    enc = to_arrow(ary)
+                    dec = from_arrow(enc, schema=sch)
+                    self.assertEqual(ary, dec)
 
 
 if __name__ == '__main__':

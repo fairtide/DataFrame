@@ -178,17 +178,14 @@ class Array(abc.ABC):
             else:
                 t = f'S{w}'
 
-            mask1 = numpy.frombuffer(self.mask, numpy.uint8)
-            mask2 = numpy.frombuffer(other.mask, numpy.uint8)
-            mask1 = numpy.unpackbits(mask1)[:len(self)]
-            mask2 = numpy.unpackbits(mask2)[:len(self)]
-            mask1 = mask1.astype(bool, copy=False)
-            mask2 = mask2.astype(bool, copy=False)
+            mask = numpy.frombuffer(self.mask, numpy.uint8)
+            mask = numpy.unpackbits(mask)[:len(self)]
+            mask = mask.astype(bool, copy=False)
 
             data1 = numpy.frombuffer(self.data, t)
             data2 = numpy.frombuffer(other.data, t)
 
-            return all(data1[mask1] == data2[mask2])
+            return all(data1[mask] == data2[mask])
 
         if self.data != other.data:
             return False
@@ -203,7 +200,7 @@ class Array(abc.ABC):
     def mask(self):
         return self._mask
 
-    def numpy_mask(self):
+    def numpy_mask(self, *, submask=True):
         mask = numpy.frombuffer(self.mask, numpy.uint8)
         if self._all_valid(mask):
             return numpy.ma.nomask
@@ -529,7 +526,7 @@ class OrderedArray(DictionaryArray):
         super().__init__(index, value)
 
     def accept(self, visitor):
-        return visitor.visit_list(self)
+        return visitor.visit_ordered(self)
 
 
 class FactorArray(DictionaryArray):
@@ -620,10 +617,12 @@ class StructArray(Array):
     def fields(self):
         return self.data
 
-    def numpy_mask(self):
+    def numpy_mask(self, *, submask=True):
         smask = super().numpy_mask()
-        fmask = [(k, v.numpy_mask()) for k, v in self.fields]
+        if not submask:
+            return smask
 
+        fmask = [(k, v.numpy_mask()) for k, v in self.fields]
         if smask is numpy.ma.nomask:
             if all(v is numpy.ma.nomask for _, v in fmask):
                 return numpy.ma.nomask
