@@ -184,12 +184,34 @@ class Array(abc.ABC):
     def mask(self):
         return self._mask
 
+    def numpy_mask(self):
+        mask = numpy.frombuffer(self.mask, numpy.uint8)
+        if self._all_valid(mask):
+            return numpy.ma.nomask
+
+        mask = numpy.unpackbits(mask).astype(bool, copy=False)
+        mask = mask[:len(self)]
+
+        return ~mask
+
     def _encode_array(self, compression):
         return _encode_data(self.data, self.mask, compression)
 
     @classmethod
     def _decode_array(cls, schema, doc):
         return cls(*_decode_data(doc))
+
+    def _all_valid(self, mask):
+        if len(mask) == 0:
+            return True
+
+        if any(mask[:-1] != numpy.uint8(255)):
+            return False
+
+        bits = numpy.unpackbits(mask[-1:])
+        nbits = int(numpy.sum(bits) + len(mask) * 8 - 8)
+
+        return nbits == len(self)
 
 
 class NullArray(Array):
@@ -578,6 +600,20 @@ class StructArray(Array):
     @property
     def fields(self):
         return self.data
+
+    def numpy_mask(self):
+        smask = super().numpy_mask()
+        fmask = [(k, v.numpy_mask()) for k, v in self.fields]
+
+        if smask is numpy.ma.nomask:
+            if all(v is numpy.ma.nomask for _, v in fmask):
+                return numpy.ma.nomask
+
+        mask = numpy.ndarray(len(self), [(k, bool) for k, _ in self.fields])
+        for k, v in fmask:
+            mask[k] = smask | v
+
+        return mask
 
     def _encode_array(self, compression):
         data = {k: v.encode(compression) for k, v in self.data}

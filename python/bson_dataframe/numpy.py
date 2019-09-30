@@ -19,7 +19,6 @@ from .array import *
 from .visitor import *
 
 import numpy
-import pandas
 
 
 def _make_counts(data):
@@ -31,36 +30,38 @@ def _make_counts(data):
     return counts
 
 
-def _all_valid(length, mask):
-    if len(mask) == 0:
-        return True
-
-    if any(mask[:-1] != numpy.uint8(255)):
-        return False
-
-    bits = numpy.unpackbits(mask[-1:])
-    nbits = int(numpy.sum(bits) + len(mask) * 8 - 8)
-
-    return nbits == length
-
-
-def _make_ndarray(data, array):
-    mask = numpy.frombuffer(array.mask, numpy.uint8)
-    if _all_valid(len(array), mask):
-        return data
-    else:
-        mask = numpy.unpackbits(mask).astype(bool, copy=False)
-        mask = mask[:len(array)]
-        return numpy.ma.masked_array(data, ~mask)
-
-
 class _ToNumpy(Visitor):
+    def __init__(self, usemask):
+        self._usemask = usemask
+
+    def _make_ndarray(self, data, array):
+        mask = array.numpy_mask()
+
+        if data.dtype.kind == 'O':
+            data = numpy.copy(data)
+            data[mask] = None
+
+        if self._usemask:
+            return numpy.ma.masked_array(data, mask)
+
+        if isinstance(array.schema, Null):
+            return data
+
+        if data.dtype.kind == 'O':
+            return data
+
+        if mask is numpy.ma.nomask:
+            return data
+
+        return numpy.ma.masked_array(data, mask)
+
     def visit_null(self, array):
-        return numpy.ndarray(len(array), dtype=object)
+        data = numpy.ndarray(len(array), dtype=object)
+        return self._make_ndarray(data, array)
 
     def visit_numeric(self, array):
         data = numpy.frombuffer(array.data, array.schema.name)
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_date(self, array):
         data = numpy.frombuffer(array.data, f'i{array.schema.byte_width}')
@@ -71,21 +72,25 @@ class _ToNumpy(Visitor):
         if array.schema.unit == 'ms':
             data = data.astype('datetime64[ms]', copy=False)
 
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_timestamp(self, array):
+        if array.schema.tz is not None:
+            raise ValueError(
+                'Timezone aware Timestamp is not supported by numpy')
+
         data = numpy.frombuffer(array.data, f'i{array.schema.byte_width}')
         data = data.astype(f'datetime64[{array.schema.unit}]', copy=False)
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_time(self, array):
         data = numpy.frombuffer(array.data, f'i{array.schema.byte_width}')
         data = data.astype(f'timedelta64[{array.schema.unit}]', copy=False)
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_opaque(self, array):
         data = numpy.frombuffer(array.data, f'S{array.schema.byte_width}')
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_bytes(self, array):
         values = array.value
@@ -93,8 +98,7 @@ class _ToNumpy(Visitor):
         data = numpy.ndarray(len(array), dtype=object)
         for i in range(len(array)):
             data[i] = values[offsets[i]:offsets[i + 1]]
-
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_utf8(self, array):
         values = array.value
@@ -102,8 +106,7 @@ class _ToNumpy(Visitor):
         data = numpy.ndarray(len(array), dtype=object)
         for i in range(len(array)):
             data[i] = values[offsets[i]:offsets[i + 1]].decode('utf8')
-
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_list(self, array):
         values = array.value.accept(self)
@@ -111,38 +114,51 @@ class _ToNumpy(Visitor):
         data = numpy.ndarray(len(array), dtype=object)
         for i in range(len(array)):
             data[i] = values[offsets[i]:offsets[i + 1]]
-
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
     def visit_struct(self, array):
         fields = [(k, v.accept(self)) for k, v in array.fields]
-        dtype = [(k, v.dtype) for k, v in fields]
-
-        data = numpy.ndarray(len(array), dtype)
+        data = numpy.ndarray(len(array), [(k, v.dtype) for k, v in fields])
         for k, v in fields:
             data[k] = v
-
-        return _make_ndarray(data, array)
+        return self._make_ndarray(data, array)
 
 
 class _FromNumpy(Visitor):
-    def __init__(self, data, mask=None):
-        self.data = data
+    def __init__(self, array, mask=None):
+        self.array = array
+        self.data = array
         self.mask = mask
 
-        if isinstance(data, numpy.ma.masked_array):
-            self.data = data.data
+        if isinstance(array, numpy.ma.masked_array):
+            self.data = array.data
             if self.mask is None:
-                self.mask = ~data.mask
+                if array.mask is numpy.ma.nomask:
+                    self.mask = None
+                else:
+                    if array.dtype.fields is None:
+                        self.mask = array.mask
+                    else:
+                        self.mask = numpy.ones(len(array), bool)
+                        for k in array.dtype.fields:
+                            self.mask &= array.mask[k]
+                    self.mask = ~self.mask
+
+        if self.mask is None:
+            self.mask = numpy.ones(len(array), bool)
 
         assert isinstance(self.data, numpy.ndarray)
+        assert isinstance(self.mask, numpy.ndarray)
+        assert len(self.data) == len(self.mask)
 
-        if isinstance(self.mask, numpy.ndarray):
-            self.mask = numpy.packbits(self.mask)
+        if self.data.dtype.kind == 'O':
+            for i, v in enumerate(self.data):
+                if v is None:
+                    self.mask[i] = False
+
+        self.mask = numpy.packbits(self.mask)
 
     def visit_null(self, schema):
-        for v in self.data:
-            assert v is None
         return NullArray(len(self.data))
 
     def visit_numeric(self, schema):
@@ -172,32 +188,41 @@ class _FromNumpy(Visitor):
         return OpaqueArray(data, self.mask, schema=schema)
 
     def visit_bytes(self, schema):
-        data = b''.join(self.data)
-        counts = _make_counts(self.data)
+        values = [b'' if v is None else v for v in self.data]
+        data = b''.join(values)
+        counts = _make_counts(values)
         return BytesArray(data, self.mask, counts=counts)
 
     def visit_utf8(self, schema):
-        values = [v.encode('utf8') for v in self.data]
+        values = [b'' if v is None else v.encode('utf8') for v in self.data]
         data = b''.join(values)
         counts = _make_counts(values)
         return Utf8Array(data, self.mask, counts=counts)
 
     def visit_list(self, schema):
-        if any(isinstance(v, numpy.ma.masked_array) for v in self.data):
-            data = numpy.ma.concatenate(self.data)
+        if len(self.data) > 0:
+            null = numpy.ndarray(0, self.data[0].dtype)
+            values = [null if v is None else v for v in self.data]
         else:
-            data = numpy.concatenate(self.data)
+            values = self.data
+
+        if any(isinstance(v, numpy.ma.masked_array) for v in values):
+            data = numpy.ma.concatenate(values)
+        else:
+            data = numpy.concatenate(values)
+
         data = schema.value.accept(_FromNumpy(data))
-        counts = _make_counts(self.data)
+        counts = _make_counts(values)
+
         return ListArray(data, self.mask, counts=counts)
 
     def visit_struct(self, schema):
-        data = [(k, v.accept(_FromNumpy(self.data[k])))
+        data = [(k, v.accept(_FromNumpy(self.array[k])))
                 for k, v in schema.fields]
         return StructArray(data, self.mask, schema=schema)
 
 
-def _numpy_schema(data):
+def numpy_schema(data):
     t = data.dtype.name
 
     if t == 'bool':
@@ -236,8 +261,23 @@ def _numpy_schema(data):
     if t == 'float64':
         return Float64()
 
+    if t == 'datetime64[Y]':
+        return Date('d')
+
+    if t == 'datetime64[M]':
+        return Date('d')
+
     if t == 'datetime64[D]':
         return Date('d')
+
+    if t == 'datetime64[h]':
+        return Timestamp('s')
+
+    if t == 'datetime64[m]':
+        return Timestamp('s')
+
+    if t == 'datetime64[s]':
+        return Timestamp('s')
 
     if t == 'datetime64[s]':
         return Timestamp('s')
@@ -270,39 +310,57 @@ def _numpy_schema(data):
         return Bytes()
 
     if t == 'object':
-        if all(v is None for v in data):
+        if isinstance(data, numpy.ma.masked_array):
+            na = numpy.ma.masked
+        else:
+            na = None
+
+        if all(v is na for v in data):
             return Null()
 
-        if all(v is None or isinstance(v, str) for v in data):
+        if all(v is na or isinstance(v, str) for v in data):
             return Utf8()
 
-        if all(v is None or isinstance(v, bytes) for v in data):
+        if all(v is na or isinstance(v, bytes) for v in data):
             return Bytes()
 
-        if all(v is None or isinstance(v, numpy.ndarray) for v in data):
-            return List()
+        if all(v is na or isinstance(v, numpy.ndarray) for v in data):
+            value = None
+            for v in data:
+                if v is not na:
+                    sch = numpy_schema(v)
+                    if sch is None:
+                        return
+                    if value is None:
+                        value = sch
+                    elif value != sch:
+                        return
+            if value is None:
+                return
+            return List(value)
 
     if data.dtype.kind == 'S':
         return Opaque(data.dtype.itemsize)
 
+    if data.dtype.fields is not None:
+        fields = list()
+        for k in data.dtype.fields:
+            sch = numpy_schema(data[k])
+            if sch is None:
+                return
+            fields.append((k, sch))
+        return Struct(fields)
 
-def to_numpy(array):
-    return array.accept(_ToNumpy())
+
+def to_numpy(array, usemask=False):
+    return array.accept(_ToNumpy(usemask))
 
 
 def from_numpy(data, mask=None, *, schema=None):
     if schema is None:
-        schema = _numpy_schema(data)
+        schema = numpy_schema(data)
 
     if schema is None:
         raise ValueError(f'Unable to deduce schema from dtype {data.dtype}')
 
     return schema.accept(_FromNumpy(data, mask))
-
-
-def to_pandas(array):
-    return pandas.Series(to_numpy(array))
-
-
-def from_pandas(array, mask=None, *, schema=None):
-    return from_numpy(array.values, mask, schema=schema)

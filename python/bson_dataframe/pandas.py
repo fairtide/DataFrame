@@ -17,5 +17,17 @@
 from .schema import *
 from .array import *
 from .visitor import *
-from .numpy import *
-from .pandas import *
+
+import numpy
+import pandas
+
+
+def to_pandas(array):
+    return pandas.Series(to_numpy(array))
+
+
+def from_pandas(series, mask=None, *, schema=None):
+    data = series.values
+    if mask is None and not isinstance(data, numpy.na.masked_array):
+        mask = series.notna().values
+    return from_numpy(data, mask, schema=schema)

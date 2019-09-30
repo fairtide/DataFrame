@@ -17,6 +17,7 @@
 import abc
 import bson.json_util
 import bson.raw_bson
+import collections
 import json
 import jsonschema
 
@@ -786,4 +787,45 @@ class Struct(Schema):
                 },
                 COUNT: types.binary()
             }
+        }
+
+
+class DataFrame(Schema):
+    name = 'dataframe'
+
+    def __init__(self, fields):
+        self._fields = list()
+        for k, v in fields:
+            assert isinstance(k, str)
+            assert isinstance(v, Schema)
+            self._fields.append((k, v))
+
+    def __str__(self):
+        fields = ', '.join([k + ': ' + str(v) for k, v in self.fields])
+        return f'{self.name}[{fields}]'
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.fields == other.fields
+
+    @property
+    def fields(self):
+        return self._fields
+
+    def encode(self):
+        return collections.OrderedDict((k, v.encode()) for k, v in self.fields)
+
+    @staticmethod
+    def decode(doc):
+        if isinstance(doc, bytes):
+            doc = bson.raw_bson.RawBSONDocument(doc)
+
+        return DataFrame((k, Schema.decode(v)) for k, v in doc.items())
+
+    def _array_schema(self, types):
+        return {
+            'type': 'object',
+            'required': [k for k, _ in self.fields],
+            'additionalProperties': False,
+            'properties': {k: v._array_schema(types)
+                           for k, v in self.fields}
         }

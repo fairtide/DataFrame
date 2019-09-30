@@ -91,7 +91,16 @@ class TestArray(Visitor):
     def visit_struct(self, schema):
         data = [(k, v.accept(TestArray(self.length, self.nullable)))
                 for k, v in schema.fields]
-        return StructArray(data, self.mask, schema=schema)
+        if self.nullable:
+            mask = numpy.zeros(self.length, numpy.uint8)
+            for _, v in data:
+                u = numpy.frombuffer(v.mask, numpy.uint8)
+                u = numpy.unpackbits(u)[:self.length]
+                mask |= u
+            mask = numpy.packbits(mask)
+        else:
+            mask = self.mask
+        return StructArray(data, mask, schema=schema)
 
 
 def array(schema, length, nullable=False):
@@ -119,6 +128,9 @@ NUMERIC = [
 
 DATE = [
     Date('d'),
+]
+
+DATE_MS = [
     Date('ms'),
 ]
 
@@ -168,6 +180,7 @@ LIST = [
 
 STRUCT = [
     Struct([('x', Int32()), ('y', Int64())]),
+    # Struct([('x', Int32()), ('y', Utf8())]),
 ]
 
 NESTED = [
@@ -175,120 +188,90 @@ NESTED = [
     Struct([('x', List(Int32())), ('y', List(Int64()))]),
 ]
 
-TEST_LENGTH = 1000
+TEST_SCHEMAS = sum([
+    NULL,
+    NUMERIC,
+    DATE,
+    DATE_MS,
+    TIMESTAMP,
+    TIMESTAMP_TZ,
+    TIME,
+    OPAQUE,
+    BINARY,
+    DICTIONARY,
+    LIST,
+    STRUCT,
+    NESTED,
+], [])
+
+NUMPY_SCHEMAS = sum(
+    [
+        #  NULL,
+        #  NUMERIC,
+        #  DATE,
+        #  TIMESTAMP,
+        #  TIME,
+        #  OPAQUE,
+        #  BINARY,
+        #  LIST,
+        STRUCT,
+        #  NESTED,
+    ],
+    [])
+
+PANDAS_SCHEMAS = sum([
+    NULL,
+    NUMERIC,
+    DATE,
+    TIMESTAMP,
+    TIMESTAMP_TZ,
+    TIME,
+    OPAQUE,
+    BINARY,
+    DICTIONARY,
+    LIST,
+    STRUCT,
+    NESTED,
+], [])
+
+TEST_LENGTH = 2
 
 
 class TestBSONDataFrame(unittest.TestCase):
     def test_schema(self):
-        for sch in sum([
-                NULL,
-                NUMERIC,
-                DATE,
-                TIMESTAMP,
-                TIMESTAMP_TZ,
-                TIME,
-                OPAQUE,
-                BINARY,
-                DICTIONARY,
-                LIST,
-                STRUCT,
-                NESTED,
-        ], []):
+        for sch in TEST_SCHEMAS:
             with self.subTest(schema=str(sch)):
                 enc = sch.encode()
                 dec = sch.decode(enc)
                 self.assertEqual(sch, dec)
 
     def test_array(self):
-        for sch in sum([
-                NULL,
-                NUMERIC,
-                DATE,
-                TIMESTAMP,
-                TIMESTAMP_TZ,
-                TIME,
-                OPAQUE,
-                BINARY,
-                DICTIONARY,
-                LIST,
-                STRUCT,
-                NESTED,
-        ], []):
-            with self.subTest(schema=str(sch)):
-                ary = array(sch, TEST_LENGTH, False)
-                enc = ary.encode()
-                sch.validate(enc)
-                dec = Array.decode(enc)
-                self.assertEqual(ary, dec)
+        for sch in TEST_SCHEMAS:
+            for nullable in [False, True]:
+                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
+                    ary = array(sch, TEST_LENGTH, nullable)
+                    enc = ary.encode()
+                    sch.validate(enc)
+                    dec = Array.decode(enc)
+                    self.assertEqual(ary, dec)
 
-    def test_nullable_array(self):
-        for sch in sum([
-                NULL,
-                NUMERIC,
-                DATE,
-                TIMESTAMP,
-                TIMESTAMP_TZ,
-                TIME,
-                OPAQUE,
-                BINARY,
-                DICTIONARY,
-                LIST,
-                STRUCT,
-                NESTED,
-        ], []):
-            with self.subTest(schema=str(sch)):
-                ary = array(sch, TEST_LENGTH, True)
-                enc = ary.encode()
-                sch.validate(enc)
-                dec = Array.decode(enc)
-                self.assertEqual(ary, dec)
+    def test_numpy_schema(self):
+        for sch in NUMPY_SCHEMAS:
+            for nullable in [False, True]:
+                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
+                    ary = array(sch, TEST_LENGTH, nullable)
+                    enc = to_numpy(ary)
+                    dec = numpy_schema(enc)
+                    self.assertEqual(sch, dec)
 
-    def test_ndarray(self):
-        for sch in sum([
-                NULL,
-                NUMERIC,
-                DATE,
-                TIMESTAMP,
-                TIMESTAMP_TZ,
-                TIME,
-                OPAQUE,
-                BINARY,
-                DICTIONARY,
-                LIST,
-                STRUCT,
-                NESTED,
-        ], []):
-            if isinstance(sch, Dictionary):
-                continue
-            with self.subTest(schema=str(sch)):
-                ary = array(sch, TEST_LENGTH, False)
-                enc = to_numpy(ary)
-                dec = from_numpy(enc, schema=sch)
-                self.assertEqual(ary, dec)
-
-    @unittest.skip("")
-    def test_nullable_ndarray(self):
-        for sch in sum([
-                NULL,
-                NUMERIC,
-                DATE,
-                TIMESTAMP,
-                TIMESTAMP_TZ,
-                TIME,
-                OPAQUE,
-                BINARY,
-                DICTIONARY,
-                LIST,
-                # STRUCT,
-                # NESTED,
-        ], []):
-            if isinstance(sch, Dictionary):
-                continue
-            with self.subTest(schema=str(sch)):
-                ary = array(sch, TEST_LENGTH, True)
-                enc = to_numpy(ary)
-                dec = from_numpy(enc, schema=sch)
-                self.assertEqual(ary, dec)
+    def test_numpy_array(self):
+        for sch in NUMPY_SCHEMAS + DATE_MS:
+            for nullable in [False, True]:
+                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
+                    ary = array(sch, TEST_LENGTH, nullable)
+                    enc = to_numpy(ary)
+                    dec = from_numpy(enc, schema=sch)
+                    self.assertEqual(ary, dec)
 
 
 if __name__ == '__main__':
