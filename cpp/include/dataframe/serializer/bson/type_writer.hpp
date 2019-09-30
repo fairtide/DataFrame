@@ -82,7 +82,8 @@ class TypeWriter : public ::arrow::TypeVisitor
         }
 
         if (!type.timezone().empty()) {
-            builder_.append(kvp(Schema::PARAM(), type.timezone()));
+            throw std::runtime_error(
+                "Timezone aware timestamp is not supported");
         }
 
         return ::arrow::Status::OK();

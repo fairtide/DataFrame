@@ -171,6 +171,25 @@ class Array(abc.ABC):
         if self.mask != other.mask:
             return False
 
+        if getattr(self.schema, 'byte_width', None):
+            w = self.schema.byte_width
+            if w in (1, 2, 4, 8):
+                t = f'i{w}'
+            else:
+                t = f'S{w}'
+
+            mask1 = numpy.frombuffer(self.mask, numpy.uint8)
+            mask2 = numpy.frombuffer(other.mask, numpy.uint8)
+            mask1 = numpy.unpackbits(mask1)[:len(self)]
+            mask2 = numpy.unpackbits(mask2)[:len(self)]
+            mask1 = mask1.astype(bool, copy=False)
+            mask2 = mask2.astype(bool, copy=False)
+
+            data1 = numpy.frombuffer(self.data, t)
+            data2 = numpy.frombuffer(other.data, t)
+
+            return all(data1[mask1] == data2[mask2])
+
         if self.data != other.data:
             return False
 

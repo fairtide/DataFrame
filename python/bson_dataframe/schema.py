@@ -122,6 +122,10 @@ class Schema(abc.ABC):
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return 'bson_dataframe.' + self.__class__.__name__ + '<' + str(
+            self) + '>'
+
     def __eq__(self, other):
         return type(self) == type(other)
 
@@ -220,16 +224,16 @@ class Schema(abc.ABC):
             return Date('ms')
 
         if t == 'timestamp[s]':
-            return Timestamp('s', tp)
+            return Timestamp('s')
 
         if t == 'timestamp[ms]':
-            return Timestamp('ms', tp)
+            return Timestamp('ms')
 
         if t == 'timestamp[us]':
-            return Timestamp('us', tp)
+            return Timestamp('us')
 
         if t == 'timestamp[ns]':
-            return Timestamp('ns', tp)
+            return Timestamp('ns')
 
         if t == 'time[s]':
             return Time('s')
@@ -453,24 +457,17 @@ class Date(Schema):
 class Timestamp(Schema):
     byte_width = 8
 
-    def __init__(self, unit, tz=None):
+    def __init__(self, unit):
         assert unit in ('s', 'ms', 'us', 'ns')
 
         self._unit = unit
         self._name = f'timestamp[{unit}]'
-        self._tz = tz
 
     def accept(self, visitor):
         return visitor.visit_timestamp(self)
 
-    def __str__(self):
-        if self.tz is None:
-            return self.name
-        return self.name + ' ' + self.tz
-
     def __eq__(self, other):
-        return type(self) == type(other) and \
-                self.unit == other.unit and self.tz == other.tz
+        return type(self) == type(other) and self.unit == other.unit
 
     @property
     def unit(self):
@@ -479,23 +476,6 @@ class Timestamp(Schema):
     @property
     def name(self):
         return self._name
-
-    @property
-    def tz(self):
-        return self._tz
-
-    def encode(self):
-        ret = {TYPE: self.name}
-        if isinstance(self.tz, str):
-            ret[PARAM] = self.tz
-
-        return ret
-
-    def _array_schema(self, types):
-        ret = super()._array_schema(types)
-        ret['properties'][PARAM] = {'type': 'string'}
-
-        return ret
 
 
 class Time(Schema):

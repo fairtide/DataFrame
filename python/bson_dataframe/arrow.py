@@ -196,7 +196,7 @@ class _ArrowEncoder():
     def visit_timestamp(self, array):
         return TimestampArray(_get_data(array),
                               _get_mask(array),
-                              schema=Timestamp(array.type.unit, array.type.tz))
+                              schema=Timestamp(array.type.unit))
 
     def visit_time32(self, array):
         assert array.type.unit in ('s', 'ms')
@@ -280,7 +280,7 @@ def _ArrowDecoder(Visitor):
         return pyarrow.Array.from_buffers(dtype, len(array), buffers)
 
     def visit_timestamp(self, array):
-        dtype = pyarrow.timestamp(array.schema.unit, array.schema.tz)
+        dtype = pyarrow.timestamp(array.schema.unit)
         buffers = [_make_mask(array), pyarrow.py_buffer(array.data)]
 
         return pyarrow.Array.from_buffers(dtype, len(array), buffers)

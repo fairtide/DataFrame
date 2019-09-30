@@ -25,6 +25,122 @@ from bson_dataframe import *
 import numpy
 import unittest
 
+NULL = [
+    Null(),
+]
+
+NUMERIC = [
+    Bool(),
+    Int8(),
+    Int16(),
+    Int32(),
+    Int64(),
+    UInt8(),
+    UInt16(),
+    UInt32(),
+    UInt64(),
+    Float16(),
+    Float32(),
+    Float64(),
+]
+
+DATE = [
+    Date('d'),
+]
+
+DATE_MS = [
+    Date('ms'),
+]
+
+TIMESTAMP = [
+    Timestamp('s'),
+    Timestamp('ms'),
+    Timestamp('us'),
+    Timestamp('ns'),
+]
+
+TIME = [
+    Time('s'),
+    Time('ms'),
+    Time('us'),
+    Time('ns'),
+]
+
+OPAQUE = [
+    Opaque(1),
+    Opaque(3),
+    Opaque(5),
+    Opaque(7),
+]
+
+BINARY = [
+    Bytes(),
+    Utf8(),
+]
+
+DICTIONARY = [
+    Ordered(Int32(), Utf8()),
+    Ordered(Int64(), UInt64()),
+    Factor(Int32(), Utf8()),
+    Factor(Int64(), UInt64()),
+]
+
+LIST = [
+    List(Int32()),
+]
+
+STRUCT = [
+    Struct([('x', Int32()), ('y', Int64())]),
+    Struct([('x', Int32()), ('y', Utf8())]),
+]
+
+NESTED = [
+    List(Struct([('x', Int32()), ('y', Int64())])),
+    Struct([('x', List(Int32())), ('y', List(Int64()))]),
+]
+
+ARRAY_SCHEMAS = sum([
+    NULL,
+    NUMERIC,
+    DATE,
+    TIMESTAMP,
+    TIME,
+    OPAQUE,
+    BINARY,
+    DICTIONARY,
+    LIST,
+    STRUCT,
+    NESTED,
+], [])
+
+NUMPY_SCHEMAS = sum([
+    NULL,
+    NUMERIC,
+    DATE,
+    TIMESTAMP,
+    TIME,
+    OPAQUE,
+    BINARY,
+    LIST,
+    STRUCT,
+    NESTED,
+], [])
+
+PANDAS_SCHEMAS = sum([
+    NULL,
+    NUMERIC,
+    DATE,
+    [Timestamp('ns')],
+    [Time('ns')],
+    OPAQUE,
+    BINARY,
+    LIST,
+    STRUCT,
+    NESTED,
+], [])
+
+ARRAY_LENGTH = 1000
+
 
 class TestArray(Visitor):
     def __init__(self, length, nullable):
@@ -55,15 +171,17 @@ class TestArray(Visitor):
         return NullArray(self.length)
 
     def visit_numeric(self, schema):
-        data = numpy.random.bytes(self.length * schema.byte_width)
+        data = numpy.random.randint(-1000, 1000,
+                                    self.length).astype(schema.name)
         return array_type(schema)(data, self.mask)
 
     def visit_date(self, schema):
-        data = numpy.random.bytes(self.length * schema.byte_width)
+        data = numpy.random.randint(-1000, 1000, self.length,
+                                    f'i{schema.byte_width}')
         return DateArray(data, self.mask, schema=schema)
 
     def visit_timestamp(self, schema):
-        data = numpy.random.bytes(self.length * schema.byte_width)
+        data = numpy.random.randint(-1000, 1000, self.length, numpy.int64)
         return TimestampArray(data, self.mask, schema=schema)
 
     def visit_time(self, schema):
@@ -107,149 +225,19 @@ def array(schema, length, nullable=False):
     return schema.accept(TestArray(length, nullable))
 
 
-NULL = [
-    Null(),
-]
-
-NUMERIC = [
-    Bool(),
-    Int8(),
-    Int16(),
-    Int32(),
-    Int64(),
-    UInt8(),
-    UInt16(),
-    UInt32(),
-    UInt64(),
-    Float16(),
-    Float32(),
-    Float64(),
-]
-
-DATE = [
-    Date('d'),
-]
-
-DATE_MS = [
-    Date('ms'),
-]
-
-TIMESTAMP = [
-    Timestamp('s'),
-    Timestamp('ms'),
-    Timestamp('us'),
-    Timestamp('ns'),
-]
-
-TIMESTAMP_TZ = [
-    Timestamp('s', 'Asia/Singapore'),
-    Timestamp('ms', 'Asia/Singapore'),
-    Timestamp('us', 'Asia/Singapore'),
-    Timestamp('ns', 'Asia/Singapore'),
-]
-
-TIME = [
-    Time('s'),
-    Time('ms'),
-    Time('us'),
-    Time('ns'),
-]
-
-OPAQUE = [
-    Opaque(1),
-    Opaque(3),
-    Opaque(5),
-    Opaque(7),
-]
-
-BINARY = [
-    Bytes(),
-    Utf8(),
-]
-
-DICTIONARY = [
-    Ordered(Int32(), Utf8()),
-    Ordered(Int64(), UInt64()),
-    Factor(Int32(), Utf8()),
-    Factor(Int64(), UInt64()),
-]
-
-LIST = [
-    List(Int32()),
-]
-
-STRUCT = [
-    Struct([('x', Int32()), ('y', Int64())]),
-    # Struct([('x', Int32()), ('y', Utf8())]),
-]
-
-NESTED = [
-    List(Struct([('x', Int32()), ('y', Int64())])),
-    Struct([('x', List(Int32())), ('y', List(Int64()))]),
-]
-
-TEST_SCHEMAS = sum([
-    NULL,
-    NUMERIC,
-    DATE,
-    DATE_MS,
-    TIMESTAMP,
-    TIMESTAMP_TZ,
-    TIME,
-    OPAQUE,
-    BINARY,
-    DICTIONARY,
-    LIST,
-    STRUCT,
-    NESTED,
-], [])
-
-NUMPY_SCHEMAS = sum(
-    [
-        #  NULL,
-        #  NUMERIC,
-        #  DATE,
-        #  TIMESTAMP,
-        #  TIME,
-        #  OPAQUE,
-        #  BINARY,
-        #  LIST,
-        STRUCT,
-        #  NESTED,
-    ],
-    [])
-
-PANDAS_SCHEMAS = sum([
-    NULL,
-    NUMERIC,
-    DATE,
-    TIMESTAMP,
-    TIMESTAMP_TZ,
-    TIME,
-    OPAQUE,
-    BINARY,
-    DICTIONARY,
-    LIST,
-    STRUCT,
-    NESTED,
-], [])
-
-TEST_LENGTH = 2
-
-
 class TestBSONDataFrame(unittest.TestCase):
     def test_schema(self):
-        for sch in TEST_SCHEMAS:
+        for sch in ARRAY_SCHEMAS:
             with self.subTest(schema=str(sch)):
                 enc = sch.encode()
                 dec = sch.decode(enc)
                 self.assertEqual(sch, dec)
 
     def test_array(self):
-        for sch in TEST_SCHEMAS:
+        for sch in ARRAY_SCHEMAS:
             for nullable in [False, True]:
                 with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, TEST_LENGTH, nullable)
+                    ary = array(sch, ARRAY_LENGTH, nullable)
                     enc = ary.encode()
                     sch.validate(enc)
                     dec = Array.decode(enc)
@@ -259,7 +247,7 @@ class TestBSONDataFrame(unittest.TestCase):
         for sch in NUMPY_SCHEMAS:
             for nullable in [False, True]:
                 with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, TEST_LENGTH, nullable)
+                    ary = array(sch, ARRAY_LENGTH, nullable)
                     enc = to_numpy(ary)
                     dec = numpy_schema(enc)
                     self.assertEqual(sch, dec)
@@ -268,10 +256,26 @@ class TestBSONDataFrame(unittest.TestCase):
         for sch in NUMPY_SCHEMAS + DATE_MS:
             for nullable in [False, True]:
                 with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, TEST_LENGTH, nullable)
+                    ary = array(sch, ARRAY_LENGTH, nullable)
                     enc = to_numpy(ary)
                     dec = from_numpy(enc, schema=sch)
                     self.assertEqual(ary, dec)
+
+    def test_pandas_schema(self):
+        for sch in PANDAS_SCHEMAS:
+            with self.subTest(schema=str(sch)):
+                ary = array(sch, ARRAY_LENGTH, False)
+                enc = to_pandas(ary)
+                dec = pandas_schema(enc)
+                self.assertEqual(sch, dec)
+
+    def test_pandas_series(self):
+        for sch in PANDAS_SCHEMAS + DATE_MS:
+            with self.subTest(schema=str(sch)):
+                ary = array(sch, ARRAY_LENGTH, False)
+                enc = to_pandas(ary)
+                dec = from_pandas(enc, schema=sch)
+                self.assertEqual(ary, dec)
 
 
 if __name__ == '__main__':
