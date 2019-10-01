@@ -152,7 +152,7 @@ PANDAS_ARRAYS = sum([
     NESTED,
 ], [])
 
-ARRAY_LENGTH = 5
+ARRAY_LENGTH = 5000
 
 
 class TestArray(Visitor):
@@ -175,8 +175,10 @@ class TestArray(Visitor):
             for i, v in enumerate(mask):
                 if not v:
                     self.counts[i + 1] = 0
+            self.numpy_mask = ~mask
             self.mask = numpy.packbits(mask).tobytes()
         else:
+            self.numpy_mask = numpy.ma.nomask
             self.mask = None
 
         self.total = numpy.sum(self.counts)
@@ -185,25 +187,33 @@ class TestArray(Visitor):
         return NullArray(self.length)
 
     def visit_numeric(self, schema):
-        data = numpy.random.randint(-1000, 1000,
-                                    self.length).astype(schema.name)
+        data = numpy.random.randint(-1000, 1000, self.length)
+        data = data.astype(schema.name)
+        data = numpy.ma.masked_array(data, self.numpy_mask)
         return array_type(schema)(data, self.mask)
 
     def visit_date(self, schema):
-        data = numpy.random.randint(-1000, 1000, self.length,
-                                    f'i{schema.byte_width}')
+        data = numpy.random.randint(-1000, 1000, self.length)
+        data = data.astype(f'i{schema.byte_width}')
+        data = numpy.ma.masked_array(data, self.numpy_mask)
         return DateArray(data, self.mask, schema=schema)
 
     def visit_timestamp(self, schema):
-        data = numpy.random.randint(-1000, 1000, self.length, numpy.int64)
+        data = numpy.random.randint(-1000, 1000, self.length)
+        data = data.astype(numpy.int64)
+        data = numpy.ma.masked_array(data, self.numpy_mask)
         return TimestampArray(data, self.mask, schema=schema)
 
     def visit_time(self, schema):
-        data = numpy.random.bytes(self.length * schema.byte_width)
+        data = numpy.random.randint(-1000, 1000, self.length)
+        data = data.astype(f'i{schema.byte_width}')
+        data = numpy.ma.masked_array(data, self.numpy_mask)
         return TimeArray(data, self.mask, schema=schema)
 
     def visit_opaque(self, schema):
         data = numpy.random.bytes(self.length * schema.byte_width)
+        data = numpy.frombuffer(data, f'S{schema.byte_width}')
+        data = numpy.ma.masked_array(data, self.numpy_mask)
         return OpaqueArray(data, self.mask, schema=schema)
 
     def visit_binary(self, schema):
@@ -262,14 +272,13 @@ class TestBSONDataFrame(unittest.TestCase):
                     dec = Schema.from_numpy(enc)
                     self.assertEqual(sch, dec)
 
-    @unittest.skip("")
     def test_numpy_array(self):
         for sch in NUMPY_ARRAYS:
             for nullable in [False, True]:
                 with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
                     ary = array(sch, ARRAY_LENGTH, nullable)
-                    enc = to_numpy(ary)
-                    dec = from_numpy(enc, schema=sch)
+                    enc = ary.to_numpy(usemask=nullable)
+                    dec = Array.from_numpy(enc, schema=sch)
                     self.assertEqual(ary, dec)
 
     def test_pandas_schema(self):
