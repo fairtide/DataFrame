@@ -29,7 +29,7 @@ class _SchemaToArrow(Visitor):
         return getattr(pyarrow, schema.name)()
 
     def visit_date(self, schema):
-        return pyarrow.date32()
+        return getattr(pyarrow, f'date{schema.byte_width * 8}')()
 
     def visit_timestamp(self, schema):
         return pyarrow.timestamp(schema.unit)
@@ -105,10 +105,10 @@ def _schema_from_arrow(dtype):
         return Float64()
 
     if pyarrow.types.is_date32(dtype):
-        return Date()
+        return Date('d')
 
     if pyarrow.types.is_date64(dtype):
-        return Timestamp('ms')
+        return Date('ms')
 
     if pyarrow.types.is_timestamp(dtype):
         assert dtype.tz is None
@@ -301,7 +301,7 @@ class _ArrayFromArrow(Visitor):
 
     def visit_date(self, schema):
         atype = array_type(schema)
-        return atype(*self._make_data(schema))
+        return atype(*self._make_data(schema), schema=schema)
 
     def visit_timestamp(self, schema):
         atype = array_type(schema)

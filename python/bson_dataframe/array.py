@@ -214,10 +214,17 @@ class Float64Array(Array):
 
 
 class DateArray(Array):
-    schema = Date()
+    def __init__(self, data, mask=None, *, schema=None):
+        assert isinstance(schema, Date)
+        self._schema = schema
+        super().__init__(data, mask)
 
     def accept(self, visitor):
         return visitor.visit_date(self)
+
+    @property
+    def schema(self):
+        return self._schema
 
 
 class TimestampArray(Array):

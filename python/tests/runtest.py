@@ -42,7 +42,11 @@ NUMERIC = [
 ]
 
 DATE = [
-    Date(),
+    Date('d'),
+]
+
+DATE_MS = [
+    Date('ms'),
 ]
 
 TIMESTAMP = [
@@ -115,6 +119,7 @@ NUMPY_SCHEMAS = sum([
 
 NUMPY_ARRAYS = sum([
     NUMPY_SCHEMAS,
+    DATE_MS,
     BINARY,
     LIST,
     NESTED,
@@ -130,6 +135,7 @@ PANDAS_SCHEMAS = sum([
 
 PANDAS_ARRAYS = sum([
     PANDAS_SCHEMAS,
+    DATE_MS,
     TIMESTAMP,
     TIME,
     BINARY,
@@ -178,7 +184,7 @@ class TestArray(Visitor):
         data = numpy.random.randint(-1000, 1000, self.length)
         data = data.astype(f'i{schema.byte_width}')
         data = numpy.ma.masked_array(data, self.numpy_mask)
-        return DateArray(data, self.mask)
+        return DateArray(data, self.mask, schema=schema)
 
     def visit_timestamp(self, schema):
         data = numpy.random.randint(-1000, 1000, self.length)

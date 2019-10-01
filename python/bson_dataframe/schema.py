@@ -284,11 +284,35 @@ class Float64(Schema):
 
 
 class Date(Schema):
-    name = 'date[d]'
-    byte_width = 4
+    def __init__(self, unit):
+        assert unit in ('d', 'ms')
+
+        self._unit = unit
+        self._name = f'date[{unit}]'
+
+        if unit == 'd':
+            self._byte_width = 4
+
+        if unit == 'ms':
+            self._byte_width = 8
 
     def accept(self, visitor):
         return visitor.visit_date(self)
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.unit == other.unit
+
+    @property
+    def unit(self):
+        return self._unit
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def byte_width(self):
+        return self._byte_width
 
 
 class Timestamp(Schema):
@@ -596,7 +620,8 @@ NAMED_SCHEMA.update({
     'float16': Float16(),
     'float32': Float32(),
     'float64': Float64(),
-    'date[d]': Date(),
+    'date[d]': Date('d'),
+    'date[ms]': Date('ms'),
     'timestamp[s]': Timestamp('s'),
     'timestamp[ms]': Timestamp('ms'),
     'timestamp[us]': Timestamp('us'),

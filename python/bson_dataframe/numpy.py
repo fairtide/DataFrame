@@ -29,7 +29,11 @@ class _SchemaToNumpy(Visitor):
         return dtype
 
     def visit_date(self, schema):
-        return numpy.dtype('datetime64[D]')
+        if schema.unit == 'd':
+            return numpy.dtype('datetime64[D]')
+
+        if schema.unit == 'ms':
+            return numpy.dtype('datetime64[ms]')
 
     def visit_timestamp(self, schema):
         return numpy.dtype(f'datetime64[{schema.unit}]')
@@ -67,10 +71,7 @@ def _name_from_numpy(dtype):
         return 'null' if dtype.itemsize == 0 else 'struct'
 
     if dtype.kind == 'M':
-        if dtype.name == 'datetime64[D]':
-            return 'date[d]'
-        else:
-            return dtype.name.replace('datetime64', 'timestamp')
+        return dtype.name.replace('datetime64', 'timestamp')
 
     if dtype.kind == 'm':
         return dtype.name.replace('timedelta64', 'time')
@@ -89,6 +90,9 @@ def _schema_from_numpy(dtype):
 
     if name == 'opaque':
         return Opaque(dtype.itemsize)
+
+    if name == 'timestamp[D]':
+        return Date('d')
 
     if name == 'struct':
         return Struct(
@@ -253,7 +257,7 @@ class _ArrayFromNumpy(Visitor):
         data = self.data.astype(dtype, copy=False)
         data = data.astype(f'i{schema.byte_width}')
         mask = self._make_mask()
-        return data, mask
+        return atype(data, mask, schema=schema)
 
     def _bind_data(self, null):
         if isinstance(self.data, numpy.ma.masked_array):
@@ -269,16 +273,13 @@ class _ArrayFromNumpy(Visitor):
         return atype(*self._make_fixed(dtype))
 
     def visit_date(self, schema):
-        atype = array_type(schema)
-        return atype(*self._make_datetime(schema))
+        return self._make_datetime(schema)
 
     def visit_timestamp(self, schema):
-        atype = array_type(schema)
-        return atype(*self._make_datetime(schema), schema=schema)
+        return self._make_datetime(schema)
 
     def visit_time(self, schema):
-        atype = array_type(schema)
-        return atype(*self._make_datetime(schema), schema=schema)
+        return self._make_datetime(schema)
 
     def visit_opaque(self, schema):
         atype = array_type(schema)

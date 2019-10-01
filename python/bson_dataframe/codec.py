@@ -233,7 +233,7 @@ class _DecodeArray(Visitor):
 
     def visit_date(self, schema):
         atype = array_type(schema)
-        return atype(*self._decode_datetime(schema))
+        return atype(*self._decode_datetime(schema), schema=schema)
 
     def visit_timestamp(self, schema):
         atype = array_type(schema)
