@@ -86,18 +86,20 @@ class RecordBatchFileReader : public Reader
     DataFrame read_buffer(
         std::size_t n, const std::uint8_t *buf, bool zero_copy) override
     {
-        std::unique_ptr<::arrow::io::BufferReader> source;
-        if (zero_copy) {
-            source = std::make_unique<::arrow::io::BufferReader>(
-                buf, static_cast<std::int64_t>(n));
-        } else {
-            source = std::make_unique<CopyBufferReader>(
-                buf, static_cast<std::int64_t>(n), pool_);
+        auto len = static_cast<std::int64_t>(n);
+
+        std::shared_ptr<::arrow::Buffer> buffer;
+        if (!zero_copy) {
+            ::arrow::Buffer tmp(buf, len);
+            DF_ARROW_ERROR_HANDLER(tmp.Copy(0, len, pool_, &buffer));
+            buf = buffer->data();
         }
+
+        ::arrow::io::BufferReader source(buf, len);
 
         std::shared_ptr<::arrow::ipc::RecordBatchFileReader> reader;
         DF_ARROW_ERROR_HANDLER(
-            ::arrow::ipc::RecordBatchFileReader::Open(source.get(), &reader));
+            ::arrow::ipc::RecordBatchFileReader::Open(&source, &reader));
 
         auto nbatches = reader->num_record_batches();
         std::vector<std::shared_ptr<::arrow::RecordBatch>> batches(
@@ -111,7 +113,7 @@ class RecordBatchFileReader : public Reader
         DF_ARROW_ERROR_HANDLER(
             ::arrow::Table::FromRecordBatches(batches, &table));
 
-        return DataFrame(std::move(table));
+        return DataFrame(std::move(table), std::move(buffer));
     }
 
     ::arrow::MemoryPool *memory_pool() const { return pool_; }
