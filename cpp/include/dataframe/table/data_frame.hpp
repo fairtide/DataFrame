@@ -33,16 +33,20 @@ class DataFrame
     DataFrame(const DataFrame &) = default;
     DataFrame &operator=(const DataFrame &) = default;
 
-    explicit DataFrame(std::shared_ptr<::arrow::Table> &&table)
+    explicit DataFrame(std::shared_ptr<::arrow::Table> table,
+        std::shared_ptr<::arrow::Buffer> buffer = nullptr)
         : table_(table == nullptr ?
                   nullptr :
                   (is_single_chunk(*table) ? std::move(table) :
                                              copy_table(*table)))
+        , buffer_(std::move(buffer))
     {
     }
 
-    explicit DataFrame(const ::arrow::Table &table)
+    explicit DataFrame(const ::arrow::Table &table,
+        std::shared_ptr<::arrow::Buffer> buffer = nullptr)
         : table_(copy_table(table))
+        , buffer_(std::move(buffer))
     {
     }
 
@@ -171,6 +175,7 @@ class DataFrame
 
   private:
     std::shared_ptr<::arrow::Table> table_;
+    std::shared_ptr<::arrow::Buffer> buffer_;
 };
 
 inline bool operator==(const DataFrame &df1, const DataFrame &df2)
