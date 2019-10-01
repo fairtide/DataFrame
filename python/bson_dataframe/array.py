@@ -99,44 +99,6 @@ class Array(abc.ABC):
     def accept(self, visitor):
         pass
 
-    def to_numpy(self, usemask=False):
-        dtype = self.schema.to_numpy()
-        mask = to_numpy_mask(self)
-
-        if dtype.kind in ('b', 'i', 'u', 'f', 'S'):
-            assert self.schema.byte_width == dtype.itemsize
-            data = numpy.frombuffer(self.data, dtype)
-            return to_numpy_array(data, mask, usemask)
-
-        if dtype.kind in ('M', 'm'):
-            data = numpy.frombuffer(self.data, f'i{self.schema.byte_width}')
-            data = data.astype(detype, copy=False)
-            return to_numpy_array(data, mask, usemask)
-
-        return to_numpy_array(self._to_numpy_data(dtype), mask, usemask)
-
-    @staticmethod
-    def from_numpy(array, mask=None, *, schema=None):
-        assert isinstance(data, numpy.ndarray)
-
-        if schema is None:
-            schema = Schema.from_numpy(array.dtype)
-
-        dtype = schema.to_numpy()
-        mask = _from_numpy_mask(array, mask)
-
-        if dtype.kind in ('b', 'i', 'u', 'f', 'S'):
-            assert schema.byte_width == dtype.itemsize
-            data = data.astype(dtype, copy=False)
-            return array_type(schema)(data, mask)
-
-        if dtype.kind in ('M', 'm'):
-            data = data.astype(dtype, copy=False)
-            data = data.astype(data, f'i{schema.byte_width}')
-            return array_type(schema)(data, mask, shcema=schema)
-
-        return array_type(schema)._from_numpy_data(schema, data, mask)
-
     def __len__(self):
         return self._length
 
@@ -153,22 +115,6 @@ class Array(abc.ABC):
         if self.mask != other.mask:
             return False
 
-        if getattr(self.schema, 'byte_width', None):
-            w = self.schema.byte_width
-            if w in (1, 2, 4, 8):
-                t = f'i{w}'
-            else:
-                t = f'S{w}'
-
-            mask = numpy.frombuffer(self.mask, numpy.uint8)
-            mask = numpy.unpackbits(mask)[:len(self)]
-            mask = mask.astype(bool, copy=False)
-
-            data1 = numpy.frombuffer(self.data, t)
-            data2 = numpy.frombuffer(other.data, t)
-
-            return all(data1[mask] == data2[mask])
-
         if self.data != other.data:
             return False
 
@@ -182,13 +128,6 @@ class Array(abc.ABC):
     def mask(self):
         return self._mask
 
-    def _to_numpy_data(self, dtype):
-        raise NotImplementedError()
-
-    @staticmethod
-    def _from_numpy_data(schema, data, mask):
-        raise NotImplementedError()
-
 
 class NullArray(Array):
     schema = Null()
@@ -198,15 +137,20 @@ class NullArray(Array):
         self._data = None
         self._mask = _make_mask(length, False)
 
+    def __eq__(self, other):
+        if self is other:
+            return True
+
+        if self.schema != other.schema:
+            return False
+
+        if len(self) != len(other):
+            return False
+
+        return True
+
     def accept(self, visitor):
         return visitor.visit_null(self)
-
-    def _to_numpy_data(self, dtype):
-        return numpy.ndarray(len(self), dtype)
-
-    @staticmethod
-    def _from_numpy_data(schema, data, mask):
-        return NullArray(len(data))
 
 
 class BoolArray(Array):
@@ -356,6 +300,27 @@ class BinaryArray(Array):
         self._counts = _make_counts(length, len(self._data), counts)
         self._mask = _make_mask(self._length, mask)
 
+    def __eq__(self, other):
+        if self is other:
+            return True
+
+        if self.schema != other.schema:
+            return False
+
+        if len(self) != len(other):
+            return False
+
+        if self.mask != other.mask:
+            return False
+
+        if self.counts != other.counts:
+            return False
+
+        if self.data != other.data:
+            return False
+
+        return True
+
     @property
     def value(self):
         return self.data
@@ -371,44 +336,12 @@ class BytesArray(BinaryArray):
     def accept(self, visitor):
         return visitor.visit_bytes(self)
 
-    def _to_numpy_data(self, dtype):
-        values = self.value
-        offsets = numpy.cumsum(numpy.frombuffer(self.counts, numpy.int32))
-        data = numpy.ndarray(len(self), dtype)
-        for i in range(len(self)):
-            data[i] = values[offsets[i]:offsets[i + 1]]
-        return data
-
-    @staticmethod
-    def _from_numpy_data(schema, data, mask):
-        values = [b'' if v is None else v for v in data]
-        length = len(values)
-        counts = numpy.array([0] + [len(v) for v in values], numpy.int32)
-        data = b''.join(values)
-        return BytesArray(data, mask, length=length, counts=counts)
-
 
 class Utf8Array(BinaryArray):
     schema = Utf8()
 
     def accept(self, visitor):
         return visitor.visit_utf8(self)
-
-    def _to_numpy_data(self, dtype):
-        values = self.value
-        offsets = numpy.cumsum(numpy.frombuffer(self.counts, numpy.int32))
-        data = numpy.ndarray(len(self), dtype)
-        for i in range(len(self)):
-            data[i] = values[offsets[i]:offsets[i + 1]].decode('utf8')
-        return data
-
-    @staticmethod
-    def _from_numpy_data(schema, data, mask):
-        values = [b'' if v is None else v.encode('utf8') for v in data]
-        length = len(values)
-        counts = numpy.array([0] + [len(v) for v in values], numpy.int32)
-        data = b''.join(values)
-        return Utf8Array(data, mask, length=length, counts=counts)
 
 
 class DictionaryArray(Array):
@@ -427,6 +360,9 @@ class DictionaryArray(Array):
             return True
 
         if self.schema != other.schema:
+            return False
+
+        if len(self) != len(other):
             return False
 
         if self.index != other.index:
@@ -479,12 +415,32 @@ class FactorArray(DictionaryArray):
 class ListArray(Array):
     def __init__(self, data: Array, mask=None, *, length=None, counts=None):
         assert isinstance(data, Array)
-
         self._schema = List(data.schema)
         self._data = data
         self._length = length
         self._counts = _make_counts(length, len(self._data), counts)
         self._mask = _make_mask(self._length, mask)
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+
+        if self.schema != other.schema:
+            return False
+
+        if len(self) != len(other):
+            return False
+
+        if self.mask != other.mask:
+            return False
+
+        if self.counts != other.counts:
+            return False
+
+        if self.data != other.data:
+            return False
+
+        return True
 
     def accept(self, visitor):
         return visitor.visit_list(self)
@@ -500,33 +456,6 @@ class ListArray(Array):
     @property
     def counts(self):
         return self._counts
-
-    def _to_numpy_data(self):
-        values = array.value.to_numpy()
-        offsets = numpy.cumsum(numpy.frombuffer(self.counts, numpy.int32))
-        data = numpy.ndarray(len(self), dtype)
-        for i in range(len(self)):
-            data[i] = values[offsets[i]:offsets[i + 1]]
-        return data
-
-    @staticmethod
-    def _from_numpy_data(schema, data, mask):
-        if len(self.data) > 0:
-            null = numpy.ndarray(0, data[0].dtype)
-            values = [null if v is None else v for v in data]
-        else:
-            values = data
-
-        length = len(values)
-        counts = numpy.array([0] + [len(v) for v in values], numpy.int32)
-
-        if any(isinstance(v, numpy.ma.masked_array) for v in values):
-            data = numpy.ma.concatenate(values)
-        else:
-            data = numpy.concatenate(values)
-        data = Array.from_numpy(data, schema=schema)
-
-        return ListArray(data, mask, length=length, counts=counts)
 
 
 class StructArray(Array):
@@ -569,14 +498,3 @@ class StructArray(Array):
     @property
     def fields(self):
         return self.data
-
-    def _to_numpy_data(self, dtype):
-        data = numpy.ndarray(len(self), dtype)
-        for k, v in self.fields:
-            data[k] = v.to_numpy()
-        return data
-
-    @staticmethod
-    def _from_numpy_data(schema, data, mask):
-        return StructArray(((k, Array.from_numpy(data[k], schema=v))
-                            for k, v in schema.fields), mask)

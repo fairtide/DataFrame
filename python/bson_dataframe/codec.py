@@ -237,56 +237,56 @@ class _DecodeArray(Visitor):
         return data.tobytes(), mask
 
     def visit_null(self, schema):
-        typ = array_type(schema)
-        return typ(int(self.doc[DATA]))
+        atype = array_type(schema)
+        return atype(self.doc[DATA])
 
     def visit_numeric(self, schema):
-        typ = array_type(schema)
-        return typ(*self._decode_data())
+        atype = array_type(schema)
+        return atype(*self._decode_data())
 
     def visit_date(self, schema):
-        typ = array_type(schema)
-        return typ(*self._decode_datetime(schema), schema=schema)
+        atype = array_type(schema)
+        return atype(*self._decode_datetime(schema), schema=schema)
 
     def visit_timestamp(self, schema):
-        typ = array_type(schema)
-        return typ(*self._decode_datetime(schema), schema=schema)
+        atype = array_type(schema)
+        return atype(*self._decode_datetime(schema), schema=schema)
 
     def visit_time(self, schema):
-        typ = array_type(schema)
-        return typ(*self._decode_data(), schema=schema)
+        atype = array_type(schema)
+        return atype(*self._decode_data(), schema=schema)
 
     def visit_opaque(self, schema):
-        typ = array_type(schema)
-        return typ(*self._decode_data(), schema=schema)
+        atype = array_type(schema)
+        return atype(*self._decode_data(), schema=schema)
 
     def visit_binary(self, schema):
-        typ = array_type(schema)
+        atype = array_type(schema)
         counts = self._decompress(self.doc[COUNT])
         length = len(counts) // 4 - 1
-        return typ(*self._decode_data(), length=length, counts=counts)
+        return atype(*self._decode_data(), length=length, counts=counts)
 
     def visit_dictionary(self, schema):
-        typ = array_type(schema)
+        atype = array_type(schema)
         index = schema.index.accept(_DecodeArray(self.doc[DATA][INDEX]))
         value = schema.value.accept(_DecodeArray(self.doc[DATA][VALUE]))
-        return typ(index, value)
+        return atype(index, value)
 
     def visit_list(self, schema):
-        typ = array_type(schema)
+        atype = array_type(schema)
         data = schema.value.accept(_DecodeArray(self.doc[DATA]))
         mask = self._decompress(self.doc[MASK])
         counts = self._decompress(self.doc[COUNT])
         length = len(counts) // 4 - 1
-        return typ(data, mask, length=length, counts=counts)
+        return atype(data, mask, length=length, counts=counts)
 
     def visit_struct(self, schema):
-        typ = array_type(schema)
-        length = int(self.doc[DATA][LENGTH])
+        atype = array_type(schema)
+        length = self.doc[DATA][LENGTH]
         data = ((k, v.accept(_DecodeArray(self.doc[DATA][FIELDS][k])))
                 for k, v in schema.fields)
         mask = self._decompress(self.doc[MASK])
-        return typ(data, mask, length=length)
+        return atype(data, mask, length=length)
 
 
 def encode_schema(self, options=None):
