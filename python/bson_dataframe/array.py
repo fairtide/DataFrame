@@ -47,7 +47,7 @@ def _make_mask(length, mask=None):
 
     if isinstance(mask, bool) or isinstance(mask, numpy.bool_):
         if mask:
-            mask = numpy.repeat(numpy.uint8(255), nbytes)
+            mask = ~numpy.zeros(nbytes, numpy.uint8)
         else:
             mask = numpy.zeros(nbytes, numpy.uint8)
 
@@ -62,7 +62,7 @@ def _make_mask(length, mask=None):
     if ntails != 0:
         vals = numpy.frombuffer(ret[-1:], numpy.uint8)
         bits = numpy.unpackbits(vals)
-        assert not any(bits[ntails:])
+        assert not bits[ntails:].any()
 
     return ret
 
@@ -77,7 +77,7 @@ def _make_counts(length, total, counts):
 
     assert len(elems) == length + 1
     assert elems[0] == 0
-    assert all(elems >= 0)
+    assert (elems >= 0).all()
     assert numpy.sum(elems) == total
 
     return ret
@@ -127,30 +127,6 @@ class Array(abc.ABC):
     @property
     def mask(self):
         return self._mask
-
-
-class NullArray(Array):
-    schema = Null()
-
-    def __init__(self, length):
-        self._length = int(length)
-        self._data = None
-        self._mask = _make_mask(length, False)
-
-    def __eq__(self, other):
-        if self is other:
-            return True
-
-        if self.schema != other.schema:
-            return False
-
-        if len(self) != len(other):
-            return False
-
-        return True
-
-    def accept(self, visitor):
-        return visitor.visit_null(self)
 
 
 class BoolArray(Array):
@@ -238,17 +214,10 @@ class Float64Array(Array):
 
 
 class DateArray(Array):
-    def __init__(self, data, mask=None, *, schema=None):
-        assert isinstance(schema, Date)
-        self._schema = schema
-        super().__init__(data, mask)
+    schema = Date()
 
     def accept(self, visitor):
         return visitor.visit_date(self)
-
-    @property
-    def schema(self):
-        return self._schema
 
 
 class TimestampArray(Array):
@@ -379,7 +348,7 @@ class DictionaryArray(Array):
 
     @property
     def data(self):
-        raise NotImplementedError()
+        return self._index.data
 
     @property
     def mask(self):
