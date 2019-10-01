@@ -20,8 +20,6 @@ import bson.raw_bson
 import collections
 import json
 import jsonschema
-import numpy
-import pandas
 
 DATA = 'd'
 MASK = 'm'
@@ -118,40 +116,6 @@ class _JSONTypes():
         }
 
 
-def _numpy_name(dtype):
-    if dtype.kind == 'U':
-        return 'utf8'
-
-    if dtype.kind == 'S':
-        if dtype.itemsize == 0:
-            return 'bytes'
-        else:
-            return 'opaque'
-
-    if dtype.kind == 'V':
-        if dtype.itemsize == 0:
-            return 'null'
-        else:
-            return 'struct'
-
-    if dtype.kind == 'm':
-        return dtype.name.replace('timedelta64', 'time')
-
-    if dtype.kind == 'M':
-        return dtype.name.replace('datetime64', 'timestamp')
-
-    return dtype.name
-
-
-def _pandas_name(dtype):
-    if dtype.kind == 'i':
-        return dtype.name.lower()
-
-    if dtype.kind == 'u':
-        return dtype.name.upper()
-
-    return dtype.name
-
 
 class Schema(abc.ABC):
     @abc.abstractmethod
@@ -197,90 +161,6 @@ class Schema(abc.ABC):
         schema = self.json_schema()
         jsonschema.validate(instance=instance, schema=schema)
 
-    def encode(self):
-        return {TYPE: self.name}
-
-    @staticmethod
-    def decode(doc):
-        '''Decode the schema from BSON document
-
-        Args:
-            doc (bytes or dictionary type): BSON document or dictionary to be
-                encoded as BSON to be validated
-
-        Returns:
-            A ``Schema`` object with one of its derived class
-        '''
-
-        if isinstance(doc, bytes):
-            doc = bson.raw_bson.RawBSONDocument(doc)
-
-        name = doc[TYPE]
-        param = doc.get(PARAM, None)
-        sch = NAMED_SCHEMA.get(name)
-
-        if sch is not None and param is None:
-            return sch
-
-        if isinstance(sch, Dictionary):
-            index = Schema.decode(param[INDEX])
-            value = Schema.decode(param[VALUE])
-            return type(sch)(index, value)
-
-        if name == 'opaque':
-            return Opaque(param)
-
-        if name == 'list':
-            return List(Schema.decode(param))
-
-        if name == 'struct':
-            return Struct([(v[NAME], Schema.decode(v)) for v in param])
-
-        raise ValueError(f'{name} is not supported BSON DataFrame type')
-
-    def to_numpy(self):
-        return numpy.dtype(self.name)
-
-    def to_pandas(self):
-        return self.to_numpy()
-
-    @staticmethod
-    def from_numpy(dtype):
-        assert isinstance(dtype, numpy.dtype)
-
-        name = _numpy_name(dtype)
-
-        sch = NAMED_SCHEMA.get(name)
-        if sch is not None:
-            return sch
-
-        if name == 'opaque':
-            return Opaque(dtype.itemsize)
-
-        if name == 'timestamp[D]':
-            return Date('d')
-
-        if name == 'struct':
-            return Struct(
-                (k, Schema.from_numpy(v[0])) for k, v in dtype.fields.items())
-
-        raise ValueError(f'{dtype} is not supported BSON DataFrame type')
-
-    @staticmethod
-    def from_pandas(dtype):
-        if isinstance(dtype, numpy.dtype):
-            return Schema.from_numpy(dtype)
-
-        assert isinstance(dtype, pandas.api.extensions.ExtensionDtype)
-
-        name = _pandas_name(dtype)
-
-        sch = NAMED_SCHEMA.get(name)
-        if sch is not None:
-            return sch
-
-        raise ValueError(f'{dtype} is not supported BSON DataFrame type')
-
     def _array_schema(self, types):
         return {
             'type': 'object',
@@ -319,9 +199,6 @@ class Null(Schema):
 
     def accept(self, visitor):
         return visitor.visit_null(self)
-
-    def to_numpy(self):
-        return numpy.dtype(object)
 
     def _array_schema(self, types):
         return {
@@ -448,13 +325,6 @@ class Date(Schema):
     def accept(self, visitor):
         return visitor.visit_date(self)
 
-    def to_numpy(self):
-        if self.unit == 'd':
-            return numpy.dtype('datetime64[D]')
-
-        if self.unit == 'ms':
-            return numpy.dtype('datetime64[ms]')
-
     def __eq__(self, other):
         return type(self) == type(other) and self.unit == other.unit
 
@@ -482,9 +352,6 @@ class Timestamp(Schema):
 
     def accept(self, visitor):
         return visitor.visit_timestamp(self)
-
-    def to_numpy(self):
-        return numpy.dtype(f'datetime64[{self.unit}]')
 
     def __eq__(self, other):
         return type(self) == type(other) and self.unit == other.unit
@@ -514,9 +381,6 @@ class Time(Schema):
     def accept(self, visitor):
         return visitor.visit_time(self)
 
-    def to_numpy(self):
-        return numpy.dtype(f'timedelta64[{self.unit}]')
-
     def __eq__(self, other):
         return type(self) == type(other) and self.unit == other.unit
 
@@ -542,9 +406,6 @@ class Opaque(Schema):
     def accept(self, visitor):
         return visitor.visit_opaque(self)
 
-    def to_numpy(self):
-        return numpy.dtype(f'S{self.byte_width}')
-
     def __str__(self):
         return f'{self.name}[{self.byte_width}]'
 
@@ -555,9 +416,6 @@ class Opaque(Schema):
     @property
     def byte_width(self):
         return self._byte_width
-
-    def encode(self):
-        return {TYPE: self.name, PARAM: self.byte_width}
 
     def _array_schema(self, types):
         return {
@@ -594,18 +452,12 @@ class Bytes(Binary):
     def accept(self, visitor):
         return visitor.visit_bytes(self)
 
-    def to_numpy(self):
-        return numpy.dtype(object)
-
 
 class Utf8(Binary):
     name = 'utf8'
 
     def accept(self, visitor):
         return visitor.visit_utf8(self)
-
-    def to_numpy(self):
-        return numpy.dtype(object)
 
 
 class Dictionary(Schema):
@@ -631,18 +483,6 @@ class Dictionary(Schema):
     @property
     def value(self):
         return self._value
-
-    def encode(self):
-        return {
-            TYPE: self.name,
-            PARAM: {
-                INDEX: self.index.encode(),
-                VALUE: self.value.encode()
-            }
-        }
-
-    def to_numpy(self):
-        raise NotImplementedError()
 
     def _array_schema(self, types):
         return {
@@ -699,9 +539,6 @@ class List(Schema):
     def accept(self, visitor):
         return visitor.visit_list(self)
 
-    def to_numpy(self):
-        return numpy.dtype(object)
-
     def __str__(self):
         return f'{self.name}[{str(self.value)}]'
 
@@ -711,9 +548,6 @@ class List(Schema):
     @property
     def value(self):
         return self._value
-
-    def encode(self):
-        return {TYPE: self.name, PARAM: self.value.encode()}
 
     def _array_schema(self, types):
         return {
@@ -743,9 +577,6 @@ class Struct(Schema):
     def accept(self, visitor):
         return visitor.visit_struct(self)
 
-    def to_numpy(self):
-        return numpy.dtype([(k, v.to_numpy()) for k, v in self.fields])
-
     def __str__(self):
         fields = ', '.join([k + ': ' + str(v) for k, v in self.fields])
         return f'{self.name}[{fields}]'
@@ -756,15 +587,6 @@ class Struct(Schema):
     @property
     def fields(self):
         return self._fields
-
-    def encode(self):
-        param = list()
-        for k, v in self.fields:
-            p = {NAME: k}
-            p.update(v.encode())
-            param.append(p)
-
-        return {TYPE: self.name, PARAM: param}
 
     def _array_schema(self, types):
         fields = {
@@ -808,47 +630,6 @@ class Struct(Schema):
                 },
                 COUNT: types.binary()
             }
-        }
-
-
-class DataFrame(Schema):
-    name = 'dataframe'
-
-    def __init__(self, fields):
-        self._fields = list()
-        for k, v in fields:
-            assert isinstance(k, str)
-            assert isinstance(v, Schema)
-            self._fields.append((k, v))
-
-    def __str__(self):
-        fields = ', '.join([k + ': ' + str(v) for k, v in self.fields])
-        return f'{self.name}[{fields}]'
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.fields == other.fields
-
-    @property
-    def fields(self):
-        return self._fields
-
-    def encode(self):
-        return collections.OrderedDict((k, v.encode()) for k, v in self.fields)
-
-    @staticmethod
-    def decode(doc):
-        if isinstance(doc, bytes):
-            doc = bson.raw_bson.RawBSONDocument(doc)
-
-        return DataFrame((k, Schema.decode(v)) for k, v in doc.items())
-
-    def _array_schema(self, types):
-        return {
-            'type': 'object',
-            'required': [k for k, _ in self.fields],
-            'additionalProperties': False,
-            'properties': {k: v._array_schema(types)
-                           for k, v in self.fields}
         }
 
 

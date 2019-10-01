@@ -43,7 +43,7 @@ def _make_counts(buf: pyarrow.Buffer, array: pyarrow.Array):
 
 class _ToArrow(Visitor):
     def _make_mask(self, array):
-        mask = array.numpy_mask(submask=False)
+        mask = array.numpy_mask(False)
 
         if mask is numpy.ma.nomask:
             return None

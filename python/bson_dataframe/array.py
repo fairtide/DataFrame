@@ -17,31 +17,7 @@
 from .schema import *
 
 import abc
-import bson
-import lz4.block
 import numpy
-
-
-def array_type(schema: Schema):
-    assert isinstance(schema, Schema)
-
-    return globals()[f'{type(schema).__name__}Array']
-
-
-def _compress(data, compression):
-    assert isinstance(data, bytes)
-
-    if compression == 0:
-        mode = 'default'
-    else:
-        mode = 'high_compression'
-
-    return bson.Binary(
-        lz4.block.compress(data, mode=mode, compression=compression))
-
-
-def _decompress(data):
-    return lz4.block.decompress(data)
 
 
 def _tobytes(data):
@@ -91,7 +67,7 @@ def _make_mask(length, mask=None):
     return ret
 
 
-def _make_counts(value, counts):
+def _make_counts(length, total, counts):
     if isinstance(counts, numpy.ndarray):
         elems = counts.astype(numpy.int32)
         ret = elems.tobytes()
@@ -99,35 +75,18 @@ def _make_counts(value, counts):
         ret = _tobytes(counts)
         elems = numpy.frombuffer(ret, numpy.int32)
 
+    assert len(elems) == length + 1
     assert elems[0] == 0
-    assert numpy.sum(elems) == len(value)
     assert all(elems >= 0)
+    assert numpy.sum(elems) == total
 
-    return len(elems) - 1, ret
-
-
-def _encode_data(data, mask, compression):
-    return {
-        DATA: _compress(data, compression),
-        MASK: _compress(mask, compression)
-    }
+    return ret
 
 
-def _decode_data(doc):
-    return _decompress(doc[DATA]), _decompress(doc[MASK])
+def array_type(schema: Schema):
+    assert isinstance(schema, Schema)
 
-
-def _encode_datetime(obj, compression):
-    data = numpy.frombuffer(obj.data, f'i{obj.schema.byte_width}')
-    data = numpy.diff(data, prepend=data.dtype.type(0)).tobytes()
-    return _encode_data(data, obj.mask, compression)
-
-
-def _decode_datetime(schema, doc):
-    data, mask = _decode_data(doc)
-    data = numpy.frombuffer(data, f'i{schema.byte_width}')
-    data = numpy.cumsum(data, dtype=data.dtype)
-    return data.tobytes(), mask
+    return globals()[f'{type(schema).__name__}Array']
 
 
 class Array(abc.ABC):
@@ -140,20 +99,43 @@ class Array(abc.ABC):
     def accept(self, visitor):
         pass
 
-    def encode(self, compression=0):
-        doc = self._encode_array(compression)
-        doc.update(self.schema.encode())
+    def to_numpy(self, usemask=False):
+        dtype = self.schema.to_numpy()
+        mask = to_numpy_mask(self)
 
-        return doc
+        if dtype.kind in ('b', 'i', 'u', 'f', 'S'):
+            assert self.schema.byte_width == dtype.itemsize
+            data = numpy.frombuffer(self.data, dtype)
+            return to_numpy_array(data, mask, usemask)
+
+        if dtype.kind in ('M', 'm'):
+            data = numpy.frombuffer(self.data, f'i{self.schema.byte_width}')
+            data = data.astype(detype, copy=False)
+            return to_numpy_array(data, mask, usemask)
+
+        return to_numpy_array(self._to_numpy_data(dtype), mask, usemask)
 
     @staticmethod
-    def decode(doc):
-        schema = Schema.decode(doc)
-        ret = array_type(schema)._decode_array(schema, doc)
+    def from_numpy(array, mask=None, *, schema=None):
+        assert isinstance(data, numpy.ndarray)
 
-        assert ret.schema == schema
+        if schema is None:
+            schema = Schema.from_numpy(array.dtype)
 
-        return ret
+        dtype = schema.to_numpy()
+        mask = _from_numpy_mask(array, mask)
+
+        if dtype.kind in ('b', 'i', 'u', 'f', 'S'):
+            assert schema.byte_width == dtype.itemsize
+            data = data.astype(dtype, copy=False)
+            return array_type(schema)(data, mask)
+
+        if dtype.kind in ('M', 'm'):
+            data = data.astype(dtype, copy=False)
+            data = data.astype(data, f'i{schema.byte_width}')
+            return array_type(schema)(data, mask, shcema=schema)
+
+        return array_type(schema)._from_numpy_data(schema, data, mask)
 
     def __len__(self):
         return self._length
@@ -200,34 +182,12 @@ class Array(abc.ABC):
     def mask(self):
         return self._mask
 
-    def numpy_mask(self, *, submask=True):
-        mask = numpy.frombuffer(self.mask, numpy.uint8)
-        if self._all_valid(mask):
-            return numpy.ma.nomask
+    def _to_numpy_data(self, dtype):
+        raise NotImplementedError()
 
-        mask = numpy.unpackbits(mask).astype(bool, copy=False)
-        mask = mask[:len(self)]
-
-        return ~mask
-
-    def _encode_array(self, compression):
-        return _encode_data(self.data, self.mask, compression)
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(*_decode_data(doc))
-
-    def _all_valid(self, mask):
-        if len(mask) == 0:
-            return True
-
-        if any(mask[:-1] != numpy.uint8(255)):
-            return False
-
-        bits = numpy.unpackbits(mask[-1:])
-        nbits = int(numpy.sum(bits) + len(mask) * 8 - 8)
-
-        return nbits == len(self)
+    @staticmethod
+    def _from_numpy_data(schema, data, mask):
+        raise NotImplementedError()
 
 
 class NullArray(Array):
@@ -241,15 +201,12 @@ class NullArray(Array):
     def accept(self, visitor):
         return visitor.visit_null(self)
 
-    def _encode_array(self, compression):
-        return {
-            DATA: bson.Int64(len(self)),
-            MASK: _compress(self.mask, compression)
-        }
+    def _to_numpy_data(self, dtype):
+        return numpy.ndarray(len(self), dtype)
 
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(doc[DATA])
+    @staticmethod
+    def _from_numpy_data(schema, data, mask):
+        return NullArray(len(data))
 
 
 class BoolArray(Array):
@@ -349,13 +306,6 @@ class DateArray(Array):
     def schema(self):
         return self._schema
 
-    def _encode_array(self, compression):
-        return _encode_datetime(self, compression)
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(*_decode_datetime(schema, doc), schema=schema)
-
 
 class TimestampArray(Array):
     def __init__(self, data, mask=None, *, schema=None):
@@ -369,13 +319,6 @@ class TimestampArray(Array):
     @property
     def schema(self):
         return self._schema
-
-    def _encode_array(self, compression):
-        return _encode_datetime(self, compression)
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(*_decode_datetime(schema, doc), schema=schema)
 
 
 class TimeArray(Array):
@@ -391,13 +334,6 @@ class TimeArray(Array):
     def schema(self):
         return self._schema
 
-    def _encode_array(self, compression):
-        return _encode_data(self.data, self.mask, compression)
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(*_decode_data(doc), schema=schema)
-
 
 class OpaqueArray(Array):
     def __init__(self, data, mask=None, *, schema=None):
@@ -412,18 +348,12 @@ class OpaqueArray(Array):
     def schema(self):
         return self._schema
 
-    def _encode_array(self, compression):
-        return _encode_data(self.data, self.mask, compression)
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(*_decode_data(doc), schema=schema)
-
 
 class BinaryArray(Array):
-    def __init__(self, data, mask=None, *, counts=None):
+    def __init__(self, data, mask=None, *, length=None, counts=None):
         self._data = _tobytes(data)
-        self._length, self._counts = _make_counts(self._data, counts)
+        self._length = length
+        self._counts = _make_counts(length, len(self._data), counts)
         self._mask = _make_mask(self._length, mask)
 
     @property
@@ -434,16 +364,6 @@ class BinaryArray(Array):
     def counts(self):
         return self._counts
 
-    def _encode_array(self, compression):
-        ret = _encode_data(self.data, self.mask, compression)
-        ret[COUNT] = _compress(self.counts, compression)
-
-        return ret
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(*_decode_data(doc), counts=_decompress(doc[COUNT]))
-
 
 class BytesArray(BinaryArray):
     schema = Bytes()
@@ -451,12 +371,44 @@ class BytesArray(BinaryArray):
     def accept(self, visitor):
         return visitor.visit_bytes(self)
 
+    def _to_numpy_data(self, dtype):
+        values = self.value
+        offsets = numpy.cumsum(numpy.frombuffer(self.counts, numpy.int32))
+        data = numpy.ndarray(len(self), dtype)
+        for i in range(len(self)):
+            data[i] = values[offsets[i]:offsets[i + 1]]
+        return data
+
+    @staticmethod
+    def _from_numpy_data(schema, data, mask):
+        values = [b'' if v is None else v for v in data]
+        length = len(values)
+        counts = numpy.array([0] + [len(v) for v in values], numpy.int32)
+        data = b''.join(values)
+        return BytesArray(data, mask, length=length, counts=counts)
+
 
 class Utf8Array(BinaryArray):
     schema = Utf8()
 
     def accept(self, visitor):
         return visitor.visit_utf8(self)
+
+    def _to_numpy_data(self, dtype):
+        values = self.value
+        offsets = numpy.cumsum(numpy.frombuffer(self.counts, numpy.int32))
+        data = numpy.ndarray(len(self), dtype)
+        for i in range(len(self)):
+            data[i] = values[offsets[i]:offsets[i + 1]].decode('utf8')
+        return data
+
+    @staticmethod
+    def _from_numpy_data(schema, data, mask):
+        values = [b'' if v is None else v.encode('utf8') for v in data]
+        length = len(values)
+        counts = numpy.array([0] + [len(v) for v in values], numpy.int32)
+        data = b''.join(values)
+        return Utf8Array(data, mask, length=length, counts=counts)
 
 
 class DictionaryArray(Array):
@@ -505,20 +457,6 @@ class DictionaryArray(Array):
     def value(self):
         return self._value
 
-    def _encode_array(self, compression):
-        return {
-            DATA: {
-                INDEX: self.index.encode(compression),
-                VALUE: self.value.encode(compression)
-            },
-            MASK: _compress(self.mask, compression)
-        }
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(Array.decode(doc[DATA][INDEX]),
-                   Array.decode(doc[DATA][VALUE]))
-
 
 class OrderedArray(DictionaryArray):
     def __init__(self, index: Array, value: Array):
@@ -539,12 +477,13 @@ class FactorArray(DictionaryArray):
 
 
 class ListArray(Array):
-    def __init__(self, data: Array, mask=None, *, counts=None):
+    def __init__(self, data: Array, mask=None, *, length=None, counts=None):
         assert isinstance(data, Array)
 
         self._schema = List(data.schema)
         self._data = data
-        self._length, self._counts = _make_counts(self._data, counts)
+        self._length = length
+        self._counts = _make_counts(length, len(self._data), counts)
         self._mask = _make_mask(self._length, mask)
 
     def accept(self, visitor):
@@ -562,24 +501,38 @@ class ListArray(Array):
     def counts(self):
         return self._counts
 
-    def _encode_array(self, compression):
-        return {
-            DATA: self.data.encode(compression),
-            MASK: _compress(self.mask, compression),
-            COUNT: _compress(self.counts, compression)
-        }
+    def _to_numpy_data(self):
+        values = array.value.to_numpy()
+        offsets = numpy.cumsum(numpy.frombuffer(self.counts, numpy.int32))
+        data = numpy.ndarray(len(self), dtype)
+        for i in range(len(self)):
+            data[i] = values[offsets[i]:offsets[i + 1]]
+        return data
 
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        return cls(Array.decode(doc[DATA]),
-                   _decompress(doc[MASK]),
-                   counts=_decompress(doc[COUNT]))
+    @staticmethod
+    def _from_numpy_data(schema, data, mask):
+        if len(self.data) > 0:
+            null = numpy.ndarray(0, data[0].dtype)
+            values = [null if v is None else v for v in data]
+        else:
+            values = data
+
+        length = len(values)
+        counts = numpy.array([0] + [len(v) for v in values], numpy.int32)
+
+        if any(isinstance(v, numpy.ma.masked_array) for v in values):
+            data = numpy.ma.concatenate(values)
+        else:
+            data = numpy.concatenate(values)
+        data = Array.from_numpy(data, schema=schema)
+
+        return ListArray(data, mask, length=length, counts=counts)
 
 
 class StructArray(Array):
-    def __init__(self, data, mask=None, *, schema=None):
+    def __init__(self, data, mask=None, *, length=None, schema=None):
         fields = list()
-        self._length = None
+        self._length = length
         self._data = list()
         for k, v in data:
             assert isinstance(k, str)
@@ -617,38 +570,13 @@ class StructArray(Array):
     def fields(self):
         return self.data
 
-    def numpy_mask(self, *, submask=True):
-        smask = super().numpy_mask()
-        if not submask:
-            return smask
+    def _to_numpy_data(self, dtype):
+        data = numpy.ndarray(len(self), dtype)
+        for k, v in self.fields:
+            data[k] = v.to_numpy()
+        return data
 
-        fmask = [(k, v.numpy_mask()) for k, v in self.fields]
-        if smask is numpy.ma.nomask:
-            if all(v is numpy.ma.nomask for _, v in fmask):
-                return numpy.ma.nomask
-
-        mask = numpy.ndarray(len(self), [(k, bool) for k, _ in self.fields])
-        for k, v in fmask:
-            mask[k] = smask | v
-
-        return mask
-
-    def _encode_array(self, compression):
-        data = {k: v.encode(compression) for k, v in self.data}
-
-        return {
-            DATA: {
-                LENGTH: bson.Int64(len(self)),
-                FIELDS: data
-            },
-            MASK: _compress(self.mask, compression)
-        }
-
-    @classmethod
-    def _decode_array(cls, schema, doc):
-        data = ((k, Array.decode(v)) for k, v in doc[DATA][FIELDS].items())
-        ret = cls(data, _decompress(doc[MASK]), schema=schema)
-
-        assert len(ret) == doc[DATA][LENGTH]
-
-        return ret
+    @staticmethod
+    def _from_numpy_data(schema, data, mask):
+        return StructArray(((k, Array.from_numpy(data[k], schema=v))
+                            for k, v in schema.fields), mask)

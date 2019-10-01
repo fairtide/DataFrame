@@ -17,5 +17,6 @@
 from .schema import *
 from .array import *
 from .visitor import *
+from .codec import *
 from .numpy import *
 from .pandas import *
