@@ -114,7 +114,7 @@ class _EncodeSchema(Visitor):
 
     def visit_struct(self, schema):
         param = list()
-        for k, v in schema.fields:
+        for k, v in schema.fields.items():
             p = self.options.empty()
             p[NAME] = k
             p.update(v.accept(self))
@@ -195,7 +195,7 @@ class _EncodeArray(Visitor):
 
     def visit_struct(self, array):
         fields = self.options.empty()
-        for k, v in array.fields:
+        for k, v in array.fields.items():
             fields[k] = v.accept(self)
 
         data = self.options.empty()
@@ -271,18 +271,18 @@ class _DecodeArray(Visitor):
         atype = array_type(schema)
         length = self.doc[DATA][LENGTH]
         data = ((k, v.accept(_DecodeArray(self.doc[DATA][FIELDS][k])))
-                for k, v in schema.fields)
+                for k, v in schema.fields.items())
         mask = self._decompress(self.doc[MASK])
         return atype(data, mask, length=length)
 
 
-def encode_schema(self, options=None):
+def _encode_schema(self, options=None):
     if options is None:
         options = CodecOptions()
     return options.finish(self.accept(_EncodeSchema(options)))
 
 
-def decode_schema(doc):
+def _decode_schema(doc):
     '''Decode the schema from BSON document
 
     Args:
@@ -320,20 +320,60 @@ def decode_schema(doc):
     raise ValueError(f'{name} is not supported BSON DataFrame type')
 
 
-def encode_array(self, options=None):
+def _encode_array(self, options=None):
     if options is None:
         options = CodecOptions()
     return options.finish(self.accept(_EncodeArray(options)))
 
 
-def decode_array(doc):
+def _decode_array(doc):
     if isinstance(doc, bytes):
         doc = bson.raw_bson.RawBSONDocument(doc)
-    return decode_schema(doc).accept(_DecodeArray(doc))
+    return _decode_schema(doc).accept(_DecodeArray(doc))
 
 
-Schema.encode = encode_schema
-Schema.decode = staticmethod(decode_schema)
+def _encode_dfs(self, options=None):
+    if options is None:
+        options = CodecOptions()
 
-Array.encode = encode_array
-Array.decode = staticmethod(decode_array)
+    doc = options.empty()
+    for k, v in self.columns.items():
+        doc[k] = v.accept(_EncodeSchema(options))
+
+    return options.finish(doc)
+
+
+def _decode_dfs(doc):
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
+    return DataFrameSchema((k, _decode_schema(v)) for k, v in doc.items())
+
+
+def _encode_df(self, options=None):
+    if options is None:
+        options = CodecOptions()
+
+    doc = options.empty()
+    for k, v in self.columns.items():
+        doc[k] = v.accept(_EncodeArray(options))
+
+    return options.finish(doc)
+
+
+def _decode_df(doc):
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
+    return DataFrame((k, _decode_array(v)) for k, v in doc.items())
+
+
+Schema.encode = _encode_schema
+Schema.decode = staticmethod(_decode_schema)
+
+Array.encode = _encode_array
+Array.decode = staticmethod(_decode_array)
+
+DataFrameSchema.encode = _encode_dfs
+DataFrameSchema.decode = staticmethod(_decode_dfs)
+
+DataFrame.encode = _encode_df
+DataFrame.decode = staticmethod(_decode_df)

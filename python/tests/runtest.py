@@ -226,8 +226,8 @@ class TestArray(Visitor):
 
     def visit_struct(self, schema):
         data = [(k, v.accept(TestArray(self.length, self.masked)))
-                for k, v in schema.fields]
-        return StructArray(data, schema=schema)
+                for k, v in schema.fields.items()]
+        return StructArray(data)
 
 
 def array(schema, length, masked=False):
@@ -250,7 +250,7 @@ class TestBSONDataFrame(unittest.TestCase):
             return
 
         if encmask.dtype.kind == 'V':
-            for k, v in ary.fields:
+            for k, v in ary.fields.items():
                 with self.subTest(k):
                     self.assertMask(v, encmask[k])
             return
@@ -260,6 +260,12 @@ class TestBSONDataFrame(unittest.TestCase):
         self.assertEqual(arymask, encmask)
 
     def assertArrayEqual(self, ary, dec):
+        if isinstance(ary, DataFrame):
+            for k, v in ary.columns.items():
+                with self.subTest(k + ':' + str(v.schema)):
+                    self.assertArrayEqual(v, dec.columns[k])
+            return
+
         self.assertEqual(ary.schema, dec.schema)
         self.assertEqual(len(ary), len(dec))
         self.assertEqual(ary.mask, dec.mask)
@@ -273,10 +279,12 @@ class TestBSONDataFrame(unittest.TestCase):
             with self.subTest('value'):
                 self.assertArrayEqual(ary.value, dec.value)
         elif isinstance(ary, StructArray):
-            for aryfield, decfield in zip(ary.fields, dec.fields):
-                with self.subTest(aryfield[0]):
-                    self.assertEqual(aryfield[0], decfield[0])
-                    self.assertArrayEqual(aryfield[1], decfield[1])
+            for aryname, decname in zip(ary.fields.keys(), dec.fields.keys()):
+                aryfield = ary.fields[aryname]
+                decfield = dec.fields[decname]
+                with self.subTest(aryname):
+                    self.assertEqual(aryname, decname)
+                    self.assertArrayEqual(aryfield, decfield)
         else:
             self.assertEqual(ary.data, dec.data)
 
@@ -284,7 +292,7 @@ class TestBSONDataFrame(unittest.TestCase):
         for sch in ARRAY_SCHEMAS:
             with self.subTest(schema=sch):
                 enc = sch.encode()
-                dec = sch.decode(enc)
+                dec = Schema.decode(enc)
                 self.assertEqual(sch, dec)
 
     def test_array(self):
@@ -296,6 +304,25 @@ class TestBSONDataFrame(unittest.TestCase):
                     sch.validate(enc)
                     dec = Array.decode(enc)
                     self.assertArrayEqual(ary, dec)
+
+    def test_dataframe_schema(self):
+        names = [f'x{i}' for i in range(len(ARRAY_SCHEMAS))]
+        sch = DataFrameSchema(ARRAY_SCHEMAS, names=names)
+        enc = sch.encode()
+        dec = DataFrameSchema.decode(enc)
+        self.assertEqual(sch, dec)
+
+    def test_dataframe(self):
+        names = [f'x{i}' for i in range(len(ARRAY_SCHEMAS))]
+        sch = DataFrameSchema(ARRAY_SCHEMAS, names=names)
+        for masked in [False, True]:
+            with self.subTest(masked=masked):
+                ary = [array(s, ARRAY_LENGTH, masked) for s in ARRAY_SCHEMAS]
+                dat = DataFrame(ary, names=names)
+                enc = dat.encode()
+                sch.validate(enc)
+                dec = DataFrame.decode(enc)
+                self.assertArrayEqual(dat, dec)
 
     def test_numpy_schema(self):
         for sch in NUMPY_SCHEMAS:
@@ -332,6 +359,15 @@ class TestBSONDataFrame(unittest.TestCase):
                 dec = Array.from_pandas(enc, schema=sch)
                 self.assertArrayEqual(ary, dec)
 
+    def test_pandas_dataframe(self):
+        names = [f'x{i}' for i in range(len(PANDAS_ARRAYS))]
+        sch = DataFrameSchema(PANDAS_ARRAYS, names=names)
+        ary = [array(s, ARRAY_LENGTH, False) for s in PANDAS_ARRAYS]
+        dat = DataFrame(ary, names=names)
+        enc = dat.to_pandas()
+        dec = DataFrame.from_pandas(enc, schema=sch)
+        self.assertArrayEqual(dat, dec)
+
     def test_arrow_schema(self):
         for sch in ARRAY_SCHEMAS:
             with self.subTest(schema=sch):
@@ -347,6 +383,24 @@ class TestBSONDataFrame(unittest.TestCase):
                     enc = ary.to_arrow()
                     dec = Array.from_arrow(enc)
                     self.assertArrayEqual(ary, dec)
+
+    def test_arrow_dataframe_schema(self):
+        names = [f'x{i}' for i in range(len(ARRAY_SCHEMAS))]
+        sch = DataFrameSchema(ARRAY_SCHEMAS, names=names)
+        enc = sch.to_arrow()
+        dec = DataFrameSchema.from_arrow(enc)
+        self.assertEqual(sch, dec)
+
+    def test_arrow_dataframe(self):
+        names = [f'x{i}' for i in range(len(ARRAY_SCHEMAS))]
+        sch = DataFrameSchema(ARRAY_SCHEMAS, names=names)
+        for masked in [False, True]:
+            with self.subTest(masked=masked):
+                ary = [array(s, ARRAY_LENGTH, masked) for s in ARRAY_SCHEMAS]
+                dat = DataFrame(ary, names=names)
+                enc = dat.to_arrow()
+                dec = DataFrame.from_arrow(enc)
+                self.assertArrayEqual(dat, dec)
 
 
 if __name__ == '__main__':

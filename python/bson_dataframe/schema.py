@@ -15,6 +15,7 @@
 # ============================================================================
 
 import abc
+import collections
 import bson.json_util
 import bson.raw_bson
 import collections
@@ -116,6 +117,18 @@ class _JSONTypes():
         }
 
 
+def _validate_schema(obj, doc):
+    if isinstance(doc, bytes):
+        doc = bson.raw_bson.RawBSONDocument(doc)
+
+    json_mode = bson.json_util.JSONMode.CANONICAL
+    json_options = bson.json_util.JSONOptions(json_mode=json_mode)
+    json_doc = bson.json_util.dumps(doc, json_options=json_options)
+    instance = json.loads(json_doc)
+    schema = obj.json_schema()
+    jsonschema.validate(instance=instance, schema=schema)
+
+
 class Schema(abc.ABC):
     @abc.abstractmethod
     def accept(self, visitor):
@@ -144,15 +157,7 @@ class Schema(abc.ABC):
                 encoded as BSON to be validated
         '''
 
-        if isinstance(doc, bytes):
-            doc = bson.raw_bson.RawBSONDocument(doc)
-
-        json_mode = bson.json_util.JSONMode.CANONICAL
-        json_options = bson.json_util.JSONOptions(json_mode=json_mode)
-        json_doc = bson.json_util.dumps(doc, json_options=json_options)
-        instance = json.loads(json_doc)
-        schema = self.json_schema()
-        jsonschema.validate(instance=instance, schema=schema)
+        return _validate_schema(self, doc)
 
     def _array_schema(self, types):
         return {
@@ -541,18 +546,20 @@ class List(Schema):
 class Struct(Schema):
     name = 'struct'
 
-    def __init__(self, fields):
-        self._fields = list()
-        for k, v in fields:
+    def __init__(self, fields, *, names=None):
+        if names is not None:
+            fields = zip(names, fields)
+
+        self._fields = collections.OrderedDict(fields)
+        for k, v in self._fields.items():
             assert isinstance(k, str)
             assert isinstance(v, Schema)
-            self._fields.append((k, v))
 
     def accept(self, visitor):
         return visitor.visit_struct(self)
 
     def __str__(self):
-        fields = ', '.join([k + ': ' + str(v) for k, v in self.fields])
+        fields = ', '.join([k + ': ' + str(v) for k, v in self.fields.items()])
         return f'{self.name}[{fields}]'
 
     def __eq__(self, other):
@@ -569,12 +576,13 @@ class Struct(Schema):
             'additionalProperties': False,
             'properties': {}
         }
-        for k, v in self.fields:
+
+        for k, v in self.fields.items():
             fields['required'].append(k)
             fields['properties'][k] = v._array_schema(types)
 
         param = []
-        for k, v in self.fields:
+        for k, v in self.fields.items():
             p = v._type_schema(types)
             p['required'].append(NAME)
             p['properties'][NAME] = types.const(k)
@@ -605,6 +613,65 @@ class Struct(Schema):
                 COUNT: types.binary()
             }
         }
+
+
+class DataFrameSchema(object):
+    name = 'dataframe'
+
+    def __init__(self, columns, *, names=None):
+        if names is not None:
+            columns = zip(names, columns)
+
+        self._columns = collections.OrderedDict(columns)
+        for k, v in self._columns.items():
+            assert isinstance(k, str)
+            assert isinstance(v, Schema)
+
+    def __str__(self):
+        columns = ', '.join(
+            [k + ': ' + str(v) for k, v in self.columns.items()])
+        return f'{self.name}[{columns}]'
+
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self is other or self.columns == other.columns
+
+    def bson_schema(self):
+        return self._dataframe_schema(_BSONTypes)
+
+    def json_schema(self):
+        return self._dataframe_schema(_JSONTypes)
+
+    def validate(self, doc):
+        return _validate_schema(self, doc)
+
+    @property
+    def columns(self):
+        return self._columns
+
+    def to_struct(self):
+        return Struct(self.columns)
+
+    @staticmethod
+    def from_struct(schema):
+        assert isinstance(schema, Struct)
+        return DataFrameSchema(schema.fields)
+
+    def _dataframe_schema(self, types):
+        columns = {
+            'type': 'object',
+            'required': [],
+            'additionalProperties': False,
+            'properties': {}
+        }
+
+        for k, v in self.columns.items():
+            columns['required'].append(k)
+            columns['properties'][k] = v._array_schema(types)
+
+        return columns
 
 
 NAMED_SCHEMA.update({

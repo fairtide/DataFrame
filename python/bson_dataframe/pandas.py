@@ -19,6 +19,7 @@ from .array import *
 from .visitor import *
 from .numpy import *
 
+import collections
 import numpy
 import pandas
 
@@ -111,8 +112,28 @@ def _array_from_pandas(series, *, schema=None):
     return Array.from_numpy(data, mask, schema=schema)
 
 
+def _df_to_pandas(self):
+    return pandas.DataFrame(
+        collections.OrderedDict(
+            (k, _array_to_pandas(v)) for k, v in self.columns.items()))
+
+
+def _df_from_pandas(df, *, schema=None):
+    if schema is None:
+        schema = DataFrameSchema()
+
+    assert isinstance(df, pandas.DataFrame)
+    assert isinstance(schema, DataFrameSchema)
+
+    return DataFrame(
+        (k, _array_from_pandas(df[k], schema=schema.columns[k])) for k in df)
+
+
 Schema.to_pandas = _schema_to_pandas
 Schema.from_pandas = staticmethod(_schema_from_pandas)
 
 Array.to_pandas = _array_to_pandas
 Array.from_pandas = staticmethod(_array_from_pandas)
+
+DataFrame.to_pandas = _df_to_pandas
+DataFrame.from_pandas = staticmethod(_df_from_pandas)

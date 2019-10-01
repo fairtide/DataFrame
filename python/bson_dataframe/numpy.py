@@ -53,7 +53,8 @@ class _SchemaToNumpy(Visitor):
         return numpy.dtype(object)
 
     def visit_struct(self, schema):
-        return numpy.dtype([(k, v.to_numpy()) for k, v in schema.fields])
+        return numpy.dtype([(k, v.to_numpy())
+                            for k, v in schema.fields.items()])
 
 
 def _schema_to_numpy(self):
@@ -197,7 +198,7 @@ class _ArrayToNumpy(Visitor):
 
     def visit_struct(self, array):
         dtype = _schema_to_numpy(array.schema)
-        fields = [(k, v.accept(self)) for k, v in array.fields]
+        fields = [(k, v.accept(self)) for k, v in array.fields.items()]
 
         data = numpy.ndarray(len(array), dtype)
         for k, v in fields:
@@ -331,7 +332,7 @@ class _ArrayFromNumpy(Visitor):
         atype = array_type(schema)
 
         data = ((k, v.accept(_ArrayFromNumpy(self.data[k])))
-                for k, v in schema.fields)
+                for k, v in schema.fields.items())
 
         mask = self._make_mask()
 

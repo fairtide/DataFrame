@@ -17,6 +17,7 @@
 from .schema import *
 
 import abc
+import collections
 import numpy
 
 
@@ -435,33 +436,21 @@ class ListArray(Array):
 
 
 class StructArray(Array):
-    def __init__(self, data, mask=None, *, length=None, schema=None):
-        fields = list()
+    def __init__(self, data, mask=None, *, length=None, names=None):
+        if names is not None:
+            data = zip(names, data)
+
         self._length = length
-        self._data = list()
-        for k, v in data:
+        self._data = collections.OrderedDict(data)
+        for k, v in self._data.items():
             assert isinstance(k, str)
             assert isinstance(v, Array)
-            fields.append((k, v.schema))
-            self._data.append((k, v))
             if self._length is None:
                 self._length = len(v)
             else:
                 assert self._length == len(v)
 
-        if schema is None:
-            schema = Struct(fields)
-        else:
-            fields = {k: v for k, v in fields}
-            data = {k: v for k, v in self._data}
-            self._data = list()
-            assert isinstance(schema, Struct)
-            assert len(schema.fields) == len(fields)
-            for k, v in schema.fields:
-                assert v == fields[k]
-                self._data.append((k, data[k]))
-
-        self._schema = schema
+        self._schema = Struct((k, v.schema) for k, v in self._data.items())
         self._mask = _make_mask(self._length, mask)
 
     def accept(self, visitor):
@@ -474,3 +463,48 @@ class StructArray(Array):
     @property
     def fields(self):
         return self.data
+
+
+class DataFrame(object):
+    def __init__(self, data, *, length=None, names=None):
+        if names is not None:
+            data = zip(names, data)
+
+        self._length = length
+        self._columns = collections.OrderedDict(data)
+        for k, v in self._columns.items():
+            assert isinstance(k, str)
+            assert isinstance(v, Array)
+            if self._length is None:
+                self._length = len(v)
+            else:
+                assert self._length == len(v)
+
+        self._schema = DataFrameSchema(
+            (k, v.schema) for k, v in self._columns.items())
+
+    def __len__(self):
+        return self._length
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+
+        if self.schema != other.schema:
+            return False
+
+        if len(self) != len(other):
+            return False
+
+        if self.columns != other.columns:
+            return False
+
+        return True
+
+    @property
+    def schema(self):
+        return self._schema
+
+    @property
+    def columns(self):
+        return self._columns

@@ -57,7 +57,9 @@ class _SchemaToArrow(Visitor):
         return pyarrow.list_(value)
 
     def visit_struct(self, schema):
-        fields = [pyarrow.field(k, v.accept(self)) for k, v in schema.fields]
+        fields = [
+            pyarrow.field(k, v.accept(self)) for k, v in schema.fields.items()
+        ]
         return pyarrow.struct(fields)
 
 
@@ -237,7 +239,7 @@ class _ArrayToArrow(Visitor):
         return self._make_array(array, offsets=offsets, children=children)
 
     def visit_struct(self, array):
-        children = [v.accept(self) for _, v in array.fields]
+        children = [v.accept(self) for _, v in array.fields.items()]
         return self._make_array(array, children=children)
 
 
@@ -335,8 +337,8 @@ class _ArrayFromArrow(Visitor):
 
     def visit_struct(self, schema):
         fields = list()
-        for i, kv in enumerate(schema.fields):
-            k, v = kv
+        for i, k in enumerate(schema.fields.keys()):
+            v = schema.fields[k]
             data = self.array.field(i)
             data = v.accept(_ArrayFromArrow(data))
             fields.append((k, data))
@@ -348,8 +350,37 @@ def _array_from_arrow(array):
     return schema.accept(_ArrayFromArrow(array))
 
 
+def _dfs_to_arrow(self):
+    return pyarrow.schema(
+        (k, _schema_to_arrow(v)) for k, v in self.columns.items())
+
+
+def _dfs_from_arrow(schema):
+    assert isinstance(schema, pyarrow.Schema)
+    return DataFrameSchema(
+        (v.name, _schema_from_arrow(v.type)) for v in schema)
+
+
+def _df_to_arrow(self):
+    return pyarrow.Table.from_arrays([
+        pyarrow.column(k, _array_to_arrow(v)) for k, v in self.columns.items()
+    ])
+
+
+def _df_from_arrow(table):
+    assert isinstance(table, pyarrow.Table)
+    return DataFrame((v.name, _array_from_arrow(v.data.chunks[0]))
+                     for v in table.combine_chunks())
+
+
 Schema.to_arrow = _schema_to_arrow
 Schema.from_arrow = staticmethod(_schema_from_arrow)
 
 Array.to_arrow = _array_to_arrow
 Array.from_arrow = staticmethod(_array_from_arrow)
+
+DataFrameSchema.to_arrow = _dfs_to_arrow
+DataFrameSchema.from_arrow = staticmethod(_dfs_from_arrow)
+
+DataFrame.to_arrow = _df_to_arrow
+DataFrame.from_arrow = staticmethod(_df_from_arrow)
