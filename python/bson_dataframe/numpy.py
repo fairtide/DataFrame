@@ -23,20 +23,13 @@ import numpy
 
 
 class _SchemaToNumpy(Visitor):
-    def visit_null(self, schema):
-        return numpy.dtype(object)
-
     def visit_numeric(self, schema):
         dtype = numpy.dtype(schema.name)
         assert schema.byte_width == dtype.itemsize
         return dtype
 
     def visit_date(self, schema):
-        if schema.unit == 'd':
-            return numpy.dtype('datetime64[D]')
-
-        if schema.unit == 'ms':
-            return numpy.dtype('datetime64[ms]')
+        return numpy.dtype('datetime64[D]')
 
     def visit_timestamp(self, schema):
         return numpy.dtype(f'datetime64[{schema.unit}]')
@@ -59,7 +52,11 @@ class _SchemaToNumpy(Visitor):
         return numpy.dtype([(k, v.to_numpy()) for k, v in schema.fields])
 
 
-def _schema_from_numpy(dtype):
+def _schema_to_numpy(self):
+    return self.accept(_SchemaToNumpy())
+
+
+def _name_from_numpy(dtype):
     if dtype.kind == 'U':
         return 'utf8'
 
@@ -70,12 +67,34 @@ def _schema_from_numpy(dtype):
         return 'null' if dtype.itemsize == 0 else 'struct'
 
     if dtype.kind == 'M':
-        return dtype.name.replace('datetime64', 'timestamp')
+        if dtype.name == 'datetime64[D]':
+            return 'date[d]'
+        else:
+            return dtype.name.replace('datetime64', 'timestamp')
 
     if dtype.kind == 'm':
         return dtype.name.replace('timedelta64', 'time')
 
     return dtype.name
+
+
+def _schema_from_numpy(dtype):
+    assert isinstance(dtype, numpy.dtype)
+
+    name = _name_from_numpy(dtype)
+
+    sch = NAMED_SCHEMA.get(name)
+    if sch is not None:
+        return sch
+
+    if name == 'opaque':
+        return Opaque(dtype.itemsize)
+
+    if name == 'struct':
+        return Struct(
+            (k, _schema_from_numpy(v[0])) for k, v in dtype.fields.items())
+
+    raise ValueError(f'{dtype} is not supported BSON DataFrame type')
 
 
 class _ArrayToNumpy(Visitor):
@@ -88,10 +107,14 @@ class _ArrayToNumpy(Visitor):
         if len(mask) == 0:
             return numpy.ma.nomask
 
-        if all(mask[:-1] != numpy.uint8(255)):
-            bits = numpy.unpackbits(mask[-1:])
-            nbits = int(numpy.sum(bits) + len(mask) * 8 - 8)
-            if nbits == length:
+        ntails = length % 8
+        allset = ~numpy.uint8(0)
+        if ntails == 0:
+            if (mask == allset).all():
+                return numpy.ma.nomask
+        else:
+            tail = numpy.unpackbits(mask[-1:])[:ntails]
+            if (mask[:-1] == allset).all() and tail.all():
                 return numpy.ma.nomask
 
         mask = numpy.unpackbits(mask).astype(bool, copy=False)
@@ -126,41 +149,35 @@ class _ArrayToNumpy(Visitor):
         offsets = numpy.cumsum(numpy.frombuffer(array.counts, numpy.int32))
         return [values[offsets[i]:offsets[i + 1]] for i in range(len(array))]
 
-    def visit_null(self, array):
-        dtype = schema_to_numpy(array.schema)
-        data = numpy.ndarray(len(array), dtype)
-        mask = numpy.ma.nomask
-        return self._make_array(data, mask)
-
     def visit_numeric(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         return self._make_fixed(dtype, array)
 
     def visit_date(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         return self._make_datetime(dtype, array)
 
     def visit_timestamp(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         return self._make_datetime(dtype, array)
 
     def visit_time(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         return self._make_datetime(dtype, array)
 
     def visit_opaque(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         return self._make_fixed(dtype, array)
 
     def visit_bytes(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         data = self._split_data(array, array.value)
         data = numpy.array(data, dtype)
         mask = self._make_mask(len(array), array.mask)
         return self._make_array(data, mask)
 
     def visit_utf8(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         data = self._split_data(array, array.value)
         data = [v.decode('utf8') for v in data]
         data = numpy.array(data, dtype)
@@ -168,14 +185,14 @@ class _ArrayToNumpy(Visitor):
         return self._make_array(data, mask)
 
     def visit_list(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         data = self._split_data(array, array.value.accept(self))
         data = numpy.array(data, dtype)
         mask = self._make_mask(len(array), array.mask)
         return self._make_array(data, mask)
 
     def visit_struct(self, array):
-        dtype = schema_to_numpy(array.schema)
+        dtype = _schema_to_numpy(array.schema)
         fields = [(k, v.accept(self)) for k, v in array.fields]
 
         data = numpy.ndarray(len(array), dtype)
@@ -194,6 +211,10 @@ class _ArrayToNumpy(Visitor):
         return self._make_array(data, mask)
 
 
+def _array_to_numpy(self, *, usemask=True):
+    return self.accept(_ArrayToNumpy(usemask))
+
+
 class _ArrayFromNumpy(Visitor):
     def __init__(self, data, mask=None):
         assert isinstance(data, numpy.ndarray)
@@ -209,16 +230,17 @@ class _ArrayFromNumpy(Visitor):
             return None
 
         mask = self.data.mask
-        if not isinstance(mask, numpy.ndarray):
+
+        if mask is numpy.ma.nomask:
             return None
 
-        if mask.dtype.kind != 'b':
+        if mask.dtype.kind == 'V':
             return None
 
-        mask = ~mask
-        mask = numpy.packbits(mask)
+        if not mask.any():
+            return None
 
-        return mask
+        return numpy.packbits(~mask)
 
     def _make_fixed(self, dtype):
         data = self.data.astype(dtype, copy=False)
@@ -227,11 +249,11 @@ class _ArrayFromNumpy(Visitor):
 
     def _make_datetime(self, schema):
         atype = array_type(schema)
-        dtype = schema_to_numpy(schema)
+        dtype = _schema_to_numpy(schema)
         data = self.data.astype(dtype, copy=False)
         data = data.astype(f'i{schema.byte_width}')
         mask = self._make_mask()
-        return atype(data, mask, schema=schema)
+        return data, mask
 
     def _bind_data(self, null):
         if isinstance(self.data, numpy.ma.masked_array):
@@ -241,27 +263,26 @@ class _ArrayFromNumpy(Visitor):
 
         return [null if v is na else v for v in self.data]
 
-    def visit_null(self, schema):
-        atype = array_type(schema)
-        return atype(len(self.data))
-
     def visit_numeric(self, schema):
         atype = array_type(schema)
-        dtype = schema_to_numpy(schema)
+        dtype = _schema_to_numpy(schema)
         return atype(*self._make_fixed(dtype))
 
     def visit_date(self, schema):
-        return self._make_datetime(schema)
+        atype = array_type(schema)
+        return atype(*self._make_datetime(schema))
 
     def visit_timestamp(self, schema):
-        return self._make_datetime(schema)
+        atype = array_type(schema)
+        return atype(*self._make_datetime(schema), schema=schema)
 
     def visit_time(self, schema):
-        return self._make_datetime(schema)
+        atype = array_type(schema)
+        return atype(*self._make_datetime(schema), schema=schema)
 
     def visit_opaque(self, schema):
         atype = array_type(schema)
-        dtype = schema_to_numpy(schema)
+        dtype = _schema_to_numpy(schema)
         return atype(*self._make_fixed(dtype), schema=schema)
 
     def visit_bytes(self, schema):
@@ -316,44 +337,14 @@ class _ArrayFromNumpy(Visitor):
         return atype(data)
 
 
-def schema_to_numpy(self):
-    return self.accept(_SchemaToNumpy())
-
-
-def schema_from_numpy(dtype):
-    assert isinstance(dtype, numpy.dtype)
-
-    name = _schema_from_numpy(dtype)
-
-    sch = NAMED_SCHEMA.get(name)
-    if sch is not None:
-        return sch
-
-    if name == 'opaque':
-        return Opaque(dtype.itemsize)
-
-    if name == 'timestamp[D]':
-        return Date('d')
-
-    if name == 'struct':
-        return Struct(
-            (k, schema_from_numpy(v[0])) for k, v in dtype.fields.items())
-
-    raise ValueError(f'{dtype} is not supported BSON DataFrame type')
-
-
-def array_to_numpy(self, *, usemask=True):
-    return self.accept(_ArrayToNumpy(usemask))
-
-
-def array_from_numpy(data, mask=None, *, schema=None):
+def _array_from_numpy(data, mask=None, *, schema=None):
     if schema is None:
-        schema = schema_from_numpy(data.dtype)
+        schema = _schema_from_numpy(data.dtype)
     return schema.accept(_ArrayFromNumpy(data, mask))
 
 
-Schema.to_numpy = schema_to_numpy
-Schema.from_numpy = staticmethod(schema_from_numpy)
+Schema.to_numpy = _schema_to_numpy
+Schema.from_numpy = staticmethod(_schema_from_numpy)
 
-Array.to_numpy = array_to_numpy
-Array.from_numpy = staticmethod(array_from_numpy)
+Array.to_numpy = _array_to_numpy
+Array.from_numpy = staticmethod(_array_from_numpy)

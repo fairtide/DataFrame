@@ -14,10 +14,8 @@
 # limitations under the License.
 # ============================================================================
 
-class Visitor():
-    def visit_null(self, obj):
-        raise NotImplementedError()
 
+class Visitor():
     def visit_numeric(self, obj):
         raise NotImplementedError()
 
@@ -58,13 +56,13 @@ class Visitor():
         return self.visit_numeric(obj)
 
     def visit_date(self, obj):
-        return self.visit_datetime(obj)
+        raise NotImplementedError()
 
     def visit_timestamp(self, obj):
-        return self.visit_datetime(obj)
+        raise NotImplementedError()
 
     def visit_time(self, obj):
-        return self.visit_datetime(obj)
+        raise NotImplementedError()
 
     def visit_opaque(self, obj):
         raise NotImplementedError()

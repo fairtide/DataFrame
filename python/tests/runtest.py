@@ -21,14 +21,10 @@ sys.path.insert(0,
                 os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from bson_dataframe import *
-from bson_dataframe.arrow import *
+import bson_dataframe.arrow
 
 import numpy
 import unittest
-
-NULL = [
-    Null(),
-]
 
 NUMERIC = [
     Bool(),
@@ -46,11 +42,7 @@ NUMERIC = [
 ]
 
 DATE = [
-    Date('d'),
-]
-
-DATE_MS = [
-    Date('ms'),
+    Date(),
 ]
 
 TIMESTAMP = [
@@ -100,7 +92,6 @@ NESTED = [
 ]
 
 ARRAY_SCHEMAS = sum([
-    NULL,
     NUMERIC,
     DATE,
     TIMESTAMP,
@@ -124,8 +115,6 @@ NUMPY_SCHEMAS = sum([
 
 NUMPY_ARRAYS = sum([
     NUMPY_SCHEMAS,
-    NULL,
-    DATE_MS,
     BINARY,
     LIST,
     NESTED,
@@ -141,8 +130,6 @@ PANDAS_SCHEMAS = sum([
 
 PANDAS_ARRAYS = sum([
     PANDAS_SCHEMAS,
-    NULL,
-    DATE_MS,
     TIMESTAMP,
     TIME,
     BINARY,
@@ -150,19 +137,19 @@ PANDAS_ARRAYS = sum([
     LIST,
 ], [])
 
-ARRAY_LENGTH = 1000
+ARRAY_LENGTH = 10
 
 
 class TestArray(Visitor):
-    def __init__(self, length, nullable):
+    def __init__(self, length, masked):
         self.length = length
-        self.nullable = nullable
+        self.masked = masked
 
         self.counts = numpy.random.randint(10, 20, self.length + 1,
                                            numpy.int32)
         self.counts[0] = 0
 
-        if self.nullable:
+        if self.masked:
             n = length
             m = n // 8 + 1
             mask = numpy.ndarray(m, numpy.uint8, numpy.random.bytes(m))
@@ -181,9 +168,6 @@ class TestArray(Visitor):
 
         self.total = numpy.sum(self.counts)
 
-    def visit_null(self, schema):
-        return NullArray(self.length)
-
     def visit_numeric(self, schema):
         data = numpy.random.randint(-1000, 1000, self.length)
         data = data.astype(schema.name)
@@ -194,7 +178,7 @@ class TestArray(Visitor):
         data = numpy.random.randint(-1000, 1000, self.length)
         data = data.astype(f'i{schema.byte_width}')
         data = numpy.ma.masked_array(data, self.numpy_mask)
-        return DateArray(data, self.mask, schema=schema)
+        return DateArray(data, self.mask)
 
     def visit_timestamp(self, schema):
         data = numpy.random.randint(-1000, 1000, self.length)
@@ -228,91 +212,135 @@ class TestArray(Visitor):
         return array_type(schema)(index, value)
 
     def visit_list(self, schema):
-        data = schema.value.accept(TestArray(self.total, self.nullable))
+        data = schema.value.accept(TestArray(self.total, self.masked))
         return ListArray(data,
                          self.mask,
                          length=self.length,
                          counts=self.counts)
 
     def visit_struct(self, schema):
-        data = [(k, v.accept(TestArray(self.length, self.nullable)))
+        data = [(k, v.accept(TestArray(self.length, self.masked)))
                 for k, v in schema.fields]
         return StructArray(data, schema=schema)
 
 
-def array(schema, length, nullable=False):
-    return schema.accept(TestArray(length, nullable))
+def array(schema, length, masked=False):
+    return schema.accept(TestArray(length, masked))
 
 
 class TestBSONDataFrame(unittest.TestCase):
+    def assertMask(self, ary, encmask):
+        arymask = numpy.frombuffer(ary.mask, numpy.uint8)
+        arymask = numpy.unpackbits(arymask)[:len(ary)]
+        arymask = arymask.astype(bool)
+        arymask = ~arymask
+
+        if encmask is None:
+            self.assertFalse(arymask.any())
+            return
+
+        if encmask is numpy.ma.nomask:
+            self.assertFalse(arymask.any())
+            return
+
+        if encmask.dtype.kind == 'V':
+            for k, v in ary.fields:
+                with self.subTest(k):
+                    self.assertMask(v, encmask[k])
+            return
+
+        arymask = numpy.packbits(arymask).tobytes()
+        encmask = numpy.packbits(encmask).tobytes()
+        self.assertEqual(arymask, encmask)
+
+    def assertArrayEqual(self, ary, dec):
+        self.assertEqual(ary.schema, dec.schema)
+        self.assertEqual(len(ary), len(dec))
+        self.assertEqual(ary.mask, dec.mask)
+
+        if isinstance(ary, DictionaryArray):
+            with self.subTest('index'):
+                self.assertArrayEqual(ary.index, dec.index)
+            with self.subTest('value'):
+                self.assertArrayEqual(ary.value, dec.value)
+        elif isinstance(ary, ListArray):
+            with self.subTest('value'):
+                self.assertArrayEqual(ary.value, dec.value)
+        elif isinstance(ary, StructArray):
+            for aryfield, decfield in zip(ary.fields, dec.fields):
+                with self.subTest(aryfield[0]):
+                    self.assertEqual(aryfield[0], decfield[0])
+                    self.assertArrayEqual(aryfield[1], decfield[1])
+        else:
+            self.assertEqual(ary.data, dec.data)
+
     def test_schema(self):
         for sch in ARRAY_SCHEMAS:
-            with self.subTest(schema=str(sch)):
+            with self.subTest(schema=sch):
                 enc = sch.encode()
                 dec = sch.decode(enc)
                 self.assertEqual(sch, dec)
 
     def test_array(self):
         for sch in ARRAY_SCHEMAS:
-            for nullable in [False, True]:
-                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, ARRAY_LENGTH, nullable)
+            for masked in [False, True]:
+                with self.subTest(schema=sch, masked=masked):
+                    ary = array(sch, ARRAY_LENGTH, masked)
                     enc = ary.encode()
                     sch.validate(enc)
                     dec = Array.decode(enc)
-                    self.assertEqual(ary, dec)
+                    self.assertArrayEqual(ary, dec)
 
     def test_numpy_schema(self):
         for sch in NUMPY_SCHEMAS:
-            for nullable in [False, True]:
-                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    enc = sch.to_numpy()
-                    dec = Schema.from_numpy(enc)
-                    self.assertEqual(sch, dec)
+            with self.subTest(schema=sch):
+                enc = sch.to_numpy()
+                dec = Schema.from_numpy(enc)
+                self.assertEqual(sch, dec)
 
     def test_numpy_array(self):
         for sch in NUMPY_ARRAYS:
-            for nullable in [False, True]:
-                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, ARRAY_LENGTH, nullable)
-                    enc = ary.to_numpy(usemask=nullable)
+            for masked in [False, True]:
+                with self.subTest(schema=sch, masked=masked):
+                    ary = array(sch, ARRAY_LENGTH, masked)
+                    enc = ary.to_numpy(usemask=masked)
                     dec = Array.from_numpy(enc, schema=sch)
-                    self.assertEqual(ary, dec)
+
+                    ismasked = isinstance(enc, numpy.ma.masked_array)
+                    self.assertEqual(masked, ismasked)
+                    self.assertMask(ary, getattr(enc, 'mask', None))
+                    self.assertArrayEqual(ary, dec)
 
     def test_pandas_schema(self):
         for sch in PANDAS_SCHEMAS:
-            with self.subTest(schema=str(sch)):
+            with self.subTest(schema=sch):
                 enc = sch.to_pandas()
                 dec = Schema.from_pandas(enc)
                 self.assertEqual(sch, dec)
 
     def test_pandas_series(self):
         for sch in PANDAS_ARRAYS:
-            with self.subTest(schema=str(sch)):
+            with self.subTest(schema=sch):
                 ary = array(sch, ARRAY_LENGTH, False)
                 enc = ary.to_pandas()
                 dec = Array.from_pandas(enc, schema=sch)
-                self.assertEqual(ary, dec)
+                self.assertArrayEqual(ary, dec)
 
-    @unittest.skip("")
     def test_arrow_schema(self):
         for sch in ARRAY_SCHEMAS:
-            for nullable in [False, True]:
-                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, ARRAY_LENGTH, False)
-                    enc = to_arrow(ary)
-                    dec = arrow_schema(enc)
-                    self.assertEqual(sch, dec)
+            with self.subTest(schema=sch):
+                enc = sch.to_arrow()
+                dec = Schema.from_arrow(enc)
+                self.assertEqual(sch, dec)
 
-    @unittest.skip("")
     def test_arrow_array(self):
         for sch in ARRAY_SCHEMAS:
-            for nullable in [False, True]:
-                with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, ARRAY_LENGTH, nullable)
-                    enc = to_arrow(ary)
-                    dec = from_arrow(enc, schema=sch)
-                    self.assertEqual(ary, dec)
+            for masked in [False, True]:
+                with self.subTest(schema=sch, masked=masked):
+                    ary = array(sch, ARRAY_LENGTH, masked)
+                    enc = ary.to_arrow()
+                    dec = Array.from_arrow(enc)
+                    self.assertArrayEqual(ary, dec)
 
 
 if __name__ == '__main__':

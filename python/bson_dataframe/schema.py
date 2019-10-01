@@ -116,7 +116,6 @@ class _JSONTypes():
         }
 
 
-
 class Schema(abc.ABC):
     @abc.abstractmethod
     def accept(self, visitor):
@@ -126,13 +125,7 @@ class Schema(abc.ABC):
         return self.name
 
     def __repr__(self):
-        ret = ''
-        ret += 'bson_dataframe.'
-        ret += self.__class__.__name__
-        ret += '('
-        ret += str(self)
-        ret += ')'
-        return ret
+        return str(self)
 
     def __eq__(self, other):
         return type(self) == type(other)
@@ -192,25 +185,6 @@ class Schema(abc.ABC):
             ret['properties'][PARAM] = sch['properties'][PARAM]
 
         return ret
-
-
-class Null(Schema):
-    name = 'null'
-
-    def accept(self, visitor):
-        return visitor.visit_null(self)
-
-    def _array_schema(self, types):
-        return {
-            'type': 'object',
-            'required': [DATA, MASK, TYPE],
-            'additionalProperties': False,
-            'properties': {
-                DATA: types.int64(),
-                MASK: types.binary(),
-                TYPE: types.const(self.name)
-            }
-        }
 
 
 class Bool(Schema):
@@ -310,35 +284,11 @@ class Float64(Schema):
 
 
 class Date(Schema):
-    def __init__(self, unit):
-        assert unit in ('d', 'ms')
-
-        self._unit = unit
-        self._name = f'date[{unit}]'
-
-        if unit == 'd':
-            self._byte_width = 4
-
-        if unit == 'ms':
-            self._byte_width = 8
+    name = 'date[d]'
+    byte_width = 4
 
     def accept(self, visitor):
         return visitor.visit_date(self)
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.unit == other.unit
-
-    @property
-    def unit(self):
-        return self._unit
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def byte_width(self):
-        return self._byte_width
 
 
 class Timestamp(Schema):
@@ -634,7 +584,6 @@ class Struct(Schema):
 
 
 NAMED_SCHEMA.update({
-    'null': Null(),
     'bool': Bool(),
     'int8': Int8(),
     'int16': Int16(),
@@ -647,8 +596,7 @@ NAMED_SCHEMA.update({
     'float16': Float16(),
     'float32': Float32(),
     'float64': Float64(),
-    'date[d]': Date('d'),
-    'date[ms]': Date('ms'),
+    'date[d]': Date(),
     'timestamp[s]': Timestamp('s'),
     'timestamp[ms]': Timestamp('ms'),
     'timestamp[us]': Timestamp('us'),

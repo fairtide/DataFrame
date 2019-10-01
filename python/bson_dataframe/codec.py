@@ -79,9 +79,6 @@ class _EncodeSchema(Visitor):
             doc[PARAM] = param
         return doc
 
-    def visit_null(self, schema):
-        return self._make_doc(schema)
-
     def visit_numeric(self, schema):
         return self._make_doc(schema)
 
@@ -151,12 +148,6 @@ class _EncodeArray(Visitor):
     def _make_doc(self, doc, array):
         doc.update(array.schema.accept(self.schema_encoder))
         return doc
-
-    def visit_null(self, array):
-        doc = self.options.empty()
-        doc[DATA] = bson.Int64(len(array))
-        doc[MASK] = self._compress(array.mask)
-        return self._make_doc(doc, array)
 
     def visit_numeric(self, array):
         doc = self._encode_data(array.data, array.mask)
@@ -236,17 +227,13 @@ class _DecodeArray(Visitor):
         data = numpy.cumsum(data, dtype=data.dtype)
         return data.tobytes(), mask
 
-    def visit_null(self, schema):
-        atype = array_type(schema)
-        return atype(self.doc[DATA])
-
     def visit_numeric(self, schema):
         atype = array_type(schema)
         return atype(*self._decode_data())
 
     def visit_date(self, schema):
         atype = array_type(schema)
-        return atype(*self._decode_datetime(schema), schema=schema)
+        return atype(*self._decode_datetime(schema))
 
     def visit_timestamp(self, schema):
         atype = array_type(schema)
