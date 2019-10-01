@@ -18,12 +18,13 @@ from .schema import *
 from .array import *
 from .visitor import *
 from .numpy import *
+from .numpy import _ArrayToNumpy, _ArrayFromNumpy
 
 import numpy
 import pandas
 
 
-def _pandas_name(dtype):
+def _schema_from_numpy(dtype):
     if dtype.kind == 'i':
         return dtype.name.lower()
 
@@ -31,6 +32,73 @@ def _pandas_name(dtype):
         return dtype.name.upper()
 
     return dtype.name
+
+
+class _ArrayToPandas(_ArrayToNumpy):
+    def __init__(self):
+        super().__init__(True)
+
+    def visit_dictionary(self, array):
+        index = array.index.accept(self)
+        value = array.value.accept(self)
+        ordered = isinstance(array.schema, Ordered)
+        return pandas.Categorical.from_codes(index.data, value.data, ordered)
+
+
+class _ArrayFromPandas(_ArrayFromNumpy):
+    def __init__(self, data):
+        assert isinstance(data, pandas.Series)
+
+        if isinstance(data.values, pandas.Categorical):
+            self.data = data
+            self.mask = None
+            return
+
+        mask = data.isna().values
+
+        if isinstance(data.dtype, pandas.api.extensions.ExtensionDtype):
+            assert data.dtype.kind in ('i', 'u')
+            data = data.fillna(0).astype(data.dtype.type)
+
+        assert isinstance(data.dtype, numpy.dtype)
+        data = numpy.ma.masked_array(data.values, mask)
+        mask = numpy.packbits(~mask)
+
+        super().__init__(data, mask)
+
+    def visit_dictionary(self, schema):
+        mask = self.data.isna().values
+        data = self.data.cat.codes.values
+        data = numpy.ma.masked_array(data, mask)
+        mask = numpy.packbits(~mask)
+
+        index = array_from_numpy(data, mask, schema=schema.index)
+
+        value = self.data.cat.categories.values
+        value = array_from_numpy(value, schema=schema.value)
+
+        return array_type(schema)(index, value)
+
+
+def array_to_pandas(array):
+    values = array.accept(_ArrayToPandas())
+
+    if isinstance(values, pandas.Series):
+        return values
+
+    if isinstance(values, numpy.ma.masked_array):
+        if values.dtype.kind in ('f', 'M', 'm', 'O', 'S', 'U'):
+            values = values.filled()
+        elif values.dtype.kind in ('i', 'u'):
+            values = pandas.arrays.IntegerArray(values.data, values.mask)
+
+    return pandas.Series(values)
+
+
+def array_from_pandas(data, *, schema=None):
+    if schema is None:
+        schema = schema_from_pandas(data.dtype)
+    return schema.accept(_ArrayFromPandas(data))
 
 
 def schema_to_pandas(self):
@@ -43,7 +111,7 @@ def schema_from_pandas(dtype):
 
     assert isinstance(dtype, pandas.api.extensions.ExtensionDtype)
 
-    name = _pandas_name(dtype)
+    name = _schema_from_numpy(dtype)
 
     sch = NAMED_SCHEMA.get(name)
     if sch is not None:
@@ -52,99 +120,8 @@ def schema_from_pandas(dtype):
     raise ValueError(f'{dtype} is not supported BSON DataFrame type')
 
 
-# class _ToPandas(_ToNumpy):
-#     def __init__(self):
-#         super().__init__(False)
-#
-#     def visit_dictionary(self, array):
-#         mask = array.numpy_mask()
-#         index = array.index.accept(self).copy()
-#         value = array.value.accept(self)
-#         index[mask] = index.dtype.type(-1)
-#         ordered = isinstance(array.schema, Ordered)
-#
-#         return pandas.Categorical.from_codes(index, value, ordered)
-#
-#
-# class _FromPandas(_FromNumpy):
-#     def __init__(self, series):
-#         self.series = series
-#
-#         if isinstance(self.series.values, pandas.Categorical):
-#             return
-#
-#         data = series.values
-#         mask = None
-#
-#         if mask is None:
-#             try:
-#                 mask = ~series.isna().values
-#             except:
-#                 pass
-#
-#         if mask is None and series.dtype.kind == 'O':
-#             mask = numpy.zeros(len(series), bool)
-#             for i, v in enumerate(data):
-#                 mask[i] = v is not None
-#
-#         if isinstance(data, numpy.ndarray):
-#             super().__init__(data, mask)
-#             return
-#
-#         if data.dtype.kind == 'i':
-#             data = data.fillna(0).astype(data.dtype.type)
-#             super().__init__(data, mask)
-#             return
-#
-#         if data.dtype.kind == 'u':
-#             data = data.fillna(0).astype(data.dtype.type)
-#             super().__init__(data, mask)
-#             return
-#
-#     def visit_dictionary(self, schema):
-#         index = from_numpy(self.series.cat.codes.values,
-#                            ~self.series.isna().values)
-#         value = from_numpy(self.series.cat.categories.values)
-#         return array_type(schema)(index, value)
-#
-#
-# def to_pandas(array):
-#     values = array.accept(_ToPandas())
-#
-#     if isinstance(values, pandas.Series):
-#         return values
-#
-#     if isinstance(values, numpy.ma.masked_array):
-#         data = values.data
-#         mask = values.mask
-#
-#         if data.dtype.kind == 'i':
-#             values = pandas.arrays.IntegerArray(data, mask)
-#         elif data.dtype.kind == 'u':
-#             values = pandas.arrays.IntegerArray(data, mask)
-#         elif data.dtype.kind == 'f':
-#             values = data
-#             values[mask] = numpy.nan
-#         elif data.dtype.kind == 'M':
-#             values = data
-#             values[mask] = 'NaT'
-#         else:
-#             raise ValueError(
-#                 f'Nullable {str(array.schema)} is not supported by pandas')
-#
-#     return pandas.Series(values)
-#
-#
-# def from_pandas(data, *, schema=None):
-#     assert isinstance(data, pandas.Series)
-#
-#     if schema is None:
-#         schema = Schema.from_pandas(data.dtype)
-#
-#     if schema is None:
-#         raise ValueError(f'Unable to deduce schema from dtype {data.dtype}')
-#
-#     return schema.accept(_FromPandas(data))
-
 Schema.to_pandas = schema_to_pandas
 Schema.from_pandas = staticmethod(schema_from_pandas)
+
+Array.to_pandas = array_to_pandas
+Array.from_pandas = staticmethod(array_from_pandas)

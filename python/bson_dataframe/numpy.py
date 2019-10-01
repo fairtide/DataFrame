@@ -197,6 +197,7 @@ class _ArrayToNumpy(Visitor):
 class _ArrayFromNumpy(Visitor):
     def __init__(self, data, mask=None):
         assert isinstance(data, numpy.ndarray)
+
         self.data = data
         self.mask = mask
 

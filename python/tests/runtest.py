@@ -80,8 +80,8 @@ BINARY = [
 ]
 
 DICTIONARY = [
-    Ordered(Int8(), Utf8()),
-    Factor(Int8(), Utf8()),
+    Ordered(Int32(), Utf8()),
+    Factor(Int32(), Utf8()),
 ]
 
 LIST = [
@@ -137,7 +137,6 @@ PANDAS_SCHEMAS = sum([
     [Timestamp('ns')],
     [Time('ns')],
     OPAQUE,
-    STRUCT,
 ], [])
 
 PANDAS_ARRAYS = sum([
@@ -149,10 +148,9 @@ PANDAS_ARRAYS = sum([
     BINARY,
     DICTIONARY,
     LIST,
-    NESTED,
 ], [])
 
-ARRAY_LENGTH = 5000
+ARRAY_LENGTH = 1000
 
 
 class TestArray(Visitor):
@@ -288,13 +286,12 @@ class TestBSONDataFrame(unittest.TestCase):
                 dec = Schema.from_pandas(enc)
                 self.assertEqual(sch, dec)
 
-    @unittest.skip("")
     def test_pandas_series(self):
         for sch in PANDAS_ARRAYS:
             with self.subTest(schema=str(sch)):
                 ary = array(sch, ARRAY_LENGTH, False)
-                enc = to_pandas(ary)
-                dec = from_pandas(enc, schema=sch)
+                enc = ary.to_pandas()
+                dec = Array.from_pandas(enc, schema=sch)
                 self.assertEqual(ary, dec)
 
     @unittest.skip("")
