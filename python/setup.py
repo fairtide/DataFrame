@@ -9,7 +9,8 @@ setup(name='bson_dataframe',
       ],
       install_requires=[
           'lz4>=1.8.0',
-          'numpy>=1.17.0',
+          'numpy>=1.14.0',
+          'pandas>=0.24.0',
           'pyarrow>=0.14.1',
           'pymongo>=3.6.0',
       ])

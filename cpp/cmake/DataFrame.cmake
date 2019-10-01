@@ -15,6 +15,7 @@
 # ============================================================================
 
 set(CMAKE_CXX_STANDARD 17)
+set(Boost_NO_BOOST_CMAKE TRUE CACHE BOOL "")
 
 find_package(Arrow)
 find_package(Boost COMPONENTS date_time)

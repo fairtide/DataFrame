@@ -14,9 +14,14 @@
 # limitations under the License.
 # ============================================================================
 
-from .schema import *
-from .array import *
-from .visitor import *
-from .codec import *
-from .numpy import *
-from .pandas import *
+project(DataFrame-python)
+
+find_package(PythonInterp 3.6)
+
+add_custom_target(install-python
+    COMMAND ${PYTHON_EXECUTABLE} -m pip
+    install ${PROJECT_SOURCE_DIR}
+    --prefix ${CMAKE_INSTALL_PREFIX}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+install(CODE "execute_process(COMMAND ${CMAKE_MAKE_PROGRAM} install-python)")

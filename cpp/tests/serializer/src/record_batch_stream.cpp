@@ -24,8 +24,11 @@ struct Output {
     ~Output()
     {
         ::dataframe::RecordBatchStreamWriter writer;
+        ::dataframe::RecordBatchStreamReader reader;
 
         writer.write(data);
+        auto ret = reader.read(writer.size(), writer.data());
+        ret.table().Equals(data.table());
 
         std::ofstream bin(
             "RecordBatchStreamWriter", std::ios::out | std::ios::binary);

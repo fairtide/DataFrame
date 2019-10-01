@@ -29,36 +29,10 @@ inline std::vector<std::shared_ptr<::arrow::Table>> split_rows(
     std::vector<std::shared_ptr<::arrow::Table>> ret;
 
     auto offset = INT64_C(0);
-    std::vector<std::shared_ptr<::arrow::Column>> columns;
-    std::vector<std::shared_ptr<::arrow::Field>> fields;
-
     while (offset < table.num_rows()) {
         auto end = std::min(table.num_rows(), offset + nrows);
         auto len = end - offset;
-
-        columns.clear();
-        for (auto i = 0; i != table.num_columns(); ++i) {
-            auto col = table.column(i);
-            auto chunks = col->data()->chunks();
-
-            if (chunks.size() != 1) {
-                throw std::runtime_error("Unexpected chunked array");
-            }
-
-            auto values = chunks.front()->Slice(offset, len);
-
-            columns.push_back(std::make_shared<::arrow::Column>(
-                ::arrow::field(col->name(), values->type()), values));
-        }
-
-        fields.clear();
-        for (auto &&c : columns) {
-            fields.push_back(c->field());
-        }
-
-        ret.push_back(::arrow::Table::Make(
-            std::make_shared<::arrow::Schema>(fields), columns));
-
+        ret.push_back(table.Slice(offset, len));
         offset = end;
     }
 
