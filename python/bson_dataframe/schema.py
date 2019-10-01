@@ -20,6 +20,8 @@ import bson.raw_bson
 import collections
 import json
 import jsonschema
+import numpy
+import pandas
 
 DATA = 'd'
 MASK = 'm'
@@ -39,6 +41,8 @@ FIELDS = 'f'
 # dictionary
 INDEX = 'i'
 VALUE = 'd'
+
+NAMED_SCHEMA = {}
 
 
 class _BSONTypes():
@@ -114,6 +118,41 @@ class _JSONTypes():
         }
 
 
+def _numpy_name(dtype):
+    if dtype.kind == 'U':
+        return 'utf8'
+
+    if dtype.kind == 'S':
+        if dtype.itemsize == 0:
+            return 'bytes'
+        else:
+            return 'opaque'
+
+    if dtype.kind == 'V':
+        if dtype.itemsize == 0:
+            return 'null'
+        else:
+            return 'struct'
+
+    if dtype.kind == 'm':
+        return dtype.name.replace('timedelta64', 'time')
+
+    if dtype.kind == 'M':
+        return dtype.name.replace('datetime64', 'timestamp')
+
+    return dtype.name
+
+
+def _pandas_name(dtype):
+    if dtype.kind == 'i':
+        return dtype.name.lower()
+
+    if dtype.kind == 'u':
+        return dtype.name.upper()
+
+    return dtype.name
+
+
 class Schema(abc.ABC):
     @abc.abstractmethod
     def accept(self, visitor):
@@ -123,8 +162,13 @@ class Schema(abc.ABC):
         return self.name
 
     def __repr__(self):
-        return 'bson_dataframe.' + self.__class__.__name__ + '<' + str(
-            self) + '>'
+        ret = ''
+        ret += 'bson_dataframe.'
+        ret += self.__class__.__name__
+        ret += '('
+        ret += str(self)
+        ret += ')'
+        return ret
 
     def __eq__(self, other):
         return type(self) == type(other)
@@ -171,108 +215,71 @@ class Schema(abc.ABC):
         if isinstance(doc, bytes):
             doc = bson.raw_bson.RawBSONDocument(doc)
 
-        t = doc[TYPE]
+        name = doc[TYPE]
+        param = doc.get(PARAM, None)
+        sch = NAMED_SCHEMA.get(name)
 
-        if PARAM in doc:
-            tp = doc[PARAM]
-        else:
-            tp = None
+        if sch is not None and param is None:
+            return sch
 
-        if t == 'null':
-            return Null()
+        if isinstance(sch, Dictionary):
+            index = Schema.decode(param[INDEX])
+            value = Schema.decode(param[VALUE])
+            return type(sch)(index, value)
 
-        if t == 'bool':
-            return Bool()
+        if name == 'opaque':
+            return Opaque(param)
 
-        if t == 'int8':
-            return Int8()
+        if name == 'list':
+            return List(Schema.decode(param))
 
-        if t == 'int16':
-            return Int16()
+        if name == 'struct':
+            return Struct([(v[NAME], Schema.decode(v)) for v in param])
 
-        if t == 'int32':
-            return Int32()
+        raise ValueError(f'{name} is not supported BSON DataFrame type')
 
-        if t == 'int64':
-            return Int64()
+    def to_numpy(self):
+        return numpy.dtype(self.name)
 
-        if t == 'uint8':
-            return UInt8()
+    def to_pandas(self):
+        return self.to_numpy()
 
-        if t == 'uint16':
-            return UInt16()
+    @staticmethod
+    def from_numpy(dtype):
+        assert isinstance(dtype, numpy.dtype)
 
-        if t == 'uint32':
-            return UInt32()
+        name = _numpy_name(dtype)
 
-        if t == 'uint64':
-            return UInt64()
+        sch = NAMED_SCHEMA.get(name)
+        if sch is not None:
+            return sch
 
-        if t == 'float16':
-            return Float16()
+        if name == 'opaque':
+            return Opaque(dtype.itemsize)
 
-        if t == 'float32':
-            return Float32()
-
-        if t == 'float64':
-            return Float64()
-
-        if t == 'date[d]':
+        if name == 'timestamp[D]':
             return Date('d')
 
-        if t == 'date[ms]':
-            return Date('ms')
+        if name == 'struct':
+            return Struct(
+                (k, Schema.from_numpy(v[0])) for k, v in dtype.fields.items())
 
-        if t == 'timestamp[s]':
-            return Timestamp('s')
+        raise ValueError(f'{dtype} is not supported BSON DataFrame type')
 
-        if t == 'timestamp[ms]':
-            return Timestamp('ms')
+    @staticmethod
+    def from_pandas(dtype):
+        if isinstance(dtype, numpy.dtype):
+            return Schema.from_numpy(dtype)
 
-        if t == 'timestamp[us]':
-            return Timestamp('us')
+        assert isinstance(dtype, pandas.api.extensions.ExtensionDtype)
 
-        if t == 'timestamp[ns]':
-            return Timestamp('ns')
+        name = _pandas_name(dtype)
 
-        if t == 'time[s]':
-            return Time('s')
+        sch = NAMED_SCHEMA.get(name)
+        if sch is not None:
+            return sch
 
-        if t == 'time[ms]':
-            return Time('ms')
-
-        if t == 'time[us]':
-            return Time('us')
-
-        if t == 'time[ns]':
-            return Time('ns')
-
-        if t == 'utf8':
-            return Utf8()
-
-        if t == 'bytes':
-            return Bytes()
-
-        if t == 'factor' or t == 'ordered':
-            cls = Factor if t == 'factor' else Ordered
-            if tp is None:
-                index = Int32()
-                value = Utf8()
-            else:
-                index = Schema.decode(tp[INDEX])
-                value = Schema.decode(tp[VALUE])
-            return cls(index, value)
-
-        if t == 'opaque':
-            return Opaque(tp)
-
-        if t == 'list':
-            return List(Schema.decode(tp))
-
-        if t == 'struct':
-            return Struct([(f[NAME], Schema.decode(f)) for f in tp])
-
-        raise ValueError(f'{t} is not supported BSON DataFrame type')
+        raise ValueError(f'{dtype} is not supported BSON DataFrame type')
 
     def _array_schema(self, types):
         return {
@@ -312,6 +319,9 @@ class Null(Schema):
 
     def accept(self, visitor):
         return visitor.visit_null(self)
+
+    def to_numpy(self):
+        return numpy.dtype(object)
 
     def _array_schema(self, types):
         return {
@@ -438,6 +448,13 @@ class Date(Schema):
     def accept(self, visitor):
         return visitor.visit_date(self)
 
+    def to_numpy(self):
+        if self.unit == 'd':
+            return numpy.dtype('datetime64[D]')
+
+        if self.unit == 'ms':
+            return numpy.dtype('datetime64[ms]')
+
     def __eq__(self, other):
         return type(self) == type(other) and self.unit == other.unit
 
@@ -465,6 +482,9 @@ class Timestamp(Schema):
 
     def accept(self, visitor):
         return visitor.visit_timestamp(self)
+
+    def to_numpy(self):
+        return numpy.dtype(f'datetime64[{self.unit}]')
 
     def __eq__(self, other):
         return type(self) == type(other) and self.unit == other.unit
@@ -494,6 +514,9 @@ class Time(Schema):
     def accept(self, visitor):
         return visitor.visit_time(self)
 
+    def to_numpy(self):
+        return numpy.dtype(f'timedelta64[{self.unit}]')
+
     def __eq__(self, other):
         return type(self) == type(other) and self.unit == other.unit
 
@@ -518,6 +541,9 @@ class Opaque(Schema):
 
     def accept(self, visitor):
         return visitor.visit_opaque(self)
+
+    def to_numpy(self):
+        return numpy.dtype(f'S{self.byte_width}')
 
     def __str__(self):
         return f'{self.name}[{self.byte_width}]'
@@ -568,12 +594,18 @@ class Bytes(Binary):
     def accept(self, visitor):
         return visitor.visit_bytes(self)
 
+    def to_numpy(self):
+        return numpy.dtype(object)
+
 
 class Utf8(Binary):
     name = 'utf8'
 
     def accept(self, visitor):
         return visitor.visit_utf8(self)
+
+    def to_numpy(self):
+        return numpy.dtype(object)
 
 
 class Dictionary(Schema):
@@ -608,6 +640,9 @@ class Dictionary(Schema):
                 VALUE: self.value.encode()
             }
         }
+
+    def to_numpy(self):
+        raise NotImplementedError()
 
     def _array_schema(self, types):
         return {
@@ -664,6 +699,9 @@ class List(Schema):
     def accept(self, visitor):
         return visitor.visit_list(self)
 
+    def to_numpy(self):
+        return numpy.dtype(object)
+
     def __str__(self):
         return f'{self.name}[{str(self.value)}]'
 
@@ -704,6 +742,9 @@ class Struct(Schema):
 
     def accept(self, visitor):
         return visitor.visit_struct(self)
+
+    def to_numpy(self):
+        return numpy.dtype([(k, v.to_numpy()) for k, v in self.fields])
 
     def __str__(self):
         fields = ', '.join([k + ': ' + str(v) for k, v in self.fields])
@@ -809,3 +850,34 @@ class DataFrame(Schema):
             'properties': {k: v._array_schema(types)
                            for k, v in self.fields}
         }
+
+
+NAMED_SCHEMA.update({
+    'null': Null(),
+    'bool': Bool(),
+    'int8': Int8(),
+    'int16': Int16(),
+    'int32': Int32(),
+    'int64': Int64(),
+    'uint8': UInt8(),
+    'uint16': UInt16(),
+    'uint32': UInt32(),
+    'uint64': UInt64(),
+    'float16': Float16(),
+    'float32': Float32(),
+    'float64': Float64(),
+    'date[d]': Date('d'),
+    'date[ms]': Date('ms'),
+    'timestamp[s]': Timestamp('s'),
+    'timestamp[ms]': Timestamp('ms'),
+    'timestamp[us]': Timestamp('us'),
+    'timestamp[ns]': Timestamp('ns'),
+    'time[s]': Time('s'),
+    'time[ms]': Time('ms'),
+    'time[us]': Time('us'),
+    'time[ns]': Time('ns'),
+    'utf8': Utf8(),
+    'bytes': Bytes(),
+    'factor': Factor(Int32(), Utf8()),
+    'ordered': Ordered(Int32(), Utf8()),
+})

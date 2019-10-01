@@ -218,139 +218,6 @@ class _FromNumpy(Visitor):
         return StructArray(data, self.mask, schema=schema)
 
 
-def numpy_schema(data):
-    t = data.dtype.name
-
-    if t == 'bool':
-        return Bool()
-
-    if t == 'int8':
-        return Int8()
-
-    if t == 'int16':
-        return Int16()
-
-    if t == 'int32':
-        return Int32()
-
-    if t == 'int64':
-        return Int64()
-
-    if t == 'uint8':
-        return UInt8()
-
-    if t == 'uint16':
-        return UInt16()
-
-    if t == 'uint32':
-        return UInt32()
-
-    if t == 'uint64':
-        return UInt64()
-
-    if t == 'float16':
-        return Float16()
-
-    if t == 'float32':
-        return Float32()
-
-    if t == 'float64':
-        return Float64()
-
-    if t == 'datetime64[Y]':
-        return Date('d')
-
-    if t == 'datetime64[M]':
-        return Date('d')
-
-    if t == 'datetime64[D]':
-        return Date('d')
-
-    if t == 'datetime64[h]':
-        return Timestamp('s')
-
-    if t == 'datetime64[m]':
-        return Timestamp('s')
-
-    if t == 'datetime64[s]':
-        return Timestamp('s')
-
-    if t == 'datetime64[s]':
-        return Timestamp('s')
-
-    if t == 'datetime64[ms]':
-        return Timestamp('ms')
-
-    if t == 'datetime64[us]':
-        return Timestamp('us')
-
-    if t == 'datetime64[ns]':
-        return Timestamp('ns')
-
-    if t == 'timedelta64[s]':
-        return Time('s')
-
-    if t == 'timedelta64[ms]':
-        return Time('ms')
-
-    if t == 'timedelta64[us]':
-        return Time('us')
-
-    if t == 'timedelta64[ns]':
-        return Time('ns')
-
-    if t == 'str':
-        return Utf8()
-
-    if t == 'bytes':
-        return Bytes()
-
-    if t == 'object':
-        if isinstance(data, numpy.ma.masked_array):
-            na = numpy.ma.masked
-        else:
-            na = None
-
-        if all(v is na for v in data):
-            return Null()
-
-        if all(v is na or isinstance(v, datetime.date) for v in data):
-            return Date('d')
-
-        if all(v is na or isinstance(v, str) for v in data):
-            return Utf8()
-
-        if all(v is na or isinstance(v, bytes) for v in data):
-            return Bytes()
-
-        if all(v is na or getattr(v, '__len__', None) for v in data):
-            value = None
-            for v in data:
-                if v is not na:
-                    sch = numpy_schema(v)
-                    if sch is None:
-                        return
-                    if value is None:
-                        value = sch
-                    elif value != sch:
-                        return
-            if value is None:
-                return
-            return List(value)
-
-    if data.dtype.kind == 'S':
-        return Opaque(data.dtype.itemsize)
-
-    if getattr(data.dtype, 'fields', None) is not None:
-        fields = list()
-        for k in data.dtype.fields:
-            sch = numpy_schema(data[k])
-            if sch is None:
-                return
-            fields.append((k, sch))
-        return Struct(fields)
-
-
 def to_numpy(array, usemask=False):
     return array.accept(_ToNumpy(usemask))
 
@@ -359,7 +226,7 @@ def from_numpy(data, mask=None, *, schema=None):
     assert isinstance(data, numpy.ndarray)
 
     if schema is None:
-        schema = numpy_schema(data)
+        schema = Schema.from_numpy(data)
 
     if schema is None:
         raise ValueError(f'Unable to deduce schema from dtype {data.dtype}')

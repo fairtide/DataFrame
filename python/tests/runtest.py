@@ -90,12 +90,13 @@ LIST = [
 
 STRUCT = [
     Struct([('x', Int32()), ('y', Int64())]),
-    Struct([('x', Int32()), ('y', Utf8())]),
 ]
 
 NESTED = [
-    List(Struct([('x', Int32()), ('y', Int64())])),
-    Struct([('x', List(Int32())), ('y', List(Int64()))]),
+    List(Utf8()),
+    Struct([('x', Int32()), ('y', Utf8())]),
+    List(Struct([('x', Int32()), ('y', Utf8())])),
+    Struct([('x', List(Int32())), ('y', List(Utf8()))]),
 ]
 
 ARRAY_SCHEMAS = sum([
@@ -113,29 +114,41 @@ ARRAY_SCHEMAS = sum([
 ], [])
 
 NUMPY_SCHEMAS = sum([
-    NULL,
     NUMERIC,
     DATE,
     TIMESTAMP,
     TIME,
     OPAQUE,
+    STRUCT,
+], [])
+
+NUMPY_ARRAYS = sum([
+    NUMPY_SCHEMAS,
+    NULL,
+    DATE_MS,
     BINARY,
     LIST,
-    STRUCT,
     NESTED,
 ], [])
 
 PANDAS_SCHEMAS = sum([
-    NULL,
     NUMERIC,
     DATE,
     [Timestamp('ns')],
     [Time('ns')],
     OPAQUE,
+    STRUCT,
+], [])
+
+PANDAS_ARRAYS = sum([
+    PANDAS_SCHEMAS,
+    NULL,
+    DATE_MS,
+    TIMESTAMP,
+    TIME,
     BINARY,
     DICTIONARY,
     LIST,
-    STRUCT,
     NESTED,
 ], [])
 
@@ -147,7 +160,8 @@ class TestArray(Visitor):
         self.length = length
         self.nullable = nullable
 
-        self.counts = numpy.random.randint(10, 20, self.length + 1, numpy.int32)
+        self.counts = numpy.random.randint(10, 20, self.length + 1,
+                                           numpy.int32)
         self.counts[0] = 0
 
         if self.nullable:
@@ -247,13 +261,12 @@ class TestBSONDataFrame(unittest.TestCase):
         for sch in NUMPY_SCHEMAS:
             for nullable in [False, True]:
                 with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
-                    ary = array(sch, ARRAY_LENGTH, nullable)
-                    enc = to_numpy(ary)
-                    dec = numpy_schema(enc)
+                    enc = sch.to_numpy()
+                    dec = Schema.from_numpy(enc)
                     self.assertEqual(sch, dec)
 
     def test_numpy_array(self):
-        for sch in NUMPY_SCHEMAS + DATE_MS:
+        for sch in NUMPY_ARRAYS:
             for nullable in [False, True]:
                 with self.subTest(schema=str(sch) + f' (nullable={nullable})'):
                     ary = array(sch, ARRAY_LENGTH, nullable)
@@ -264,19 +277,20 @@ class TestBSONDataFrame(unittest.TestCase):
     def test_pandas_schema(self):
         for sch in PANDAS_SCHEMAS:
             with self.subTest(schema=str(sch)):
-                ary = array(sch, ARRAY_LENGTH, False)
-                enc = to_pandas(ary)
-                dec = pandas_schema(enc)
+                enc = sch.to_pandas()
+                dec = Schema.from_pandas(enc)
                 self.assertEqual(sch, dec)
 
+    @unittest.skip("")
     def test_pandas_series(self):
-        for sch in PANDAS_SCHEMAS + DATE_MS:
+        for sch in PANDAS_ARRAYS:
             with self.subTest(schema=str(sch)):
                 ary = array(sch, ARRAY_LENGTH, False)
                 enc = to_pandas(ary)
                 dec = from_pandas(enc, schema=sch)
                 self.assertEqual(ary, dec)
 
+    @unittest.skip("")
     def test_arrow_schema(self):
         for sch in ARRAY_SCHEMAS:
             for nullable in [False, True]:
